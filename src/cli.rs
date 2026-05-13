@@ -1,4 +1,6 @@
 use clap::{Arg, ArgAction, command};
+use std::io::ErrorKind;
+use std::fs::metadata;
 
 pub struct EmulatorArguments {
     pub rom_path: Option<String>,
@@ -7,7 +9,7 @@ pub struct EmulatorArguments {
 }
 
 impl EmulatorArguments {
-    pub fn get() -> Self {
+    pub fn get() -> Result<Self, String> {
         let matches = command!()
             .arg(
                 Arg::new( "rom_path")
@@ -39,10 +41,62 @@ impl EmulatorArguments {
         let boot_rom = matches.get_flag("boot_rom");
         let sound_test = matches.get_flag("sound_test");
 
-        Self {
+        let unchecked = Self {
             rom_path,
             boot_rom,
             sound_test
+        };
+
+        unchecked.check_fields()
+    }
+
+    pub fn check_fields(self) -> Result<Self, String> {
+        let mut errors: Vec<String> = vec!();
+
+        // Put checks here
+        if let Err(error) =  self.check_rom_path() {
+            errors.push(String::from("rom_path : ") + error.as_str());
+        }
+
+
+        if errors.is_empty() {
+            Ok(self)
+        } else {
+            errors.push(String::from(""));
+            Err(errors.join("\n"))
+        }
+    }
+
+    pub fn check_rom_path(&self) -> Result<(), String> {
+        let Some(path) = &self.rom_path else {
+            return Ok(());
+        };
+        use std::os::unix::fs::PermissionsExt;
+        match metadata(path) {
+            Ok(meta) => {
+                if meta.permissions().mode() & 0o400 == 0 {
+                    Err(String::from(path) + " : Not allowed to read file")
+                } else if meta.is_file() {
+                    Ok(())
+                } else {
+                    Err(String::from(path) + " : Path doesn't refer to a file")
+                }
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => { Err(String::from(path) + " : File not found")}
+                ErrorKind::PermissionDenied => {
+                    Err(String::from(path) + " : Not allowed")
+                }
+                ErrorKind::NotADirectory | ErrorKind::InvalidInput => {
+                    Err(String::from(path) + " : Invalid path")
+                }
+                ErrorKind::Unsupported => {
+                    Err(String::from(path) + " : Unsuported stats read")
+                }
+                other => {
+                    Err(format!("Unexpected error: {:?} — {}", other, e))
+                }
+            }
         }
     }
 }

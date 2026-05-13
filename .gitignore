@@ -10,3 +10,4 @@ logfile
 gb-test-roms
 callgrind.*
 rtc3test
+utils
