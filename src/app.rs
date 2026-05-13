@@ -62,8 +62,11 @@ impl<T: Mbc> GameApp<T> {
     pub fn launch(mut self) {
         let mut input = KeyInput::default();
         loop {
-            while let Ok(new_input) = self.input_receiver.try_recv(){
-                input = new_input;
+            use tokio::sync::mpsc::error::TryRecvError;
+            match self.input_receiver.try_recv(){
+                Ok(new_input) => input = new_input,
+                Err(TryRecvError::Empty) => {},
+                Err(TryRecvError::Disconnected) => break,
             }
             let buffer_was_updated = self.update(&input);
             if buffer_was_updated {
