@@ -255,13 +255,76 @@ impl Mbc for RomOnly{
     }
 }
 
+#[derive(Clone, Default, Debug)]
+struct RtcRegisters {
+    seconds: u8,
+    minutes: u8,
+    hours: u8,
+    day_counter: u16, // 9 used bits
+    halted: bool,
+    day_carry: bool,
+}
+
+#[derive(Clone, Debug)]
+struct Rtc {
+    base: RtcRegisters,
+    base_timestamp: DateTime<Local>,
+    latched: Option<RtcRegisters>,
+}
+
+impl Rtc {
+    fn new() -> Self {
+        Rtc {
+            base: RtcRegisters::default(),
+            base_timestamp: Local::now(),
+            latched: None,
+        }
+    }
+
+    pub fn current(&self) -> RtcRegisters {
+        if self.base.halted {
+            return self.base.clone();
+        }
+
+        let elapsed = Local::now() - self.base_timestamp;
+        let elapsed_secs = elapsed.num_seconds().max(0);
+
+        let total_seconds = self.base.seconds as u64 + elapsed_secs as u64;
+        let new_seconds = total_seconds % 60;
+        let carry_minutes = total_seconds / 60;
+
+        let total_minutes = self.base.minutes as u64 + carry_minutes as u64;
+        let new_minutes = total_minutes % 60;
+        let carry_hours = total_minutes / 60;
+
+        let total_hours = self.base.hours as u64 + carry_hours as u64;
+        let new_hours = total_hours % 24;
+        let carry_days = total_hours / 24;
+
+        let total_days = self.base.day_counter as u64 + carry_days as u64;
+        let new_days = total_days % 512;
+
+        let mut new_day_carry = false;
+        if self.base.day_carry || total_days >= 512 {
+            new_day_carry = true;
+        }
+
+        RtcRegisters {
+            seconds: new_seconds as u8,
+            minutes: new_minutes as u8,
+            hours: new_hours as u8,
+            day_counter: new_days as u16,
+            halted: false,
+            day_carry: new_day_carry,
+        }
+    }
+}
+
 pub struct Mbc3 {
     ram_timer_enable: bool,
-    latch_clock_data: bool,
-    rtc_register: u8,
+    rtc: Rtc,
     rom_bank_nb: u8,
     ram_rtc_select: u8,
-    latched_time_value: Option<DateTime<Local>>,
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
 }
@@ -345,12 +408,10 @@ impl Mbc for Mbc3 {
             Mbc3 {
                 rom_banks,
                 ram_banks,
+                rtc: Rtc::new(),
                 ram_timer_enable: false,
-                latch_clock_data: false,
-                rtc_register: 0,
                 rom_bank_nb: 0,
                 ram_rtc_select: 0,
-                latched_time_value: None,
 
             }
         )
