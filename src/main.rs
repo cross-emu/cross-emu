@@ -20,7 +20,13 @@ static GBMU_FILE: LazyLock<Mutex<GbmuFile>> =
 
 #[tokio::main]
 async fn main() {
-    let arguments = EmulatorArguments::get();
+    let arguments = match EmulatorArguments::get() {
+        Ok(args) => args,
+        Err(errors) => {
+            eprintln!("Enable to open emulator : {errors}");
+            return 
+        }
+    };
 
     if arguments.sound_test {
         return sound_test();
