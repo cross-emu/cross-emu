@@ -281,6 +281,26 @@ impl Rtc {
         }
     }
 
+    pub fn read_registers(&self, selector: u8) -> u8 {
+        let registers = self.latched.clone().unwrap_or_else(|| self.current());
+
+        match selector {
+            0x08 => registers.seconds,
+            0x09 => registers.minutes,
+            0x0A => registers.hours,
+            0x0B => (registers.day_counter & 0xFF) as u8,
+            0x0C => {
+                let mut dh = 0u8;
+                if registers.day_counter & 0b1_0000_0000 != 0 { dh |= 0b0001_0000; }
+                if registers.halted { dh |= 0b0100_0000; }
+                if registers.day_carry { dh |= 0b1000_0000; }
+
+                dh
+            },
+            _ => 0xFF
+        }
+    }
+
     pub fn current(&self) -> RtcRegisters {
         if self.base.halted {
             return self.base.clone();
@@ -304,10 +324,7 @@ impl Rtc {
         let total_days = self.base.day_counter as u64 + carry_days as u64;
         let new_days = total_days % 512;
 
-        let mut new_day_carry = false;
-        if self.base.day_carry || total_days >= 512 {
-            new_day_carry = true;
-        }
+        let new_day_carry = self.base.day_carry || total_days >= 512;
 
         RtcRegisters {
             seconds: new_seconds as u8,
@@ -321,35 +338,13 @@ impl Rtc {
 }
 
 pub struct Mbc3 {
-    ram_timer_enable: bool,
     rtc: Rtc,
+    ram_timer_enable: bool,
+    latch_clock_data: bool,
     rom_bank_nb: u8,
     ram_rtc_select: u8,
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
-}
-
-impl Mbc3 {
-    fn get_time_value(&self, rtc_select: &u8) -> u8 {
-        let time = if let Some(latched_time) = &self.latched_time_value {
-            *latched_time
-        } else {
-            self.get_actual_time()
-        };
-
-        match rtc_select {
-            0x08 => todo!(), // where the days start from ? 
-            0x09 => todo!(), // where the days start from ? 
-            0x0A => todo!(), // where the days start from ? 
-            0x0B => todo!(), // where the days start from ? 
-            0x0C => todo!(),
-            _ => 0, // In case the rtc_select data is trash
-        }
-    }
-
-    fn get_actual_time(&self) -> DateTime<Local> {
-        Local::now()
-    }
 }
 
 impl Mbc for Mbc3 {
@@ -361,10 +356,23 @@ impl Mbc for Mbc3 {
             0x0000..0x4000 => self.rom_banks[0][addr as usize],
             0x4000..0x8000 => self.rom_banks[self.rom_bank_nb as usize][(addr - 0x4000) as usize],
             0xA000..0xC000 => {
-                if (0x00..0x07).contains(&self.ram_rtc_select) {
-                    self.ram_banks[self.ram_rtc_select as usize][(addr - 0xA000) as usize]
-                } else {
-                    self.get_time_value(&self.ram_rtc_select)
+                if !self.ram_timer_enable {
+                    return 0xFF;
+                }
+
+                let selector = self.ram_rtc_select as usize;
+                match selector {
+                    0x00..0x08 => {
+                        if selector < self.ram_banks.len() {
+                            self.ram_banks[selector][(addr - 0xA000) as usize]
+                        } else {
+                            0xFF
+                        }
+                    },
+                    0x08..0x0D => {
+                        self.rtc.read_registers(selector as u8)
+                    },
+                    _ => 0xFF,
                 }
             },
             _ => unreachable!(),
@@ -384,7 +392,7 @@ impl Mbc for Mbc3 {
                 let new_bit = (val & 0b0000_0001) == 1;
 
                 if !self.latch_clock_data && new_bit {
-                    self.latched_time_value = Some(self.get_actual_time());
+                    self.rtc.latched = Some(self.rtc.current());
                 }
 
                 self.latch_clock_data = new_bit;
