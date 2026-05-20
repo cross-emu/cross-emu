@@ -1,0 +1,11 @@
+[package]
+name = "cpu2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lcov = "0.8.2"
+cargo-llvm-cov = "0.8.7"
+
+[build]
+rustflags = ["--cfg", "coverage_nightly"]

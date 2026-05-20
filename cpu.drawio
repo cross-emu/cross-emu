@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram id="Hm2DvruVpvMo4FciiNE4" name="Page-1">
-        <mxGraphModel dx="739" dy="475" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="1016" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -59,7 +59,7 @@
                     <mxGeometry y="88" width="240" height="20" as="geometry"/>
                 </mxCell>
                 <mxCell id="93" value="&lt;div style=&quot;font-size:11px;font-style:italic;&quot;&gt;«struct»&lt;/div&gt;&lt;div style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 14px;&quot;&gt;Instruction&lt;/span&gt;&lt;/div&gt;" style="swimlane;html=1;fontStyle=0;align=center;verticalAlign=middle;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;fillColor=#FAEEDA;strokeColor=#BA7517;fontColor=#633806;" parent="1" vertex="1">
-                    <mxGeometry x="40" y="280" width="200" height="120" as="geometry"/>
+                    <mxGeometry x="40" y="360" width="200" height="120" as="geometry"/>
                 </mxCell>
                 <mxCell id="94" value="Opcode: &lt;u&gt;&lt;b&gt;u8&lt;/b&gt;&lt;/u&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="93" vertex="1">
                     <mxGeometry y="40" width="200" height="20" as="geometry"/>
@@ -69,9 +69,6 @@
                 </mxCell>
                 <mxCell id="96" value="&lt;div style=&quot;font-style:italic;&quot;&gt;&lt;br&gt;&lt;/div&gt;" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=6;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" parent="93" vertex="1">
                     <mxGeometry y="78" width="200" height="42" as="geometry"/>
-                </mxCell>
-                <mxCell id="97" value="STUCT CPU" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
-                    <mxGeometry x="35" y="468" width="90" height="30" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

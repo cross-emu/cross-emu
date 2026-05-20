@@ -8,3 +8,5 @@ logfile
 .DS_store
 gb-test-roms
 callgrind.*
+
+cpu2/target
