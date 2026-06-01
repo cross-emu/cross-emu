@@ -298,6 +298,7 @@ pub struct LaunchGameData {
     pub debug_response_sender: Sender<DebugResponse>,
     pub global_is_debug: Arc<AtomicBool>,
     pub ui_is_alive: Arc<AtomicBool>,
+    pub fps_counter: Arc<Mutex<u32>>,
 }
 
 
@@ -397,6 +398,7 @@ impl CoreGameDevice {
         let actual_image = Arc::new(Mutex::new(vec![0; 160 * 144 * 3]));
         let ui_is_alive = Arc::new(AtomicBool::new(false));
         let texture_handler = None;
+        let fps_counter = Arc::new(Mutex::new(0_u32));
         Self {
             input_sender,
             command_query_sender,
@@ -412,6 +414,7 @@ impl CoreGameDevice {
                     global_is_debug: global_is_debug.clone(),
                     ui_is_alive: ui_is_alive.clone(),
                     actual_image: actual_image.clone(),
+                    fps_counter: fps_counter.clone()
                 }
             )),
             texture_handler,

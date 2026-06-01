@@ -6,7 +6,9 @@ use crate::mmu::mbc::Mbc;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
+    Mutex
 };
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 pub struct GameApp<T: Mbc> {
@@ -20,6 +22,7 @@ pub struct GameApp<T: Mbc> {
     nb_next_intruction: u8,
     is_sending_registers: bool,
     watched_adress: WatchedAdresses,
+    fps_counter: Arc<Mutex<u32>>,
 }
 
 impl<T: Mbc> GameApp<T> {
@@ -55,6 +58,7 @@ impl<T: Mbc> GameApp<T> {
             watched_adress: WatchedAdresses {
                 addresses_n_values: Vec::new(),
             },
+            fps_counter: game_data.fps_counter
         };
         if !game_data.boot_rom { 
             app.gameboy.simulate_boot_rom_effect()
@@ -64,6 +68,8 @@ impl<T: Mbc> GameApp<T> {
 
     pub fn launch(mut self) -> Result<Option<Vec<u8>>, String>{
         let mut input = KeyInput::default();
+        let debut = Instant::now();
+        let mut old_instant_frame_in_ms = debut.elapsed().as_millis();
         loop {
             use tokio::sync::mpsc::error::TryRecvError;
             match self.input_receiver.try_recv(){
@@ -75,6 +81,8 @@ impl<T: Mbc> GameApp<T> {
             if buffer_was_updated {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
+            let mut fps = self.fps_counter.lock().unwrap();
+            *fps = display_fps_to_terminal(debut, &mut old_instant_frame_in_ms);
         }
         Ok(self.ram_dump())
     }
@@ -208,4 +216,15 @@ impl<T: Mbc> GameApp<T> {
     //     }
     //     rgba_frame
     // }
+
+}
+
+fn display_fps_to_terminal(base_instant: Instant, old_frame_ms: &mut u128) -> u32 {
+    let one_second = Duration::from_secs(1);
+    let now_ms = base_instant.elapsed().as_millis();
+    let diff = now_ms.saturating_sub(*old_frame_ms).max(1);
+    let current_fps = one_second.as_millis() / diff;
+    println!("fps: {}", current_fps);
+    *old_frame_ms = now_ms;
+    current_fps.try_into().unwrap()
 }
