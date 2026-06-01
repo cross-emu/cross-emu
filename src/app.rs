@@ -82,7 +82,7 @@ impl<T: Mbc> GameApp<T> {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
             let mut fps = self.fps_counter.lock().unwrap();
-            *fps = display_fps_to_terminal(debut, &mut old_instant_frame_in_ms);
+            get_fps(debut, &mut old_instant_frame_in_ms, &mut *fps);
         }
         Ok(self.ram_dump())
     }
@@ -219,12 +219,11 @@ impl<T: Mbc> GameApp<T> {
 
 }
 
-fn display_fps_to_terminal(base_instant: Instant, old_frame_ms: &mut u128) -> u32 {
+fn get_fps(base_instant: Instant, old_frame_ms: &mut u128, fps: &mut u32) {
     let one_second = Duration::from_secs(1);
     let now_ms = base_instant.elapsed().as_millis();
     let diff = now_ms.saturating_sub(*old_frame_ms).max(1);
     let current_fps = one_second.as_millis() / diff;
-    println!("fps: {}", current_fps);
     *old_frame_ms = now_ms;
-    current_fps.try_into().unwrap()
+    *fps = current_fps.try_into().unwrap();
 }

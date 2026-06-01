@@ -12,10 +12,14 @@ impl EmulationDevice {
         self.core_game.update_and_size_image(ui);
         let duration = debut.elapsed();
         self.core_game.capture_and_send_input(ui);
-
+        let fps = self.core_game.fps_counter.lock().unwrap().clone();
 
         egui::CentralPanel::default()
             .show_inside(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.add_space(ui.available_width() - 50.0);
+                    ui.label(fps.to_string());
+                });
                 ui.vertical_centered(|ui| {
                     if let Some(texture) = self.core_game.sized_image {
                         ui.image(texture);
@@ -60,7 +64,7 @@ impl From<SelectionDevice> for EmulationDevice {
         let options = CoreGameOptions {
             rom_path,
             boot_rom: true,
-        };
+        }; 
         let core_game = CoreGameDevice::new(options);
         Self { core_game}
     }

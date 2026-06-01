@@ -333,6 +333,7 @@ pub struct CoreGameDevice {
     pub actual_image: Arc<Mutex<Vec<u8>>>,
     pub sized_image: Option<SizedTexture>,
     pub global_is_debug: Arc<AtomicBool>,
+    pub fps_counter: Arc<Mutex<u32>>,
     texture_handler: Option<TextureHandle>,
     key_mapping: KeyMapping,
     ui_is_alive: Arc<AtomicBool>,
@@ -424,6 +425,7 @@ impl CoreGameDevice {
             sized_image: None,
             key_mapping: KeyMapping::default(),
             ui_is_alive,
+            fps_counter,
         }
     }
 }
@@ -491,4 +493,10 @@ pub struct DebuggingDevice {
 
 impl Default for AppState {
     fn default() -> Self { Self::StartingHub(Default::default()) }
+}
+
+impl LaunchGameData {
+    fn get_fps(&self) -> u32 {
+        *self.fps_counter.lock().unwrap()
+    }
 }

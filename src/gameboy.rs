@@ -6,7 +6,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use std::sync::Mutex;
-use std::time::Instant;
 
 use crate::cpu::Cpu;
 use crate::cpu::registers::{R8};
