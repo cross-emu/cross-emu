@@ -6,6 +6,7 @@ mod common;
 mod views;
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering::Relaxed;
 use std::time::Duration;
 use std::thread;
 use egui_file_dialog::{FileDialog, Filter};
@@ -15,7 +16,7 @@ use eframe::egui::{Key, TextureHandle};
 use eframe::egui::{load::SizedTexture, vec2, ColorImage, TextureOptions};
 use std::collections::HashSet;
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicI16, Ordering};
 
 use std::time::Instant;
 
@@ -298,7 +299,7 @@ pub struct LaunchGameData {
     pub debug_response_sender: Sender<DebugResponse>,
     pub global_is_debug: Arc<AtomicBool>,
     pub ui_is_alive: Arc<AtomicBool>,
-    pub fps_counter: Arc<Mutex<u32>>,
+    pub fps_counter: Arc<AtomicI16>,
 }
 
 
@@ -333,7 +334,7 @@ pub struct CoreGameDevice {
     pub actual_image: Arc<Mutex<Vec<u8>>>,
     pub sized_image: Option<SizedTexture>,
     pub global_is_debug: Arc<AtomicBool>,
-    pub fps_counter: Arc<Mutex<u32>>,
+    pub fps_counter: Arc<AtomicI16>,
     texture_handler: Option<TextureHandle>,
     key_mapping: KeyMapping,
     ui_is_alive: Arc<AtomicBool>,
@@ -399,7 +400,7 @@ impl CoreGameDevice {
         let actual_image = Arc::new(Mutex::new(vec![0; 160 * 144 * 3]));
         let ui_is_alive = Arc::new(AtomicBool::new(false));
         let texture_handler = None;
-        let fps_counter = Arc::new(Mutex::new(0_u32));
+        let fps_counter = Arc::new(AtomicI16::new(0_i16));
         Self {
             input_sender,
             command_query_sender,
@@ -496,7 +497,7 @@ impl Default for AppState {
 }
 
 impl LaunchGameData {
-    fn get_fps(&self) -> u32 {
-        *self.fps_counter.lock().unwrap()
+    fn get_fps(&self) -> i16 {
+        self.fps_counter.load(Relaxed)
     }
 }

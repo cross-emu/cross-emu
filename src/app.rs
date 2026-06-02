@@ -3,10 +3,11 @@
 use crate::gameboy::GameBoy;
 use crate::gui::{DebugCommandQueries, DebugResponse, KeyInput, LaunchGameData, WatchedAdresses};
 use crate::mmu::mbc::Mbc;
+use std::sync::atomic::AtomicI16;
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, Ordering},
-    Mutex
+    atomic::{AtomicBool, Ordering}
 };
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -22,7 +23,7 @@ pub struct GameApp<T: Mbc> {
     nb_next_intruction: u8,
     is_sending_registers: bool,
     watched_adress: WatchedAdresses,
-    fps_counter: Arc<Mutex<u32>>,
+    fps_counter: Arc<AtomicI16>,
 }
 
 impl<T: Mbc> GameApp<T> {
@@ -81,8 +82,7 @@ impl<T: Mbc> GameApp<T> {
             if buffer_was_updated {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
-            let mut fps = self.fps_counter.lock().unwrap();
-            get_fps(debut, &mut old_instant_frame_in_ms, &mut *fps);
+            get_fps(debut, &mut old_instant_frame_in_ms, &self.fps_counter);
         }
         Ok(self.ram_dump())
     }
@@ -219,11 +219,11 @@ impl<T: Mbc> GameApp<T> {
 
 }
 
-fn get_fps(base_instant: Instant, old_frame_ms: &mut u128, fps: &mut u32) {
+fn get_fps(base_instant: Instant, old_frame_ms: &mut u128, fps: &AtomicI16) {
     let one_second = Duration::from_secs(1);
     let now_ms = base_instant.elapsed().as_millis();
     let diff = now_ms.saturating_sub(*old_frame_ms).max(1);
     let current_fps = one_second.as_millis() / diff;
     *old_frame_ms = now_ms;
-    *fps = current_fps.try_into().unwrap();
+    fps.store(current_fps.try_into().unwrap(), Relaxed);
 }
