@@ -3,10 +3,12 @@
 use crate::gameboy::GameBoy;
 use crate::gui::{DebugCommandQueries, DebugResponse, KeyInput, LaunchGameData, WatchedAdresses};
 use crate::mmu::mbc::Mbc;
+use std::fs;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
+use std::io::Write;
 use tokio::sync::mpsc::{Receiver, Sender};
 
 pub struct GameApp<T: Mbc> {
@@ -64,6 +66,7 @@ impl<T: Mbc> GameApp<T> {
 
     pub fn launch(mut self) -> Result<Option<Vec<u8>>, String>{
         let mut input = KeyInput::default();
+        let mut cycle = 0;
         loop {
             use tokio::sync::mpsc::error::TryRecvError;
             match self.input_receiver.try_recv(){
@@ -75,6 +78,10 @@ impl<T: Mbc> GameApp<T> {
             if buffer_was_updated {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
+            if cycle == 1000 {
+                self.save_state().unwrap();
+            }
+            cycle += 1;
         }
         Ok(self.ram_dump())
     }
@@ -208,4 +215,20 @@ impl<T: Mbc> GameApp<T> {
     //     }
     //     rgba_frame
     // }
+    pub fn save_state(&self) -> Result<(), String> {
+        let json = serde_json::to_string_pretty(&self.gameboy).unwrap();
+        let file = fs::File::create("save.json");
+        match file {
+            Ok(mut file) => { 
+                let ret = file.write_all(json.as_bytes());
+                let _: () = ret.unwrap();
+                Ok(())
+            }
+            Err(err) => { 
+                let err_str = "Error state state : ".to_string() + &err.to_string();
+                println!("{}", err_str); 
+                Err(err_str)
+            }
+        }
+    }
 }
