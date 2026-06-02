@@ -16,6 +16,8 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
+use serde::{Deserialize, Serialize};
+
 use crate::cpu::registers::{R8, R16, Registers};
 use crate::mmu::mbc::Mbc;
 use crate::mmu::Mmu;
@@ -28,10 +30,24 @@ enum StepStatus {
     Halted,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(bound(serialize = "T: Serialize", deserialize = "T: serde::de::DeserializeOwned"))]
 pub struct Cpu<T: Mbc> {
     pub registers: Registers,
     pub pc: u16,
+    #[serde(skip_serializing)]
     pub bus: Rc<RefCell<Mmu<T>>>,
+    pub ime: bool,
+    pub ime_delay: bool, // mimic hardware delay in EI
+    pub halted: bool,    // for HALT instruction
+    pub halt_bug: bool,
+    tick_to_wait: u8,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CpuDTO {
+    pub registers: Registers,
+    pub pc: u16,
     pub ime: bool,
     pub ime_delay: bool, // mimic hardware delay in EI
     pub halted: bool,    // for HALT instruction
@@ -59,6 +75,19 @@ impl<T: Mbc> Cpu<T> {
             halted: false,
             halt_bug: false,
             tick_to_wait: 0,
+        }
+    }
+
+    pub fn from_dto(dto: CpuDTO, bus: Rc<RefCell<Mmu<T>>>) -> Self {
+        Self {
+            registers: dto.registers,
+            pc: dto.pc,
+            bus,
+            ime: dto.ime,
+            ime_delay: dto.ime_delay,
+            halted: dto.halted,
+            halt_bug: dto.halt_bug,
+            tick_to_wait: dto.tick_to_wait
         }
     }
 
@@ -309,21 +338,22 @@ mod tests {
         // If halted==true and an interrupt is pending but IME==false,
         // CPU should wake (halted→false) but *not* service the interrupt.
         //
+        let mut rom = vec![0u8; 0x8000];
+        rom[0x0300] = 0x00;
 
-        let mut cpu = Cpu::<RomOnly>::default();
+        let bus = Mmu::<RomOnly>::new(rom, None).expect("Failed to create Bus");
+        let bus: Rc<RefCell<Mmu<RomOnly>>> = bus.into();
+        let mut cpu = Cpu::<RomOnly>::new(bus.clone());
+
+        cpu.pc = 0x0300;
+        cpu.registers.set_sp(0xFFFE);
+        cpu.halted = true;
+        cpu.ime = false; // Master-enable off
         {
             let mut mmu = cpu.bus.borrow_mut();
             mmu.write_byte(0xFF0F, Interrupt::Timer as u8);
             mmu.write_byte(0xFFFF, Interrupt::Timer as u8);
-            mmu.write_byte(0x300, 0x00);
         }
-        // Make a pending interrupt: Timer bit in IF and IE
-        // Also put a dummy opcode (0x00 = NOP) at PC so we can see it execute.
-        cpu.pc = 0x300;
-        cpu.registers.set_sp(0xFFFE);
-        cpu.halted = true;
-        cpu.ime = false; // Master-enable off
-
         cpu.step();
 
         // Halt should clear, but with IME=0 and a pending interrupt the halt-bug fires:

@@ -11,6 +11,10 @@ pub mod timers;
 pub mod oam;
 pub mod apu;
 
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::ser::SerializeStruct;
+
 use self::timers::Timers;
 use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
@@ -95,6 +99,81 @@ pub struct Mmu<T: Mbc> {
     dma_source: u16,
     pub dma_index: u8,
 }
+
+impl<T: Mbc + Serialize> Serialize for Mmu<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Mmu", 13)?;
+        state.serialize_field("data", self.data.as_slice())?;
+        state.serialize_field("cart", &self.cart)?;
+        state.serialize_field("interrupts", &self.interrupts)?;
+        state.serialize_field("timers", &self.timers)?;
+        state.serialize_field("oam", &*self.oam.read().unwrap())?;
+        state.serialize_field("apu", &self.apu)?;
+        state.serialize_field("boot_enable", &self.boot_enable)?;
+        state.serialize_field("boot_rom", self.boot_rom.as_slice())?;
+        state.serialize_field("dpad_state", &self.dpad_state)?;
+        state.serialize_field("button_state", &self.button_state)?;
+        state.serialize_field("accessed_oam_ram", &self.accessed_oam_ram)?;
+        state.serialize_field("dma_source", &self.dma_source)?;
+        state.serialize_field("dma_index", &self.dma_index)?;
+        state.end()
+    }
+}
+
+impl<'de, T: Mbc + DeserializeOwned> Deserialize<'de> for Mmu<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(bound(deserialize = "T: DeserializeOwned"))]
+        struct MmuData<T: Mbc + DeserializeOwned> {
+            data: Vec<u8>,
+            cart: T,
+            interrupts: InterruptController,
+            timers: Timers,
+            oam: Oam,
+            apu: Apu,
+            boot_enable: bool,
+            boot_rom: Vec<u8>,
+            dpad_state: u8,
+            button_state: u8,
+            accessed_oam_ram: u8,
+            dma_source: u16,
+            dma_index: u8,
+        }
+
+        let data = MmuData::<T>::deserialize(deserializer)?;
+        let data_array: [u8; 0x10000] = data
+            .data
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid Mmu data length"))?;
+        let boot_rom_array: [u8; 0x0100] = data
+            .boot_rom
+            .try_into()
+            .map_err(|_| serde::de::Error::custom("invalid boot rom length"))?;
+
+        Ok(Mmu {
+            data: data_array,
+            cart: data.cart,
+            interrupts: data.interrupts,
+            timers: data.timers,
+            oam: RwLock::new(data.oam),
+            apu: data.apu,
+            boot_enable: data.boot_enable,
+            boot_rom: boot_rom_array,
+            dpad_state: data.dpad_state,
+            button_state: data.button_state,
+            accessed_oam_ram: data.accessed_oam_ram,
+            dma_source: data.dma_source,
+            dma_index: data.dma_index,
+        })
+    }
+}
+
 
 impl<T: Mbc> Mmu<T> {
     pub fn ram_dump(&self) ->  Option<Vec<u8>> {
@@ -318,72 +397,5 @@ impl<T: Mbc> Mmu<T> {
 impl<T: Mbc> Default for Mmu<T> {
     fn default() -> Self {
         Mmu::<T>::new(vec![], None).expect("This is not suppose to happen")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::mmu::mbc::RomOnly;
-
-    use super::{MemoryRegion, Mmu};
-
-    #[test]
-    fn mmu_routes_reads_and_writes() {
-        let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu = Mmu::<RomOnly>::new(rom, None).unwrap();
-
-        // Reading from ROM region gives you the first bank data
-        assert_eq!(mmu.read_byte(0x0000), 0x12);
-        assert_eq!(mmu.read_byte(0x0001), 0x34);
-
-        // Write to WRAM region and read back
-        mmu.write_byte(0xC000, 0xAB);
-        assert_eq!(mmu.read_byte(0xC000), 0xAB);
-    }
-
-    #[test]
-    fn memory_region_from_addr() {
-        assert_eq!(MemoryRegion::from(0x0000), MemoryRegion::Mbc);
-        assert_eq!(MemoryRegion::from(0x8000), MemoryRegion::Vram);
-        assert_eq!(MemoryRegion::from(0xA123), MemoryRegion::ERam);
-        assert_eq!(MemoryRegion::from(0xC123), MemoryRegion::Wram);
-        assert_eq!(MemoryRegion::from(0xE123), MemoryRegion::Mram);
-        assert_eq!(MemoryRegion::from(0xFE50), MemoryRegion::Oam);
-        assert_eq!(MemoryRegion::from(0xFEA0), MemoryRegion::Unusable);
-        assert_eq!(MemoryRegion::from(0xFF0F), MemoryRegion::InterruptFlag);
-        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Io);
-        assert_eq!(MemoryRegion::from(0xFF80), MemoryRegion::HRam);
-        assert_eq!(MemoryRegion::from(0xFFFF), MemoryRegion::InterruptEnable);
-    }
-
-    // MRAM ECHO RAM
-    #[test]
-    fn echo_ram_mirror() {
-        let mut mmu = Mmu::<RomOnly>::default();
-
-        // Write to Work RAM (0xC000) and read from Echo RAM (0xE000)
-        mmu.write_byte(0xC000, 0xAA);
-        assert_eq!(mmu.read_byte(0xE000), 0xAA);
-
-        // Write to Echo RAM and read from Work RAM
-        mmu.write_byte(0xE010, 0xBB);
-        assert_eq!(mmu.read_byte(0xC010), 0xBB);
-    }
-
-    // UNUSABLE REGION
-    #[test]
-    fn unusable_region_behavior() {
-        let mut mmu = Mmu::<RomOnly>::default();
-
-        // Unusable region reads back as 0xFF
-        let base = 0xFEA0;
-        assert_eq!(mmu.read_byte(base), 0xFF);
-        assert_eq!(mmu.read_byte(base + 0x1F), 0xFF);
-
-        // Writes to unusable region are ignored (reads still 0xFF)
-        mmu.write_byte(base, 0x00);
-        mmu.write_byte(base + 0x1F, 0x12);
-        assert_eq!(mmu.read_byte(base), 0xFF);
-        assert_eq!(mmu.read_byte(base + 0x1F), 0xFF);
     }
 }

@@ -6,8 +6,13 @@ logfile
 /gameboy-doctor
 /game-roms
 /gb-test-roms
+/gbmu_save_states
 .DS_store
 gb-test-roms
 callgrind.*
 rtc3test
 utils
+.idea/*
+.idea/
+/boot-roms/*.gb
+/boot-roms/*.gb.save

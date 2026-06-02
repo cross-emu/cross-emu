@@ -1,24 +1,83 @@
-use std::cmp::min;
-
 use chrono::{Local, DateTime};
-const ONLY_ROM_SIZE: usize = 0xC000;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
+const ROMONLY_ROM_SIZE: usize = 0x8000;
+const ROMONLY_RAM_SIZE: usize = 0x2000;
 const ROM_BANK_SIZE: usize = 0x4000;
 const RAM_BANK_SIZE: usize = 0x2000;
 
-pub trait Mbc {
+pub trait Mbc: DeserializeOwned + Serialize {
     fn new(rom_image: Vec<u8>, saved_ram: Option<Vec<u8>>) -> Result<Self, String> where Self: Sized;
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, val: u8);
     fn dump(&self) -> Option<Vec<u8>>;
 }
 
-#[derive(Clone)]
+mod banks_serde {
+    use super::*;
+
+    pub fn serialize<S, const N: usize>(banks: &[[u8; N]], serializer: S) -> Result<S::Ok, S::Error> 
+    where
+        S: Serializer,
+    {
+        let flat: Vec<u8> = banks.iter().flat_map(|b| b.iter().copied()).collect();
+        serializer.serialize_bytes(&flat)
+    }
+
+    pub fn deserialize<'de, D, const N: usize>(deserializer: D) -> Result<Vec<[u8; N]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        bytes
+            .chunks_exact(ROM_BANK_SIZE)
+            .map(|chunk| {
+                chunk
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("invalid bank size"))
+            })
+            .collect()
+    }
+
+    pub fn deserialize_romonly_rom<'de, D, const N: usize>(deserializer: D) -> Result<Vec<[u8; N]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        bytes
+            .chunks_exact(ROMONLY_ROM_SIZE)
+            .map(|chunk| {
+                chunk
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("invalid bank size"))
+            })
+            .collect()
+    }
+
+    pub fn deserialize_romonly_ram<'de, D, const N: usize>(deserializer: D) -> Result<Vec<[u8; N]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        bytes
+            .chunks_exact(ROMONLY_RAM_SIZE)
+            .map(|chunk| {
+                chunk
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("invalid bank size"))
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub  struct Mbc1 {
+    #[serde(with = "banks_serde")]
     banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_gate_register: bool, // If ramg is set to 0b1010 -> 
     bank_register_1: u8,
     bank_register_2: u8,
     mode_register: bool,
+    #[serde(with = "banks_serde")]
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
 }
 
@@ -59,7 +118,6 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
             data
         }).collect();
     let supposed_rom_bank_size = get_rom_bank_size(rom_image)?;
-    println!("rom banks count {}", banks.len());
     if banks.len() != supposed_rom_bank_size {
         return Err(
             format!("Inconsistent Rom Header : size must be : {}", supposed_rom_bank_size)
@@ -70,7 +128,6 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
 
 fn map_ram_banks(rom_image: &[u8], saved_ram: Option<Vec<u8>>) -> Result<Vec<[u8; RAM_BANK_SIZE]>, String> {
     let supposed_ram_bank_size = get_ram_bank_size(rom_image)?;
-    println!("rom banks count {}", supposed_ram_bank_size);
     let Some(saved_ram) = saved_ram else {
         return Ok(vec![[0u8; RAM_BANK_SIZE]; supposed_ram_bank_size]);
     };
@@ -163,10 +220,13 @@ impl Mbc for Mbc1 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Mbc2 {
+    #[serde(with = "banks_serde")]
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_gate_register: bool,
     rom_bank_register: u8,
+    #[serde(with = "banks_serde")]
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
 }
 
@@ -227,34 +287,49 @@ impl Mbc for Mbc2 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct RomOnly {
-    bank: [u8; ONLY_ROM_SIZE],
+    #[serde(serialize_with = "banks_serde::serialize", deserialize_with = "banks_serde::deserialize_romonly_rom")]
+    rom_banks: Vec<[u8; ROMONLY_ROM_SIZE]>,
+    #[serde(serialize_with = "banks_serde::serialize", deserialize_with = "banks_serde::deserialize_romonly_ram")]
+    ram_banks: Vec<[u8; ROMONLY_RAM_SIZE]>
 }
 
 impl Mbc for RomOnly{
-    fn dump(&self) -> Option<Vec<u8>> { None }
+    fn dump(&self) -> Option<Vec<u8>> {
+        self.ram_banks.concat().into()
+    }
+
     fn new(rom_image: Vec<u8>, saved_ram: Option<Vec<u8>>) -> Result<Self, String> {
         println!("rom detected is romonly");
-        let mut bank = [0; ONLY_ROM_SIZE];
-        let end = min(ONLY_ROM_SIZE, rom_image.len());
-        bank[..end].copy_from_slice(&rom_image[..end]);
+        let rom_banks: Vec<[u8; ROMONLY_ROM_SIZE]> = rom_image.chunks_exact(ROMONLY_ROM_SIZE)
+            .map(|slice| {
+                let mut data = [0; ROMONLY_ROM_SIZE];
+                data.copy_from_slice(slice);
+                data
+            }).collect();
+        let ram_banks: Vec<[u8; ROMONLY_RAM_SIZE]> = vec![[0; ROMONLY_RAM_SIZE]];
         Ok(RomOnly {
-            bank
+            rom_banks, ram_banks
         })
     }
 
     fn read(&self, addr: u16) -> u8 {
-        self.bank[addr as usize]
+        match addr {
+            0x0000..0x8000 => self.rom_banks[0][addr as usize],
+            0xA000..0xC000 => self.ram_banks[0][addr as usize - 0xA000],
+            _ => unreachable!()
+        }
     }
 
     fn write(&mut self, addr: u16, val: u8) {
         if (0xA000..0xC000).contains(&addr) {
-            self.bank[addr as usize] = val
+            self.ram_banks[0][addr as usize - 0xA000] = val;
         }
-
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Mbc3 {
     rtc_register: u8,
     ram_timer_enable: bool,
@@ -262,7 +337,9 @@ pub struct Mbc3 {
     ram_rtc_select: u8,
     latch_clock_data: u8,
     latched_time_value: Option<DateTime<Local>>,
+    #[serde(with = "banks_serde")]
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
+    #[serde(with = "banks_serde")]
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
 }
 
@@ -350,12 +427,15 @@ impl Mbc for Mbc3 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Mbc5 {
     ram_gate_enable: bool,
     rom_bank_register: u16,
     ram_bank_register: u8,
     ramble: bool,
+    #[serde(with = "banks_serde")]
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
+    #[serde(with = "banks_serde")]
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
     
 }
