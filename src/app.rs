@@ -13,8 +13,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, Ordering},
-    Mutex
+    atomic::{AtomicBool, Ordering}
 };
 use std::io::{BufReader, Write};
 use std::rc::Rc;
