@@ -2,7 +2,7 @@ use crate::gui::{
         AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, SelectionDevice, WatchedAdresses
     };
 
-use std::sync::atomic::Ordering;
+use std::sync::atomic::Ordering::{self, Relaxed};
 
 use std::time::{Instant};
 
@@ -12,7 +12,7 @@ impl EmulationDevice {
         self.core_game.update_and_size_image(ui);
         let duration = debut.elapsed();
         self.core_game.capture_and_send_input(ui);
-        let fps = self.core_game.fps_counter.lock().unwrap().clone();
+        let fps = self.core_game.fps_counter.load(Relaxed);
 
         egui::CentralPanel::default()
             .show_inside(ui, |ui| {
@@ -64,7 +64,7 @@ impl From<SelectionDevice> for EmulationDevice {
         let options = CoreGameOptions {
             rom_path,
             boot_rom: true,
-        }; 
+        };
         let core_game = CoreGameDevice::new(options);
         Self { core_game}
     }
