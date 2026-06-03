@@ -1,9 +1,22 @@
 use std::cmp::min;
+use std::fs::{create_dir_all, OpenOptions};
+use std::io::Write;
 use chrono::{Local, DateTime};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
 const ONLY_ROM_SIZE: usize = 0xC000;
 const ROM_BANK_SIZE: usize = 0x4000;
 const RAM_BANK_SIZE: usize = 0x2000;
+
+fn append_debug_log(file_name: &str, message: impl AsRef<str>) {
+    if create_dir_all("debug_logs").is_err() {
+        return;
+    }
+
+    let log_path = format!("debug_logs/{file_name}");
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(log_path) {
+        let _ = writeln!(file, "{}", message.as_ref());
+    }
+}
 
 pub trait Mbc: DeserializeOwned + Serialize {
     fn new(rom_image: Vec<u8>, saved_ram: Option<Vec<u8>>) -> Result<Self, String> where Self: Sized;
@@ -19,7 +32,9 @@ mod banks_serde {
     where
         S: Serializer,
     {
+        append_debug_log("banks_serialize.log", format!("banks serialize: {:?}", banks));
         let flat: Vec<u8> = banks.iter().flat_map(|b| b.iter().copied()).collect();
+        append_debug_log("banks_serialize.log", format!("flat serialize: {:?}", flat));
         serializer.serialize_bytes(&flat)
     }
 
@@ -28,9 +43,7 @@ mod banks_serde {
         D: Deserializer<'de>,
     {
         let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
-        if !bytes.len().is_multiple_of(ROM_BANK_SIZE) {
-            return Err(serde::de::Error::custom("invalid ROM bank data length"));
-        }
+        append_debug_log("banks_deserialize.log", format!("bytes deserialize: {:?}", bytes));
 
         bytes
             .chunks_exact(ROM_BANK_SIZE)
@@ -92,7 +105,10 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
             data
         }).collect();
     let supposed_rom_bank_size = get_rom_bank_size(rom_image)?;
-    println!("rom banks count {}", banks.len());
+    append_debug_log(
+        "rom_bank_mapping.log",
+        format!("rom banks count {}", banks.len()),
+    );
     if banks.len() != supposed_rom_bank_size {
         return Err(
             format!("Inconsistent Rom Header : size must be : {}", supposed_rom_bank_size)
@@ -103,7 +119,10 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
 
 fn map_ram_banks(rom_image: &[u8], saved_ram: Option<Vec<u8>>) -> Result<Vec<[u8; RAM_BANK_SIZE]>, String> {
     let supposed_ram_bank_size = get_ram_bank_size(rom_image)?;
-    println!("rom banks count {}", supposed_ram_bank_size);
+    append_debug_log(
+        "ram_bank_mapping.log",
+        format!("ram banks count {}", supposed_ram_bank_size),
+    );
     let Some(saved_ram) = saved_ram else {
         return Ok(vec![[0u8; RAM_BANK_SIZE]; supposed_ram_bank_size]);
     };

@@ -58,7 +58,37 @@ const SCANLINE_DOTS: u32 = 456; // always 456
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "T: Serialize", deserialize = "T: serde::de::DeserializeOwned"))]
 pub struct Ppu<T: Mbc> {
+    #[serde(skip_serializing)]
     pub bus: Rc<RefCell<Mmu<T>>>,
+    pub dots: u32,
+    lcd_status: LcdStatus, // LCD Status register
+    wly: u8,               // Window internal line counter
+    ly: u8,
+    internal_ly: u8, // needed for the ly=153 quirk
+    x: usize,
+    pixel_fetcher: PixelFetcher,
+    oam_fetcher: OamFetcher,
+    bg_fifo: PixelFifo, // Background pixel FIFO
+    obj_piso: ObjPiso, // Objects (sprites) PISO
+    visible_sprites: [Option<Sprite>; 10],
+    pixels_to_discard: u8, // Required in order to prevent the SCX misalignment bug
+    use_window: bool, // Required for BG FIFO in order to know if the window is activated midline
+    wx_at_window_start: u8, // Required to handle the WX hardware glitch
+    is_wx_glitch_happened: bool, // Required to handle the WX hardware glitch
+    fetching_sprite: bool, // pixel fetcher and pixel shifter need to be paused while oam fetcher is called
+    current_sprite_to_fetch: Option<usize>,
+    wy_equal_ly_condition_met: bool,
+    oam_scan_index: u8, // index scanned sprites in OAM Search
+    visible_sprites_count: u8,
+    current_obj_height: u8,
+    lcd_was_enabled: bool, // for the LCD on/off quirk. We need to detect if the ppu is on for the first time since it was off.
+    is_first_scanline_after_lcd_on: bool, // for the LCD on/off quirk. If first scanline since the ppu is on, the cycle is shorter.
+    stat_interrupt_line: bool,
+    stall_dots: u8, // to handle the sprite penalty in mode pixel transfer
+}
+
+#[derive(Deserialize, Debug)]
+pub struct PpuDTO {
     pub dots: u32,
     lcd_status: LcdStatus, // LCD Status register
     wly: u8,               // Window internal line counter
@@ -118,7 +148,37 @@ impl<T: Mbc> Ppu<T> {
         }
     }
 
-
+    pub fn from_dto(dto: PpuDTO, bus: Rc<RefCell<Mmu<T>>>) -> Self {
+        Self {
+            bus,
+            dots: dto.dots,
+            lcd_status: dto.lcd_status,
+            wly: dto.wly,
+            ly: dto.ly,
+            internal_ly: dto.internal_ly,
+            x: dto.x,
+            pixel_fetcher: dto.pixel_fetcher,
+            oam_fetcher: dto.oam_fetcher,
+            bg_fifo: dto.bg_fifo,
+            obj_piso: dto.obj_piso,
+            visible_sprites: dto.visible_sprites,
+            pixels_to_discard: dto.pixels_to_discard,
+            use_window: dto.use_window,
+            wx_at_window_start: dto.wx_at_window_start,
+            is_wx_glitch_happened: dto.is_wx_glitch_happened,
+            fetching_sprite: dto.fetching_sprite,
+            current_sprite_to_fetch: dto.current_sprite_to_fetch,
+            wy_equal_ly_condition_met: dto.wy_equal_ly_condition_met,
+            oam_scan_index: dto.oam_scan_index,
+            visible_sprites_count: dto.visible_sprites_count,
+            current_obj_height: dto.current_obj_height,
+            lcd_was_enabled: dto.lcd_was_enabled,
+            is_first_scanline_after_lcd_on: dto.is_first_scanline_after_lcd_on,
+            stat_interrupt_line: dto.stat_interrupt_line,
+            stall_dots: dto.stall_dots
+        }
+    }
+    
     pub fn display_vram(&self) {
         for i in 0..0x2000 {
             let byte = self

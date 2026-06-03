@@ -1,0 +1,123 @@
+{
+  "dots": 0,
+  "lcd_status": {
+    "lyc_int_select": true,
+    "mode_2_int_select": true,
+    "mode_1_int_select": true,
+    "mode_0_int_select": true,
+    "lyc_equals_ly": false,
+    "ppu_mode": "VBlank"
+  },
+  "wly": 0,
+  "ly": 144,
+  "internal_ly": 144,
+  "x": 0,
+  "pixel_fetcher": {
+    "fetcher_state": "GetTileId",
+    "tile_id": 0,
+    "tile_data_low": 0,
+    "tile_data_high": 0,
+    "fetcher_x": 0,
+    "dot_counter": 11328983,
+    "first_fetch_done": false
+  },
+  "oam_fetcher": {
+    "fetcher_state": "GetTileId",
+    "tile_id": 0,
+    "tile_data_low": 0,
+    "tile_data_high": 0,
+    "dot_counter": 0,
+    "actual_sprite_line": 0
+  },
+  "bg_fifo": {
+    "bg": [],
+    "y": 0,
+    "state": 0
+  },
+  "obj_piso": {
+    "pixels": [
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      },
+      {
+        "color": "White",
+        "is_sprite": false,
+        "color_index": 0,
+        "priority": false,
+        "oam_index": 0
+      }
+    ]
+  },
+  "visible_sprites": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+  ],
+  "pixels_to_discard": 7,
+  "use_window": false,
+  "wx_at_window_start": 0,
+  "is_wx_glitch_happened": false,
+  "fetching_sprite": false,
+  "current_sprite_to_fetch": null,
+  "wy_equal_ly_condition_met": false,
+  "oam_scan_index": 40,
+  "visible_sprites_count": 0,
+  "current_obj_height": 8,
+  "lcd_was_enabled": true,
+  "is_first_scanline_after_lcd_on": false,
+  "stat_interrupt_line": true,
+  "stall_dots": 0
+}

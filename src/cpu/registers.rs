@@ -89,7 +89,7 @@ impl From<u8> for R8 {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Registers {
     r8: [u8; 8],
     sp: u16,

@@ -25,7 +25,7 @@ pub enum FetcherState {
     PushPixel = 3,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct OamFetcher {
     fetcher_state: FetcherState,
     tile_id: u8,

@@ -3,7 +3,7 @@ use serde_big_array::BigArray;
 
 const OAM_BEGINNING: u16 = 0xFE00;
 
-#[derive(Clone, Copy, Serialize, Deserialize)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub struct Sprite {
 	pub y: u8, // Y-position of the sprite
 	pub x: u8, // X-position of the sprite

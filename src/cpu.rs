@@ -35,7 +35,19 @@ enum StepStatus {
 pub struct Cpu<T: Mbc> {
     pub registers: Registers,
     pub pc: u16,
+    #[serde(skip_serializing)]
     pub bus: Rc<RefCell<Mmu<T>>>,
+    pub ime: bool,
+    pub ime_delay: bool, // mimic hardware delay in EI
+    pub halted: bool,    // for HALT instruction
+    pub halt_bug: bool,
+    tick_to_wait: u8,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CpuDTO {
+    pub registers: Registers,
+    pub pc: u16,
     pub ime: bool,
     pub ime_delay: bool, // mimic hardware delay in EI
     pub halted: bool,    // for HALT instruction
@@ -63,6 +75,19 @@ impl<T: Mbc> Cpu<T> {
             halted: false,
             halt_bug: false,
             tick_to_wait: 0,
+        }
+    }
+
+    pub fn from_dto(dto: CpuDTO, bus: Rc<RefCell<Mmu<T>>>) -> Self {
+        Self {
+            registers: dto.registers,
+            pc: dto.pc,
+            bus,
+            ime: dto.ime,
+            ime_delay: dto.ime_delay,
+            halted: dto.halted,
+            halt_bug: dto.halt_bug,
+            tick_to_wait: dto.tick_to_wait
         }
     }
 

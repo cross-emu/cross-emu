@@ -1,0 +1,27 @@
+{
+  "registers": {
+    "r8": [
+      220,
+      136,
+      150,
+      60,
+      192,
+      161,
+      1,
+      0
+    ],
+    "sp": 65522,
+    "f": {
+      "zero": true,
+      "subtract": false,
+      "half_carry": false,
+      "carry": false
+    }
+  },
+  "pc": 919,
+  "ime": true,
+  "ime_delay": false,
+  "halted": false,
+  "halt_bug": false,
+  "tick_to_wait": 9
+}
