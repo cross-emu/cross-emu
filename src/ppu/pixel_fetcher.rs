@@ -26,7 +26,7 @@ pub enum FetcherState {
     PushPixel = 4,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct PixelFetcher {
     fetcher_state: FetcherState,
     tile_id: u8,

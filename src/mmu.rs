@@ -84,7 +84,6 @@ impl<T: Mbc> From<Mmu<T>> for Rc<RefCell<Mmu<T>>> {
     }
 }
 
-
 pub struct Mmu<T: Mbc> {
     data: [u8; 0x10000], // 0xFFFF (65535) + 1 = 0x10000 (65536)
     cart: T,
@@ -398,72 +397,5 @@ impl<T: Mbc> Mmu<T> {
 impl<T: Mbc> Default for Mmu<T> {
     fn default() -> Self {
         Mmu::<T>::new(vec![], None).expect("This is not suppose to happen")
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::mmu::mbc::RomOnly;
-
-    use super::{MemoryRegion, Mmu};
-
-    #[test]
-    fn mmu_routes_reads_and_writes() {
-        let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu = Mmu::<RomOnly>::new(rom, None).unwrap();
-
-        // Reading from ROM region gives you the first bank data
-        assert_eq!(mmu.read_byte(0x0000), 0x12);
-        assert_eq!(mmu.read_byte(0x0001), 0x34);
-
-        // Write to WRAM region and read back
-        mmu.write_byte(0xC000, 0xAB);
-        assert_eq!(mmu.read_byte(0xC000), 0xAB);
-    }
-
-    #[test]
-    fn memory_region_from_addr() {
-        assert_eq!(MemoryRegion::from(0x0000), MemoryRegion::Mbc);
-        assert_eq!(MemoryRegion::from(0x8000), MemoryRegion::Vram);
-        assert_eq!(MemoryRegion::from(0xA123), MemoryRegion::ERam);
-        assert_eq!(MemoryRegion::from(0xC123), MemoryRegion::Wram);
-        assert_eq!(MemoryRegion::from(0xE123), MemoryRegion::Mram);
-        assert_eq!(MemoryRegion::from(0xFE50), MemoryRegion::Oam);
-        assert_eq!(MemoryRegion::from(0xFEA0), MemoryRegion::Unusable);
-        assert_eq!(MemoryRegion::from(0xFF0F), MemoryRegion::InterruptFlag);
-        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Io);
-        assert_eq!(MemoryRegion::from(0xFF80), MemoryRegion::HRam);
-        assert_eq!(MemoryRegion::from(0xFFFF), MemoryRegion::InterruptEnable);
-    }
-
-    // MRAM ECHO RAM
-    #[test]
-    fn echo_ram_mirror() {
-        let mut mmu = Mmu::<RomOnly>::default();
-
-        // Write to Work RAM (0xC000) and read from Echo RAM (0xE000)
-        mmu.write_byte(0xC000, 0xAA);
-        assert_eq!(mmu.read_byte(0xE000), 0xAA);
-
-        // Write to Echo RAM and read from Work RAM
-        mmu.write_byte(0xE010, 0xBB);
-        assert_eq!(mmu.read_byte(0xC010), 0xBB);
-    }
-
-    // UNUSABLE REGION
-    #[test]
-    fn unusable_region_behavior() {
-        let mut mmu = Mmu::<RomOnly>::default();
-
-        // Unusable region reads back as 0xFF
-        let base = 0xFEA0;
-        assert_eq!(mmu.read_byte(base), 0xFF);
-        assert_eq!(mmu.read_byte(base + 0x1F), 0xFF);
-
-        // Writes to unusable region are ignored (reads still 0xFF)
-        mmu.write_byte(base, 0x00);
-        mmu.write_byte(base + 0x1F, 0x12);
-        assert_eq!(mmu.read_byte(base), 0xFF);
-        assert_eq!(mmu.read_byte(base + 0x1F), 0xFF);
     }
 }

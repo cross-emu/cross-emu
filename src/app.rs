@@ -1,18 +1,29 @@
 #![allow(unreachable_code)]
 
+use crate::cpu::{Cpu, CpuDTO};
 use crate::gameboy::GameBoy;
 use crate::gui::{DebugCommandQueries, DebugResponse, KeyInput, LaunchGameData, WatchedAdresses};
 use crate::mmu::mbc::Mbc;
+use crate::ppu::{Ppu, PpuDTO};
+use crate::mmu::Mmu;
+use std::cell::RefCell;
 use std::sync::atomic::AtomicI16;
 use std::sync::atomic::Ordering::Relaxed;
 use std::fs;
+use std::path::Path;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
 use std::time::{Duration, Instant};
-use std::io::Write;
+use std::io::{BufReader, Write};
+use std::rc::Rc;
+use std::error;
 use tokio::sync::mpsc::{Receiver, Sender};
+
+const SAVE_CPU_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gbmu_save_states/save_cpu.json");
+const SAVE_PPU_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gbmu_save_states/save_ppu.json");
+const SAVE_BUS_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gbmu_save_states/save_bus.json");
 
 pub struct GameApp<T: Mbc> {
     updated_image_boolean: Arc<AtomicBool>,
@@ -72,6 +83,16 @@ impl<T: Mbc> GameApp<T> {
     pub fn launch(mut self) -> Result<Option<Vec<u8>>, String>{
         let mut input = KeyInput::default();
         let mut cycle = 0;
+        //TODO: A changer / enlever
+        if Path::new(SAVE_BUS_PATH).exists() &&
+            Path::new(SAVE_CPU_PATH).exists() &&
+            Path::new(SAVE_PPU_PATH).exists() {
+                let res_load_state = self.load_state();
+                match res_load_state {
+                    Ok(()) => (),
+                    Err(err) => eprintln!("{}", err)
+                }
+        }
         let debut = Instant::now();
         let mut old_instant_frame_in_ms = debut.elapsed().as_millis();
         loop {
@@ -88,12 +109,16 @@ impl<T: Mbc> GameApp<T> {
             get_fps(debut, &mut old_instant_frame_in_ms, &self.fps_counter);
             if cycle == 1000 {
                 self.save_state().unwrap();
+
+            //TODO: Enlever
+            if cycle == 500 {
+                self.save_state();
+                break;
             }
             cycle += 1;
         }
         Ok(self.ram_dump())
     }
-
 
     fn send_watched_address(&mut self) {
         if !self.watched_adress.addresses_n_values.is_empty() {
@@ -223,20 +248,90 @@ impl<T: Mbc> GameApp<T> {
     //     }
     //     rgba_frame
     // }
-    pub fn save_state(&self) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(&self.gameboy).unwrap();
-        let file = fs::File::create("save.json");
-        match file {
-            Ok(mut file) => {
-                let ret = file.write_all(json.as_bytes());
-                let _: () = ret.unwrap();
-                Ok(())
+    pub fn save_state(&self) {
+        struct StringByComponents {
+            path_file: String, error_file: String, json_content: String, error_json: String
+        }
+        let string_by_components = [
+            StringByComponents {
+                path_file: SAVE_CPU_PATH.to_string(),
+                error_file: String::from("failed to create save_cpu.json"),
+                json_content: String::from("cpu"),
+                error_json: String::from("failed to serialize cpu")
+            },
+            StringByComponents {
+                path_file: SAVE_PPU_PATH.to_string(),
+                error_file: String::from("failed to create save_ppu.json"),
+                json_content: String::from("ppu"),
+                error_json: String::from("failed to serialize ppu")
+            },
+            StringByComponents {
+                path_file: SAVE_BUS_PATH.to_string(),
+                error_file: String::from("failed to create save_bus.json"),
+                json_content: String::from("bus"),
+                error_json: String::from("failed to serialize bus")
+            },
+        ];
+        let save_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/gbmu_save_states");
+        fs::create_dir_all(save_dir).expect("failed to create save directory");
+        for component in string_by_components {
+            let file: fs::File;
+            let json: String;
+            file = fs::File::create(component.path_file).expect(&component.error_file);
+            json = self.create_json(&component.json_content).expect(&component.error_json);
+            let ret_save_file = self.write_save_to_file(file, json);
+            match ret_save_file {
+                Ok(()) => (),
+                Err(error) => println!("{}", error)
             }
-            Err(err) => {
-                let err_str = "Error state state : ".to_string() + &err.to_string();
-                println!("{}", err_str);
-                Err(err_str)
+        }
+    }
+
+    fn write_save_to_file(&self, mut file: std::fs::File, json: String) -> Result<(), String> {
+        let ret = file.write_all(json.as_bytes());
+        let _: () = ret.unwrap();
+        Ok(())
+    }
+
+    fn create_json(&self, content: &str) -> Result<String, serde_json::Error> {
+        match content {
+            "cpu" => serde_json::to_string_pretty(&self.gameboy.cpu),
+            "ppu" => serde_json::to_string_pretty(&self.gameboy.ppu),
+            "bus" => serde_json::to_string_pretty(&self.gameboy.bus),
+            _ => todo!()
+        }
+
+    }
+
+    pub fn load_state(&mut self) -> Result<(), Box<dyn error::Error>> {
+        let components: [(&str, &str); 3] = [
+            ("bus", SAVE_BUS_PATH),
+            ("cpu", SAVE_CPU_PATH),
+            ("ppu", SAVE_PPU_PATH)
+        ];
+        for component in components {
+            self.load_component(component.0, component.1);
+        }
+        Ok(())
+    }
+
+    fn load_component(&mut self, component: &str, path: &str) {
+        let file = fs::File::open(path).expect(&format!("failed to open {}", path));
+        let reader = BufReader::new(file);
+        match component {
+            "cpu" => {
+                let cpu_dto: CpuDTO = serde_json::from_reader(reader).expect("failed to deserialize cpu file");
+                self.gameboy.cpu = Cpu::from_dto(cpu_dto, self.gameboy.bus.clone());
+            },
+            "ppu" => {
+                let ppu_dto: PpuDTO = serde_json::from_reader(reader).expect("failed to deserialize ppu file");
+                self.gameboy.ppu = Ppu::from_dto(ppu_dto, self.gameboy.bus.clone());
+            },
+            "bus" => {
+                let bus: Rc<RefCell<Mmu<T>>> = serde_json::from_reader(reader).expect("failed to deserialize bus file");
+                self.gameboy.bus = bus;
             }
+            _ => todo!()
         }
     }
 

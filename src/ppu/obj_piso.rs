@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::ppu::pixel::Pixel;
 use crate::ppu::colors_palette::Color;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct ObjPiso {
     pixels: [Pixel; 8],
 }
