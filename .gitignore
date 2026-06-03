@@ -6,6 +6,7 @@ logfile
 /gameboy-doctor
 /game-roms
 /gb-test-roms
+/gbmu_save_states
 .DS_store
 gb-test-roms
 callgrind.*
