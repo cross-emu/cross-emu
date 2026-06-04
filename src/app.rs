@@ -10,7 +10,6 @@ use std::cell::RefCell;
 use std::sync::atomic::AtomicI16;
 use std::sync::atomic::Ordering::Relaxed;
 use std::fs;
-use std::path::Path;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering}
@@ -109,15 +108,6 @@ impl<T: Mbc> GameApp<T> {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
             get_fps(debut, &mut old_instant_frame_in_ms, &self.fps_counter);
-            if cycle == 1000 {
-                self.save_state().unwrap();
-
-            //TODO: Enlever
-            if cycle == 500 {
-                self.save_state();
-                break;
-            }
-            cycle += 1;
         }
         Ok(self.ram_dump())
     }

@@ -1,10 +1,9 @@
-use std::cmp::min;
 use std::fs::{create_dir_all, OpenOptions};
 use std::io::Write;
 use chrono::{Local, DateTime};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de::DeserializeOwned};
-const ONLYROM_ROM_SIZE: usize = 0x8000;
-const ONLYROM_RAM_SIZE: usize = 0x2000;
+const ROMONLY_ROM_SIZE: usize = 0x8000;
+const ROMONLY_RAM_SIZE: usize = 0x2000;
 const ROM_BANK_SIZE: usize = 0x4000;
 const RAM_BANK_SIZE: usize = 0x2000;
 
@@ -33,9 +32,7 @@ mod banks_serde {
     where
         S: Serializer,
     {
-        append_debug_log("banks_serialize.log", format!("banks serialize: {:?}", banks));
         let flat: Vec<u8> = banks.iter().flat_map(|b| b.iter().copied()).collect();
-        append_debug_log("banks_serialize.log", format!("flat serialize: {:?}", flat));
         serializer.serialize_bytes(&flat)
     }
 
@@ -44,10 +41,38 @@ mod banks_serde {
         D: Deserializer<'de>,
     {
         let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
-        append_debug_log("banks_deserialize.log", format!("bytes deserialize: {:?}", bytes));
-
         bytes
             .chunks_exact(ROM_BANK_SIZE)
+            .map(|chunk| {
+                chunk
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("invalid bank size"))
+            })
+            .collect()
+    }
+
+    pub fn deserialize_romonly_rom<'de, D, const N: usize>(deserializer: D) -> Result<Vec<[u8; N]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        bytes
+            .chunks_exact(ROMONLY_ROM_SIZE)
+            .map(|chunk| {
+                chunk
+                    .try_into()
+                    .map_err(|_| serde::de::Error::custom("invalid bank size"))
+            })
+            .collect()
+    }
+
+    pub fn deserialize_romonly_ram<'de, D, const N: usize>(deserializer: D) -> Result<Vec<[u8; N]>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let bytes: Vec<u8> = serde::Deserialize::deserialize(deserializer)?;
+        bytes
+            .chunks_exact(ROMONLY_RAM_SIZE)
             .map(|chunk| {
                 chunk
                     .try_into()
@@ -106,10 +131,6 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
             data
         }).collect();
     let supposed_rom_bank_size = get_rom_bank_size(rom_image)?;
-    append_debug_log(
-        "rom_bank_mapping.log",
-        format!("rom banks count {}", banks.len()),
-    );
     if banks.len() != supposed_rom_bank_size {
         return Err(
             format!("Inconsistent Rom Header : size must be : {}", supposed_rom_bank_size)
@@ -120,10 +141,6 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
 
 fn map_ram_banks(rom_image: &[u8], saved_ram: Option<Vec<u8>>) -> Result<Vec<[u8; RAM_BANK_SIZE]>, String> {
     let supposed_ram_bank_size = get_ram_bank_size(rom_image)?;
-    append_debug_log(
-        "ram_bank_mapping.log",
-        format!("ram banks count {}", supposed_ram_bank_size),
-    );
     let Some(saved_ram) = saved_ram else {
         return Ok(vec![[0u8; RAM_BANK_SIZE]; supposed_ram_bank_size]);
     };
@@ -285,26 +302,26 @@ impl Mbc for Mbc2 {
 
 #[derive(Serialize, Deserialize)]
 pub struct RomOnly {
-    #[serde(with = "banks_serde")]
-    rom_banks: Vec<[u8; ONLYROM_ROM_SIZE]>,
-    #[serde(with = "banks_serde")]
-    ram_banks: Vec<[u8; ONLYROM_RAM_SIZE]>
+    #[serde(serialize_with = "banks_serde::serialize", deserialize_with = "banks_serde::deserialize_romonly_rom")]
+    rom_banks: Vec<[u8; ROMONLY_ROM_SIZE]>,
+    #[serde(serialize_with = "banks_serde::serialize", deserialize_with = "banks_serde::deserialize_romonly_ram")]
+    ram_banks: Vec<[u8; ROMONLY_RAM_SIZE]>
 }
 
 impl Mbc for RomOnly{
-    fn dump(&self) -> Option<Vec<u8>> { 
+    fn dump(&self) -> Option<Vec<u8>> {
         self.ram_banks.concat().into()
     }
-    
+
     fn new(rom_image: Vec<u8>, saved_ram: Option<Vec<u8>>) -> Result<Self, String> {
         println!("rom detected is romonly");
-        let rom_banks: Vec<[u8; ONLYROM_ROM_SIZE]> = rom_image.chunks_exact(ONLYROM_ROM_SIZE)
+        let rom_banks: Vec<[u8; ROMONLY_ROM_SIZE]> = rom_image.chunks_exact(ROMONLY_ROM_SIZE)
             .map(|slice| {
-                let mut data = [0; ONLYROM_ROM_SIZE];
+                let mut data = [0; ROMONLY_ROM_SIZE];
                 data.copy_from_slice(slice);
                 data
             }).collect();
-        let ram_banks: Vec<[u8; ONLYROM_RAM_SIZE]> = vec![[0; ONLYROM_RAM_SIZE]];
+        let ram_banks: Vec<[u8; ROMONLY_RAM_SIZE]> = vec![[0; ROMONLY_RAM_SIZE]];
         Ok(RomOnly {
             rom_banks, ram_banks
         })
