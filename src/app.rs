@@ -17,6 +17,7 @@ use std::sync::{
 use std::io::{BufReader, Write};
 use std::rc::Rc;
 use std::error;
+use std::path::Path;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -50,7 +51,7 @@ impl<T: Mbc> GameApp<T> {
     ) -> Result<Self, String> {
         let boot_rom = if game_data.boot_rom {
             let boot_bytes = std::fs::read("boot-roms/dmg.bin").expect("cannot read boot rom");
-            assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
+            assert_eq!(boot_bytes.len(), 0x100, "boot rom must be 256 bytes");
 
             let mut boot_rom = [0u8; 0x0100];
             boot_rom.copy_from_slice(&boot_bytes);
@@ -83,19 +84,17 @@ impl<T: Mbc> GameApp<T> {
         let mut input = KeyInput::default();
         let debut = Instant::now();
         let mut old_instant_frame_in_ms = debut.elapsed().as_millis();
-        let mut cycle = 0;
-        //TODO: A changer / enlever
-        if Path::new(SAVE_BUS_PATH).exists() &&
-            Path::new(SAVE_CPU_PATH).exists() &&
-            Path::new(SAVE_PPU_PATH).exists() {
-                let res_load_state = self.load_state();
-                match res_load_state {
-                    Ok(()) => (),
-                    Err(err) => eprintln!("{}", err)
-                }
-        }
-        let debut = Instant::now();
-        let mut old_instant_frame_in_ms = debut.elapsed().as_millis();
+        //Test load save state
+        // let mut cycle = 0;
+        // if Path::new(SAVE_BUS_PATH).exists() &&
+        //     Path::new(SAVE_CPU_PATH).exists() &&
+        //     Path::new(SAVE_PPU_PATH).exists() {
+        //     let res_load_state = self.load_state();
+        //     match res_load_state {
+        //         Ok(()) => (),
+        //         Err(err) => eprintln!("{}", err)
+        //     }
+        // }
         loop {
             use tokio::sync::mpsc::error::TryRecvError;
             match self.input_receiver.try_recv(){
@@ -108,6 +107,12 @@ impl<T: Mbc> GameApp<T> {
                 self.updated_image_boolean.store(true, Ordering::Relaxed);
             }
             get_fps(debut, &mut old_instant_frame_in_ms, &self.fps_counter);
+            // Test save state
+            // if cycle == 500 {
+            //     self.save_state();
+            //     break;
+            // }
+            // cycle += 1;
         }
         Ok(self.ram_dump())
     }
@@ -267,10 +272,8 @@ impl<T: Mbc> GameApp<T> {
         let save_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/gbmu_save_states");
         fs::create_dir_all(save_dir).expect("failed to create save directory");
         for component in string_by_components {
-            let file: fs::File;
-            let json: String;
-            file = fs::File::create(component.path_file).expect(&component.error_file);
-            json = self.create_json(&component.json_content).expect(&component.error_json);
+            let file: fs::File = fs::File::create(component.path_file).expect(&component.error_file);
+            let json: String = self.create_json(&component.json_content).expect(&component.error_json);
             let ret_save_file = self.write_save_to_file(file, json);
             match ret_save_file {
                 Ok(()) => (),
@@ -307,7 +310,7 @@ impl<T: Mbc> GameApp<T> {
     }
 
     fn load_component(&mut self, component: &str, path: &str) {
-        let file = fs::File::open(path).expect(&format!("failed to open {}", path));
+        let file = fs::File::open(path).unwrap_or_else(|_| panic!("failed to open {}", path));
         let reader = BufReader::new(file);
         match component {
             "cpu" => {

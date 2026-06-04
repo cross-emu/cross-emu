@@ -11,14 +11,18 @@
     </cargoProject>
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="25cb3ff6-c093-4756-a758-8bcde0eb4a78" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/src/app.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/mmu/mbc.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/mmu/mbc.rs" afterDir="false" />
+    <list default="true" id="88bc2dec-4cba-464e-b098-490348f93554" name="Changes" comment="fix: save state now work on RomOnly">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_/home/syluiset/Documents/gbmu" value="3EfkQSFin5Zjwk4uJv1fPxdIwOf" />
+    </persistenceIdMap>
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
   <component name="Git.Settings">
@@ -30,33 +34,47 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="MacroExpansionManager">
-    <option name="directoryName" value="OyXwjOx4" />
+    <option name="directoryName" value="25jRQcO1" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 3
-}]]></component>
-  <component name="ProjectId" id="3EfWZhWX0zoaAP5wzH39NjslrcS" />
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="3EfkQSFin5Zjwk4uJv1fPxdIwOf" />
+  <component name="ProjectSessionTemplates">
+    <option name="panelTemplate">
+      <template>
+        <option name="modeId" value="Ask" />
+        <option name="model">
+          <model>
+            <option name="modelType" value="builtin_family" />
+            <option name="modelValue" value="auto" />
+          </model>
+        </option>
+        <option name="targetType" value="LOCAL" />
+      </template>
+    </option>
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Cargo.Run gbmu.executor": "Run",
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.rust.reset.selective.auto.import": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "git-widget-placeholder": "68-feat-création-dune-save-state",
-    "last_opened_file_path": "/home/syluiset/goinfre/gbmu",
-    "nodejs_package_manager_path": "npm",
-    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
-    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
-    "org.rust.first.attach.projects": "true",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Cargo.Run gbmu.executor&quot;: &quot;Run&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.rust.reset.selective.auto.import&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/syluiset/Documents/gbmu&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;org.rust.cargo.project.model.PROJECT_DISCOVERY&quot;: &quot;true&quot;,
+    &quot;org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon&quot;: &quot;&quot;,
+    &quot;org.rust.first.attach.projects&quot;: &quot;true&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="Cargo.Run gbmu">
     <configuration name="Run gbmu" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="command" value="run --package gbmu --bin gbmu" />
@@ -95,6 +113,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Cargo.Run gbmu" />
+        <item itemvalue="Cargo.Run gbmu" />
+        <item itemvalue="Cargo.Run gbmu" />
+        <item itemvalue="Cargo.Run gbmu" />
+        <item itemvalue="Cargo.Run gbmu" />
       </list>
     </recent_temporary>
   </component>
@@ -103,39 +125,31 @@
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="25cb3ff6-c093-4756-a758-8bcde0eb4a78" name="Changes" comment="" />
-      <created>1780570164945</created>
+      <changelist id="88bc2dec-4cba-464e-b098-490348f93554" name="Changes" comment="" />
+      <created>1780576995276</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1780570164945</updated>
-      <workItem from="1780570171838" duration="1993000" />
+      <updated>1780576995276</updated>
+      <workItem from="1780576996599" duration="811000" />
+      <workItem from="1780577822799" duration="570000" />
+      <workItem from="1780581346312" duration="336000" />
     </task>
+    <task id="LOCAL-00001" summary="fix: save state now work on RomOnly">
+      <option name="closed" value="true" />
+      <created>1780581615420</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1780581615420</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State>
-              <option name="FILTERS">
-                <map>
-                  <entry key="branch">
-                    <value>
-                      <list>
-                        <option value="68-feat-création-dune-save-state" />
-                      </list>
-                    </value>
-                  </entry>
-                </map>
-              </option>
-            </State>
-          </value>
-        </entry>
-      </map>
-    </option>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="fix: save state now work on RomOnly" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: save state now work on RomOnly" />
   </component>
 </project>
