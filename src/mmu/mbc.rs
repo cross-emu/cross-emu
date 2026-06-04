@@ -285,58 +285,42 @@ impl Mbc for Mbc2 {
 
 #[derive(Serialize, Deserialize)]
 pub struct RomOnly {
-    #[serde(with = "serde_bytes")]
-    rom: [u8; ONLYROM_ROM_SIZE],
-    #[serde(with = "serde_bytes")]
-    ram: [u8; ONLYROM_RAM_SIZE]
+    #[serde(with = "banks_serde")]
+    rom_banks: Vec<[u8; ONLYROM_ROM_SIZE]>,
+    #[serde(with = "banks_serde")]
+    ram_banks: Vec<[u8; ONLYROM_RAM_SIZE]>
 }
 
-// impl<'de> Deserialize<'de> for RomOnly {
-//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         #[derive(Deserialize)]
-//         struct RomOnlyData {
-//             #[serde(with = "serde_bytes")]
-//             bank: Vec<u8>,
-//         }
-
-//         let data = RomOnlyData::deserialize(deserializer)?;
-
-//         let bank: [u8; ONLY_ROM_SIZE] = data
-//             .bank
-//             .try_into()
-//             .map_err(|_| de::Error::custom("invalid RomOnly bank length"))?;
-
-//         Ok(RomOnly { bank })
-//     }
-// }
-
 impl Mbc for RomOnly{
-    fn dump(&self) -> Option<Vec<u8>> { None }
+    fn dump(&self) -> Option<Vec<u8>> { 
+        self.ram_banks.concat().into()
+    }
+    
     fn new(rom_image: Vec<u8>, saved_ram: Option<Vec<u8>>) -> Result<Self, String> {
         println!("rom detected is romonly");
-        let mut rom = [0; ONLYROM_ROM_SIZE];
-        let mut ram = [0; ONLYROM_RAM_SIZE];
-        let end = min(ONLYROM_ROM_SIZE, rom_image.len());
-        rom[..end].copy_from_slice(&rom_image[..end]);
+        let rom_banks: Vec<[u8; ONLYROM_ROM_SIZE]> = rom_image.chunks_exact(ONLYROM_ROM_SIZE)
+            .map(|slice| {
+                let mut data = [0; ONLYROM_ROM_SIZE];
+                data.copy_from_slice(slice);
+                data
+            }).collect();
+        let ram_banks: Vec<[u8; ONLYROM_RAM_SIZE]> = vec![[0; ONLYROM_RAM_SIZE]];
         Ok(RomOnly {
-            rom, ram
+            rom_banks, ram_banks
         })
     }
 
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            0x0000..0x8000 => self.rom[addr as usize],
-            0xA000..0xC000 => self.ram[addr as usize - 0xA000],
+            0x0000..0x8000 => self.rom_banks[0][addr as usize],
+            0xA000..0xC000 => self.ram_banks[0][addr as usize - 0xA000],
             _ => unreachable!()
         }
     }
 
     fn write(&mut self, addr: u16, val: u8) {
         if (0xA000..0xC000).contains(&addr) {
-            self.ram[addr as usize - 0xA000] = val;
+            self.ram_banks[0][addr as usize - 0xA000] = val;
         }
     }
 }
