@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::{fs, fs::File};
+use std::{fs, fs::File, io};
 use std::io::ErrorKind;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -22,11 +22,17 @@ pub struct GbmuFile {
 
 impl GbmuFile {
     pub fn get_existing_or_new() -> Self {
-        let path = dirs::home_dir()
+        let path_main_file = dirs::home_dir()
             .expect("Could not find home directory")
             .join(".gbmu/gbmu.json");
-
-        #[allow(clippy::field_reassign_with_default)]
+        let path_save_state_dir = dirs::home_dir()
+            .expect("Could not find home directory")
+            .join(".gbmu/save_state/");
+        Self::get_entries_or_create_save_state_directory(&path_save_state_dir).expect("Error while getting entries in save state directory");
+        Self::open_gbmu_file(path_main_file).unwrap()
+    }
+    #[allow(clippy::field_reassign_with_default)]
+    fn open_gbmu_file(path: PathBuf) -> Result<GbmuFile, std::io::Error> {
         match File::open(&path) {
             Ok(file) => {
                 println!("Reading existing file!");
@@ -36,7 +42,7 @@ impl GbmuFile {
                         GbmuFile::default()
                     });
                 gbmu.path = path;
-                gbmu
+                Ok(gbmu)
             }
             Err(e) if e.kind() == ErrorKind::NotFound => {
                 println!("Creating new file!");
@@ -45,12 +51,26 @@ impl GbmuFile {
                 let mut gbmu = GbmuFile::default();
                 gbmu.path = path;
                 gbmu.persist(); // write empty JSON so the file exists
-                gbmu
+                Ok(gbmu)
             }
             Err(e) => panic!(
                 "Something went wrong opening ~/.gbmu/gbmu.json -> {e:?}.\n\
                  If you think this is an error, delete it and restart to create a fresh config."
             ),
+        }
+    }
+
+    fn get_entries_or_create_save_state_directory(path: &PathBuf) -> Result<Vec<String>, std::io::Error> {
+        let mut entries: Vec<String> = Vec::new();
+        if (fs::exists(path).is_ok()) {
+            let paths = fs::read_dir(&path)?;
+            for path in paths {
+                entries.push(path?.path().display().to_string());
+            }
+            Ok(entries)
+        } else {
+            fs::create_dir(path)?;
+            Ok(entries)
         }
     }
 
