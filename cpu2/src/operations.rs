@@ -1,9 +1,22 @@
-use std::ops::Bound::Included;
-
 use crate::defines::Instruction;
 use crate::defines::MicroOp;
+use crate::implemenation::A;
+use crate::implemenation::B;
+use crate::implemenation::BC;
+use crate::implemenation::C;
+use crate::implemenation::D;
+use crate::implemenation::DE;
+use crate::implemenation::E;
+use crate::implemenation::H;
+use crate::implemenation::HL;
+use crate::implemenation::L;
+use crate::implemenation::PC;
+use crate::implemenation::W;
+use crate::implemenation::WZ;
+use crate::implemenation::Z;
 use crate::instructions;
-use crate::instructions::add::{add_a_b, add_a_c, add_a_d, add_a_e, add_a_h, add_a_hl, add_a_l};
+use crate::instructions::add::add_r8_r8;
+use crate::instructions::load::load_r8_r8;
 
 //We build that shit so that we can just define in INSTRUCTIONS what instructions are implemented
 //But it'll eventually get deleted once everything is done since we won't need to build an array
@@ -16,38 +29,38 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     },
     Instruction {
         opcode: 0x80,
-        micro_ops: &[add_a_b],
+        micro_ops: &[add_r8_r8::<A, B>],
     },
     Instruction {
         opcode: 0x81,
-        micro_ops: &[add_a_c],
+        micro_ops: &[add_r8_r8::<A, C>],
     },
     Instruction {
         opcode: 0x82,
-        micro_ops: &[add_a_d],
+        micro_ops: &[add_r8_r8::<A, D>],
     },
     Instruction {
         opcode: 0x83,
-        micro_ops: &[add_a_e],
+        micro_ops: &[add_r8_r8::<A, E>],
     },
     Instruction {
         opcode: 0x84,
-        micro_ops: &[add_a_h],
+        micro_ops: &[add_r8_r8::<A, H>],
     },
     Instruction {
         opcode: 0x85,
-        micro_ops: &[add_a_l],
+        micro_ops: &[add_r8_r8::<A, L>],
     },
     Instruction {
         opcode: 0x86,
-        micro_ops: &[instructions::load_r16::load_tmp_hl, add_a_hl],
+        micro_ops: &[instructions::other::noop],
     },
-    //LD (HL), m
+    //LD (HL), n
     Instruction {
         opcode: 0x36,
         micro_ops: &[
-            instructions::load::load_pc_in_accu,
-            instructions::load::write_n_in_accu,
+            instructions::load::read_memory::<PC, Z>,
+            instructions::load::write_memory::<HL, Z>,
             instructions::other::noop,
         ],
     },
@@ -55,23 +68,23 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0x0a,
         micro_ops: &[
-            instructions::load_r16::load_tmp_bc,
-            instructions::load_a::load_a_accu,
+            instructions::load::read_memory::<BC, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
         ],
     },
     //LD A, (DE)
     Instruction {
         opcode: 0x1a,
         micro_ops: &[
-            instructions::load_r16::load_tmp_de,
-            instructions::load_a::load_a_accu,
+            instructions::load::read_memory::<DE, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
         ],
     },
     //LD (BC), A
     Instruction {
         opcode: 0x02,
         micro_ops: &[
-            instructions::load_r16::write_a_in_bc,
+            instructions::load::write_memory::<BC, A>,
             instructions::other::noop,
         ],
     },
@@ -79,7 +92,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0x12,
         micro_ops: &[
-            instructions::load_r16::write_a_in_de,
+            instructions::load::write_memory::<DE, A>,
             instructions::other::noop,
         ],
     },
@@ -87,27 +100,35 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xfa,
         micro_ops: &[
-            instructions::load::load_pc_in_accu,
-            instructions::load::load_pc_in_accu,
-            instructions::load::load_mem_in_accu,
-            instructions::load_a::load_a_accu,
+            instructions::load::read_memory::<PC, Z>,
+            instructions::load::read_memory::<PC, W>,
+            instructions::load::read_memory::<WZ, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
         ],
     },
     //LD (nn), A
     Instruction {
         opcode: 0xea,
         micro_ops: &[
-            instructions::load::load_pc_in_accu,
-            instructions::load::load_pc_in_accu,
-            instructions::load_a::load_a_in_mem,
+            instructions::load::read_memory::<PC, Z>,
+            instructions::load::read_memory::<PC, W>,
+            instructions::load::write_memory::<WZ, A>,
             instructions::other::noop,
+        ],
+    },
+    //LDH A, (C)
+    Instruction {
+        opcode: 0xF2,
+        micro_ops: &[
+            instructions::load::read_memory_0xff::<C, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
         ],
     },
     //LDH (C), A
     Instruction {
         opcode: 0xE2,
         micro_ops: &[
-            instructions::load::write_a_in_c0x_ff,
+            instructions::load::write_memory_0xff::<C, Z>,
             instructions::other::noop,
         ],
     },
@@ -210,7 +231,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xC5,
         micro_ops: &[
-            instructions::other::sp_decr,
+            instructions::other::decremenent_sp,
             instructions::load_r16::write_msb_bc_in_mem,
             instructions::load_r16::write_lsb_bc_in_mem,
             instructions::other::noop,
@@ -219,7 +240,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xD5,
         micro_ops: &[
-            instructions::other::sp_decr,
+            instructions::other::decremenent_sp,
             instructions::load_r16::write_msb_de_in_mem,
             instructions::load_r16::write_lsb_de_in_mem,
             instructions::other::noop,
@@ -228,7 +249,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xE5,
         micro_ops: &[
-            instructions::other::sp_decr,
+            instructions::other::decremenent_sp,
             instructions::load_r16::write_msb_hl_in_mem,
             instructions::load_r16::write_lsb_hl_in_mem,
             instructions::other::noop,
@@ -237,7 +258,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xF5,
         micro_ops: &[
-            instructions::other::sp_decr,
+            instructions::other::decremenent_sp,
             instructions::load_r16::write_msb_af_in_mem,
             instructions::load_r16::write_lsb_af_in_mem,
             instructions::other::noop,
@@ -288,218 +309,218 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     //LD B, r
     Instruction {
         opcode: 0x40,
-        micro_ops: &[instructions::load_b::load_b_b],
+        micro_ops: &[instructions::load::load_r8_r8::<B, B>],
     },
     Instruction {
         opcode: 0x41,
-        micro_ops: &[instructions::load_b::load_b_c],
+        micro_ops: &[instructions::load::load_r8_r8::<B, C>],
     },
     Instruction {
         opcode: 0x42,
-        micro_ops: &[instructions::load_b::load_b_d],
+        micro_ops: &[instructions::load::load_r8_r8::<B, D>],
     },
     Instruction {
         opcode: 0x43,
-        micro_ops: &[instructions::load_b::load_b_e],
+        micro_ops: &[instructions::load::load_r8_r8::<B, E>],
     },
     Instruction {
         opcode: 0x44,
-        micro_ops: &[instructions::load_b::load_b_h],
+        micro_ops: &[instructions::load::load_r8_r8::<B, H>],
     },
     Instruction {
         opcode: 0x45,
-        micro_ops: &[instructions::load_b::load_b_l],
+        micro_ops: &[instructions::load::load_r8_r8::<B, L>],
     },
     Instruction {
         opcode: 0x46,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_b::load_b_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<B>,
         ],
     },
     Instruction {
         opcode: 0x47,
-        micro_ops: &[instructions::load_a::load_a_b],
+        micro_ops: &[instructions::load::load_r8_r8::<B, A>],
     },
     //LD C, r
     Instruction {
         opcode: 0x48,
-        micro_ops: &[instructions::load_c::load_c_b],
+        micro_ops: &[instructions::load::load_r8_r8::<C, B>],
     },
     Instruction {
         opcode: 0x49,
-        micro_ops: &[instructions::load_c::load_c_c],
+        micro_ops: &[instructions::load::load_r8_r8::<C, C>],
     },
     Instruction {
         opcode: 0x4a,
-        micro_ops: &[instructions::load_c::load_c_d],
+        micro_ops: &[instructions::load::load_r8_r8::<C, D>],
     },
     Instruction {
         opcode: 0x4b,
-        micro_ops: &[instructions::load_c::load_c_e],
+        micro_ops: &[instructions::load::load_r8_r8::<C, E>],
     },
     Instruction {
         opcode: 0x4c,
-        micro_ops: &[instructions::load_c::load_c_h],
+        micro_ops: &[instructions::load::load_r8_r8::<C, H>],
     },
     Instruction {
         opcode: 0x4d,
-        micro_ops: &[instructions::load_c::load_c_l],
+        micro_ops: &[instructions::load::load_r8_r8::<C, L>],
     },
     Instruction {
         opcode: 0x4e,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_c::load_c_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<C>,
         ],
     },
     Instruction {
         opcode: 0x4f,
-        micro_ops: &[instructions::load_a::load_a_c],
+        micro_ops: &[instructions::load::load_r8_r8::<C, A>],
     },
     //LD D, r
     Instruction {
         opcode: 0x50,
-        micro_ops: &[instructions::load_d::load_d_b],
+        micro_ops: &[instructions::load::load_r8_r8::<D, B>],
     },
     Instruction {
         opcode: 0x51,
-        micro_ops: &[instructions::load_d::load_d_c],
+        micro_ops: &[instructions::load::load_r8_r8::<D, C>],
     },
     Instruction {
         opcode: 0x52,
-        micro_ops: &[instructions::load_d::load_d_d],
+        micro_ops: &[instructions::load::load_r8_r8::<D, D>],
     },
     Instruction {
         opcode: 0x53,
-        micro_ops: &[instructions::load_d::load_d_e],
+        micro_ops: &[instructions::load::load_r8_r8::<D, E>],
     },
     Instruction {
         opcode: 0x54,
-        micro_ops: &[instructions::load_d::load_d_h],
+        micro_ops: &[instructions::load::load_r8_r8::<D, H>],
     },
     Instruction {
         opcode: 0x55,
-        micro_ops: &[instructions::load_d::load_d_l],
+        micro_ops: &[instructions::load::load_r8_r8::<D, L>],
     },
     Instruction {
         opcode: 0x56,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_d::load_d_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<D>,
         ],
     },
     Instruction {
         opcode: 0x57,
-        micro_ops: &[instructions::load_a::load_a_d],
+        micro_ops: &[instructions::load::load_r8_r8::<D, A>],
     },
     //LD E, r
     Instruction {
         opcode: 0x58,
-        micro_ops: &[instructions::load_e::load_e_b],
+        micro_ops: &[instructions::load::load_r8_r8::<E, B>],
     },
     Instruction {
         opcode: 0x59,
-        micro_ops: &[instructions::load_e::load_e_c],
+        micro_ops: &[instructions::load::load_r8_r8::<E, C>],
     },
     Instruction {
         opcode: 0x5a,
-        micro_ops: &[instructions::load_e::load_e_d],
+        micro_ops: &[instructions::load::load_r8_r8::<E, D>],
     },
     Instruction {
         opcode: 0x5b,
-        micro_ops: &[instructions::load_e::load_e_e],
+        micro_ops: &[instructions::load::load_r8_r8::<E, E>],
     },
     Instruction {
         opcode: 0x5c,
-        micro_ops: &[instructions::load_e::load_e_h],
+        micro_ops: &[instructions::load::load_r8_r8::<E, H>],
     },
     Instruction {
         opcode: 0x5d,
-        micro_ops: &[instructions::load_e::load_e_l],
+        micro_ops: &[instructions::load::load_r8_r8::<E, L>],
     },
     Instruction {
         opcode: 0x5e,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_e::load_e_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<E>,
         ],
     },
     Instruction {
         opcode: 0x5f,
-        micro_ops: &[instructions::load_a::load_a_e],
+        micro_ops: &[instructions::load::load_r8_r8::<E, A>],
     },
     //LD H, r
     Instruction {
         opcode: 0x60,
-        micro_ops: &[instructions::load_h::load_h_b],
+        micro_ops: &[instructions::load::load_r8_r8::<H, B>],
     },
     Instruction {
         opcode: 0x61,
-        micro_ops: &[instructions::load_h::load_h_c],
+        micro_ops: &[instructions::load::load_r8_r8::<H, C>],
     },
     Instruction {
         opcode: 0x62,
-        micro_ops: &[instructions::load_h::load_h_d],
+        micro_ops: &[instructions::load::load_r8_r8::<H, D>],
     },
     Instruction {
         opcode: 0x63,
-        micro_ops: &[instructions::load_h::load_h_e],
+        micro_ops: &[instructions::load::load_r8_r8::<H, E>],
     },
     Instruction {
         opcode: 0x64,
-        micro_ops: &[instructions::load_h::load_h_h],
+        micro_ops: &[instructions::load::load_r8_r8::<H, H>],
     },
     Instruction {
         opcode: 0x65,
-        micro_ops: &[instructions::load_h::load_h_l],
+        micro_ops: &[instructions::load::load_r8_r8::<H, L>],
     },
     Instruction {
         opcode: 0x66,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_h::load_h_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<H>,
         ],
     },
     Instruction {
         opcode: 0x67,
-        micro_ops: &[instructions::load_a::load_a_h],
+        micro_ops: &[instructions::load::load_r8_r8::<H, A>],
     },
     //LD L, r
     Instruction {
         opcode: 0x68,
-        micro_ops: &[instructions::load_l::load_l_b],
+        micro_ops: &[instructions::load::load_r8_r8::<L, B>],
     },
     Instruction {
         opcode: 0x69,
-        micro_ops: &[instructions::load_l::load_l_c],
+        micro_ops: &[instructions::load::load_r8_r8::<L, C>],
     },
     Instruction {
         opcode: 0x6a,
-        micro_ops: &[instructions::load_l::load_l_d],
+        micro_ops: &[instructions::load::load_r8_r8::<L, D>],
     },
     Instruction {
         opcode: 0x6b,
-        micro_ops: &[instructions::load_l::load_l_e],
+        micro_ops: &[instructions::load::load_r8_r8::<L, E>],
     },
     Instruction {
         opcode: 0x6c,
-        micro_ops: &[instructions::load_l::load_l_h],
+        micro_ops: &[instructions::load::load_r8_r8::<L, H>],
     },
     Instruction {
         opcode: 0x6d,
-        micro_ops: &[instructions::load_l::load_l_l],
+        micro_ops: &[instructions::load::load_r8_r8::<L, L>],
     },
     Instruction {
         opcode: 0x6e,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_l::load_l_tmp,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<L>,
         ],
     },
     Instruction {
         opcode: 0x6f,
-        micro_ops: &[instructions::load_a::load_a_l],
+        micro_ops: &[instructions::load::load_r8_r8::<L, A>],
     },
     //LD HL, r
     Instruction {
@@ -538,38 +559,38 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     //LD A, r
     Instruction {
         opcode: 0x78,
-        micro_ops: &[instructions::load_a::load_a_b],
+        micro_ops: &[instructions::load::load_r8_r8::<A, B>],
     },
     Instruction {
         opcode: 0x79,
-        micro_ops: &[instructions::load_a::load_a_c],
+        micro_ops: &[instructions::load::load_r8_r8::<A, C>],
     },
     Instruction {
         opcode: 0x7a,
-        micro_ops: &[instructions::load_a::load_a_d],
+        micro_ops: &[instructions::load::load_r8_r8::<A, D>],
     },
     Instruction {
         opcode: 0x7b,
-        micro_ops: &[instructions::load_a::load_a_e],
+        micro_ops: &[instructions::load::load_r8_r8::<A, E>],
     },
     Instruction {
         opcode: 0x7c,
-        micro_ops: &[instructions::load_a::load_a_h],
+        micro_ops: &[instructions::load::load_r8_r8::<A, H>],
     },
     Instruction {
         opcode: 0x7d,
-        micro_ops: &[instructions::load_a::load_a_l],
+        micro_ops: &[instructions::load::load_r8_r8::<A, L>],
     },
     Instruction {
         opcode: 0x7e,
         micro_ops: &[
-            instructions::load_r16::load_tmp_hl,
-            instructions::load_a::load_a_accu,
+            instructions::load::read_mem_in_accu_from_pc,
+            instructions::load::load_accu_in_r8::<A>,
         ],
     },
     Instruction {
         opcode: 0x7f,
-        micro_ops: &[instructions::load_a::load_a_a],
+        micro_ops: &[instructions::load::load_r8_r8::<A, A>],
     },
 ];
 

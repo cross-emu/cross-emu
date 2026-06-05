@@ -1,27 +1,7 @@
-use crate::R8;
-use crate::defines::Accumulator;
-use crate::defines::{Cpu, R16, Registers};
+use crate::defines::Cpu;
+use crate::defines::{r8, r16};
 use crate::operations::{DISPATCH, INSTRUCTIONS};
 use std::fmt;
-
-impl Registers {
-    pub fn new() -> Self {
-        Registers {
-            r8: [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
-            pc: 0,
-            sp: 0,
-            flags: 0,
-        }
-    }
-
-    pub fn incr_sp(&mut self) {
-        self.sp = self.sp.wrapping_add(1);
-    }
-
-    pub fn incr_pc(&mut self) {
-        self.pc = self.pc.wrapping_add(1);
-    }
-}
 
 impl Cpu {
     pub fn new(test: Vec<u8>) -> Self {
@@ -36,11 +16,11 @@ impl Cpu {
             println!("First fetch");
 
             Cpu {
-                registers: Registers::new(),
+                r8: [0; 14],
+                flags: 0,
                 instructions_list: test.clone(),
                 queue: first_instr.micro_ops,
                 op_index: 0,
-                accumulator: Accumulator::new(),
                 bus: [0; 65536],
             }
         }
@@ -54,15 +34,15 @@ impl Cpu {
 
             if self.op_index == self.queue.len() {
                 println!("Fetching...");
-                let opcode = self
+                let pc = self.get_r16::<PC>();
+                let opcode = *self
                     .instructions_list
-                    .get(self.registers.pc as usize)
+                    .get(pc as usize)
                     .expect("Could not fetch instructions");
-                self.registers.pc = self.registers.pc.wrapping_add(1);
 
-                self.queue = DISPATCH[*opcode as usize].expect("Unknown opcode");
+                self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
+                self.queue = DISPATCH[opcode as usize].expect("Unknown opcode");
                 self.op_index = 0;
-                self.accumulator.reset();
             }
         } else {
             panic!("No instruction left!");
@@ -81,19 +61,19 @@ impl fmt::Debug for Cpu {
     }
 }
 
-pub trait  GetReg {
-    type Output;
-    fn get(&self) -> Self::Output;
-    fn set(&mut self, value: Self::Output);
+pub trait Reg8 {
+    const USIZE: usize;
 }
 
-trait Reg8 { const USIZE: usize; }
+pub trait Reg16 {
+    const USIZE: usize;
+}
 
 macro_rules! implreg8 {
     ($name:ident) => {
-        struct $name {}
+        pub struct $name {}
         impl Reg8 for $name {
-            const USIZE: usize = R8::$name as usize;
+            const USIZE: usize = r8::$name as usize;
         }
     };
 }
@@ -106,12 +86,14 @@ implreg8!(E);
 implreg8!(F);
 implreg8!(H);
 implreg8!(L);
+implreg8!(W);
+implreg8!(Z);
 
 macro_rules! implreg16 {
     ($name:ident) => {
-        struct $name {}
+        pub struct $name {}
         impl Reg16 for $name {
-            const USIZE: usize = R16::$name as usize;
+            const USIZE: usize = r16::$name as usize;
         }
     };
 }
@@ -122,34 +104,23 @@ implreg16!(DE);
 implreg16!(HL);
 implreg16!(SP);
 implreg16!(PC);
+implreg16!(WZ);
 
-
-impl Cpu{
-    fn get_r8<R:Reg8> (&self) -> u8{
+impl Cpu {
+    pub fn get_r8<R: Reg8>(&self) -> u8 {
         self.r8[R::USIZE]
     }
 
-    fn set_r8<R:Reg8>(&mut self, value: u8) {
+    pub fn set_r8<R: Reg8>(&mut self, value: u8) {
         self.r8[R::USIZE] = value;
     }
 
-    fn get_r16<R: Reg16>(&self) -> u16 {
+    pub fn get_r16<R: Reg16>(&self) -> u16 {
         (self.r8[R::USIZE * 2] as u16) << 8 | self.r8[R::USIZE * 2 + 1] as u16
     }
 
-    fn set_r16<R: Reg16>(&mut self, value: u16) {
+    pub fn set_r16<R: Reg16>(&mut self, value: u16) {
         self.r8[R::USIZE] = (value >> 8) as u8;
         self.r8[R::USIZE] = (value & 0xFF) as u8;
     }
 }
-
-
-
-trait Reg16 { const USIZE: usize; }
-
-struct RegAF;
-
-impl Reg16 for RegAF {
-    const USIZE: usize = 0;
-}
-

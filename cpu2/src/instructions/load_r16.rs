@@ -1,8 +1,13 @@
 use std::ptr::addr_eq;
 
-use crate::{Cpu, defines::{R8, R16}, implemenation::GetReg, instructions::other::sp_decr};
 use crate::defines::Flag;
 use crate::flags::FlagsOps;
+use crate::{
+    Cpu,
+    defines::{R8, R16},
+    implemenation::GetReg,
+    instructions::other::sp_decr,
+};
 
 pub fn load_tmp_bc(cpu: &mut Cpu) {
     cpu.accumulator.value = cpu.bus[cpu.registers.get(R16::BC) as usize] as u32;
@@ -18,22 +23,26 @@ pub fn load_tmp_hl(cpu: &mut Cpu) {
 
 pub fn load_tmp_hl_decr(cpu: &mut Cpu) {
     cpu.accumulator.value = cpu.bus[cpu.registers.get(R16::HL) as usize] as u32;
-    cpu.registers.set(R16::HL, cpu.registers.get(R16::HL).wrapping_sub(1));
+    cpu.registers
+        .set(R16::HL, cpu.registers.get(R16::HL).wrapping_sub(1));
 }
 
 pub fn load_tmp_hl_incr(cpu: &mut Cpu) {
     cpu.accumulator.value = cpu.bus[cpu.registers.get(R16::HL) as usize] as u32;
-    cpu.registers.set(R16::HL, cpu.registers.get(R16::HL).wrapping_add(1));
+    cpu.registers
+        .set(R16::HL, cpu.registers.get(R16::HL).wrapping_add(1));
 }
 
 pub fn write_a_in_mem_decr(cpu: &mut Cpu) {
     cpu.bus[cpu.registers.get(R16::HL) as usize] = cpu.registers.get(R8::A);
-    cpu.registers.set(R16::HL, cpu.registers.get(R16::HL).wrapping_sub(1));
+    cpu.registers
+        .set(R16::HL, cpu.registers.get(R16::HL).wrapping_sub(1));
 }
 
 pub fn write_a_in_mem_incr(cpu: &mut Cpu) {
     cpu.bus[cpu.registers.get(R16::HL) as usize] = cpu.registers.get(R8::A);
-    cpu.registers.set(R16::HL, cpu.registers.get(R16::HL).wrapping_add(1));
+    cpu.registers
+        .set(R16::HL, cpu.registers.get(R16::HL).wrapping_add(1));
 }
 
 pub fn write_a_in_bc(cpu: &mut Cpu) {
@@ -120,7 +129,6 @@ pub fn write_lsb_sp_in_mem(cpu: &mut Cpu) {
 }
 
 pub fn add_accu_to_lsb_sp(cpu: &mut Cpu) {
-
     let sp_lsb = (cpu.registers.get(R16::SP) & 0xFF) as u8;
     let accu = cpu.registers.get(R8::A);
 
@@ -130,15 +138,18 @@ pub fn add_accu_to_lsb_sp(cpu: &mut Cpu) {
     cpu.registers.r8[R8::A as usize] = result;
 
     cpu.registers.flags.set_flag(Flag::Zero, result == 0);
-    cpu.registers.flags.set_flag(Flag::Subtract, false); 
-    cpu.registers.flags.set_flag(Flag::HalfCarry,(sp_lsb & 0x0F) + (accu & 0x0F) > 0x0F);
-    cpu.registers.flags.set_flag(Flag::Carry, (sp_lsb as u16) + (accu as u16) > 0xFF);
+    cpu.registers.flags.set_flag(Flag::Subtract, false);
+    cpu.registers
+        .flags
+        .set_flag(Flag::HalfCarry, (sp_lsb & 0x0F) + (accu & 0x0F) > 0x0F);
+    cpu.registers
+        .flags
+        .set_flag(Flag::Carry, (sp_lsb as u16) + (accu as u16) > 0xFF);
 
     cpu.accumulator.accumulate_u8(result & 0b01000000);
 }
 
 pub fn put_spe_in_h(cpu: &mut Cpu) {
-
     let adj;
     if (cpu.accumulator.get_u8_at(0) >> 7) & 0x01 == 0 {
         adj = 0x00;
@@ -149,3 +160,4 @@ pub fn put_spe_in_h(cpu: &mut Cpu) {
     let res = sp_msb + adj + cpu.registers.flags.get_flag(Flag::Carry) as u8;
     cpu.registers.set(R8::H, res);
 }
+
