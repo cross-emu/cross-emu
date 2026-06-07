@@ -86,6 +86,8 @@ implreg8!(E);
 implreg8!(F);
 implreg8!(H);
 implreg8!(L);
+implreg8!(S);
+implreg8!(P);
 implreg8!(W);
 implreg8!(Z);
 
