@@ -1295,8 +1295,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory_incr::<PC, Z>,
             instructions::load::read_memory_incr::<PC, W>,
             instructions::inc_dec::dec_r16::<SP>,
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_reassign_pc::<SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_reassign_pc::<SP, PcC>,
             instructions::other::noop,
         ],
     },
@@ -1307,8 +1307,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory_incr::<PC, W>,
             instructions::inc_dec::dec_r16::<SP>,
             instructions::cond::check_cond::<CondNZ>,
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_reassign_pc::<SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_reassign_pc::<SP, PcC>,
             instructions::other::noop,
         ],
     },
@@ -1319,8 +1319,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory_incr::<PC, W>,
             instructions::inc_dec::dec_r16::<SP>,
             instructions::cond::check_cond::<CondNC>,
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_reassign_pc::<SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_reassign_pc::<SP, PcC>,
             instructions::other::noop,
         ],
     },
@@ -1331,8 +1331,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory_incr::<PC, W>,
             instructions::inc_dec::dec_r16::<SP>,
             instructions::cond::check_cond::<CondC>,
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_reassign_pc::<SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_reassign_pc::<SP, PcC>,
             instructions::other::noop,
         ],
     },
@@ -1343,8 +1343,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory_incr::<PC, W>,
             instructions::inc_dec::dec_r16::<SP>,
             instructions::cond::check_cond::<CondZ>,
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_reassign_pc::<SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_reassign_pc::<SP, PcC>,
             instructions::other::noop,
         ],
     },
@@ -1470,8 +1470,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xCF,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x08, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x08, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1479,8 +1479,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xC7,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x00, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x00, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1488,8 +1488,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xD7,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x10, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x10, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1497,8 +1497,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xDF,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x18, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x18, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1506,8 +1506,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xE7,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x20, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x20, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1515,8 +1515,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xEF,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x28, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x28, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1524,8 +1524,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xF7,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x30, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x30, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1533,8 +1533,8 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xFF,
         micro_ops: &[
-            instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst::<0x38, SP, PC_C>,
+            instructions::load::write_memory_decr::<SP, PcP>,
+            instructions::load::write_memory_rst::<0x38, SP, PcC>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],

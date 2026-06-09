@@ -30,6 +30,7 @@ pub struct Cpu {
     pub bus: [u8; 0x10000],
 }
 
+#[allow(non_upper_case_globals)]
 pub mod r8 {
     pub const A: usize = 0;
     pub const B: usize = 1;
@@ -41,8 +42,8 @@ pub mod r8 {
     pub const L: usize = 7;
     pub const S: usize = 8;
     pub const P: usize = 9;
-    pub const PC_P: usize = 10;
-    pub const PC_C: usize = 11;
+    pub const PcC: usize = 10;
+    pub const PcP: usize = 11;
     pub const W: usize = 12;
     pub const Z: usize = 13;
 }

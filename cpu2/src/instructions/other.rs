@@ -245,7 +245,7 @@ pub fn sra<Reg: Reg8>(cpu: &mut Cpu) {
 
 pub fn swap<Reg: Reg8>(cpu: &mut Cpu) {
     let val = cpu.get_r8::<Reg>();
-    let result = (val >> 4) | (val << 4);
+    let result = val.rotate_left(4);
 
     cpu.set_r8::<Reg>(result);
     cpu.flags.set_flag(Flag::Zero, result == 0);
