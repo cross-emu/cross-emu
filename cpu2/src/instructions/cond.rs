@@ -1,11 +1,8 @@
-use std::result;
-
 use crate::{
     Cpu,
     defines::Flag,
     flags::FlagsOps,
-    implemenation::{PC, W, WZ, Z},
-    instructions::load::load_r16_r16,
+    implemenation::{PC, W, Z},
 };
 
 pub trait Cond {

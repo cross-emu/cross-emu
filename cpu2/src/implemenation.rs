@@ -1,3 +1,4 @@
+
 use crate::defines::Cpu;
 use crate::defines::{r8, r16};
 use crate::operations::{DISPATCH, INSTRUCTIONS};
@@ -68,7 +69,6 @@ pub trait Reg8 {
 pub trait Reg16 {
     const USIZE: usize;
 }
-
 macro_rules! implreg8 {
     ($name:ident) => {
         pub struct $name {}
@@ -77,6 +77,7 @@ macro_rules! implreg8 {
         }
     };
 }
+
 
 implreg8!(A);
 implreg8!(B);

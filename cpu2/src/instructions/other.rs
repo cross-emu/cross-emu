@@ -1,4 +1,4 @@
-use crate::implemenation::{self, A, HL, Reg8};
+use crate::implemenation::{A, HL, Reg8};
 use crate::instructions::load::write_memory;
 use crate::{Cpu, defines::Flag, flags::FlagsOps, implemenation::Reg16};
 
@@ -13,11 +13,11 @@ pub fn decrement_r16<Reg: Reg16>(cpu: &mut Cpu) {
     cpu.set_r16::<Reg>(cpu.get_r16::<Reg>().wrapping_sub(1));
 }
 
-pub fn set_ime_0(cpu: &mut Cpu) {
+pub fn set_ime_0(_cpu: &mut Cpu) {
     todo!()
 }
 
-pub fn set_ime_1(cpu: &mut Cpu) {
+pub fn set_ime_1(_cpu: &mut Cpu) {
     todo!()
 }
 
