@@ -83,35 +83,8 @@ pub fn write_memory_reassign_pc<Addr: Reg16, Value: Reg8>(cpu: &mut Cpu) {
     cpu.set_r16::<PC>(cpu.get_r16::<WZ>());
 }
 
-pub fn write_memory_rst_0<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
+pub fn write_memory_rst<const B: u16, Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
     write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x0);
+    cpu.set_r16::<SP>(B);
 }
-pub fn write_memory_rst_1<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x8);
-}
-pub fn write_memory_rst_2<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x10);
-}
-pub fn write_memory_rst_3<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x18);
-}
-pub fn write_memory_rst_4<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x20);
-}
-pub fn write_memory_rst_5<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x28);
-}
-pub fn write_memory_rst_6<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x30);
-}
-pub fn write_memory_rst_7<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
-    write_memory::<Addr, Dest>(cpu);
-    cpu.set_r16::<SP>(0x38);
-}
+

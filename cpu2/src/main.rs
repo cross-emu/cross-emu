@@ -1,5 +1,6 @@
 use crate::defines::Cpu;
 use crate::implemenation::A;
+mod cb_operations;
 mod defines;
 mod flags;
 mod implemenation;

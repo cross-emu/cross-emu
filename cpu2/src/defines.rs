@@ -9,7 +9,7 @@ pub enum Flag {
 
 #[derive(Debug, Clone)]
 pub struct Instruction {
-    pub opcode: u16,
+    pub opcode: u8,
     pub micro_ops: &'static [MicroOp],
 }
 

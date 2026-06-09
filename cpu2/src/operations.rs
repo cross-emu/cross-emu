@@ -1,3 +1,4 @@
+use crate::cb_operations::decode_cb;
 use crate::defines::Instruction;
 use crate::defines::MicroOp;
 use crate::implemenation::*;
@@ -850,7 +851,6 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::load_r8_r8::<C, Z>,
         ],
     },
-    
     Instruction {
         opcode: 0x4f,
         micro_ops: &[instructions::load::load_r8_r8::<C, A>],
@@ -1471,7 +1471,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xCF,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_1::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x08, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1480,7 +1480,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xC7,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_0::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x00, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1489,7 +1489,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xD7,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_2::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x10, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1498,7 +1498,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xDF,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_3::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x18, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1507,7 +1507,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xE7,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_4::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x20, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1516,7 +1516,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xEF,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_5::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x28. SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1525,7 +1525,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xF7,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_6::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x30, SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1534,7 +1534,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xFF,
         micro_ops: &[
             instructions::load::write_memory_decr::<SP, PC_P>,
-            instructions::load::write_memory_rst_7::<SP, PC_C>,
+            instructions::load::write_memory_rst::<0x38. SP, PC_C>,
             instructions::load::load_r16_r16::<PC, WZ>,
             instructions::other::noop,
         ],
@@ -1546,6 +1546,10 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0xFB,
         micro_ops: &[instructions::other::set_ime_1],
+    },
+    Instruction {
+        opcode: 0xCB,
+        micro_ops: &[decode_cb],
     },
 ];
 
