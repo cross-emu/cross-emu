@@ -10,6 +10,7 @@ use std::thread;
 use egui_file_dialog::{FileDialog, Filter};
 use crate::communications::{CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools};
 use crate::gameboy::GameBoy;
+use crate::mmu::GbaMmu;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, RomOnly};
 use crate::ppu;
 use eframe::egui::{Key, TextureHandle};
@@ -62,16 +63,35 @@ pub struct EmulationAppOptions {
     boot_rom: bool,
 }
 
+#[derive(PartialEq, Debug)]
+pub enum GbType {
+    Cgb,
+    Gba
+}
+
+impl GbType {
+    fn supported_types(code: u8) -> Vec<GbType> {
+        match code {
+            0x80 => vec![GbType::Cgb, GbType::Gba],
+            _ => vec![GbType::Cgb],
+        }
+    }
+}
+
 pub struct CoreGameOptions {
+    pub boot_rom_path: String,
     pub rom_path: String,
     pub boot_rom: bool,
+    pub gbtype: GbType,
 }
 
 impl From<EmulationAppOptions> for CoreGameOptions {
     fn from(value: EmulationAppOptions) -> Self {
         Self {
+            boot_rom_path: "boot-roms/dmg.bin".into(),
             rom_path: value.rom_path,
             boot_rom: value.boot_rom,
+            gbtype: GbType::Cgb, // TODO -> permettre le choix du type par EmulationAppOptions
         }
     }
 }
@@ -164,11 +184,16 @@ pub enum AppState {
 use std::fs;
 use std::process;
 
+
 pub enum AnyGameApp {
-    OnlyRom(GameBoy<RomOnly>),
-    Mbc1(GameBoy<Mbc1>),
-    Mbc2(GameBoy<Mbc2>),
-    Mbc3(GameBoy<Mbc3>),
+    GbaOnlyRom(GameBoy<GbaMmu<RomOnly>>),
+    CgbOnlyRom(GameBoy<GbaMmu<RomOnly>>),
+    GbaMbc1(GameBoy<GbaMmu<Mbc1>>),
+    CgbMbc1(GameBoy<GbaMmu<Mbc1>>),
+    GbaMbc2(GameBoy<GbaMmu<Mbc2>>),
+    CgbMbc2(GameBoy<GbaMmu<Mbc2>>),
+    GbaMbc3(GameBoy<GbaMmu<Mbc3>>),
+    CgbMbc3(GameBoy<GbaMmu<Mbc3>>),
 }
 
 
@@ -179,9 +204,8 @@ impl AnyGameApp {
         let ram_path = game_data.rom_path.to_owned() + ".save";
         let ram_data: Option<Vec<u8>> = Self::read_ram(&ram_path);
         if ram_data.is_some() { println!("Backup detected") };
-        let code = rom_data[0x0147];
         let boot_rom_data = if game_data.boot_rom {
-            let boot_bytes = std::fs::read("boot-roms/dmg.bin").expect("cannot read boot rom");
+            let boot_bytes = std::fs::read(game_data.boot_rom_path).expect("cannot read boot rom");
             assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
 
             let mut boot_rom = [0u8; 0x0100];
@@ -191,55 +215,69 @@ impl AnyGameApp {
 
         println!("new AnyGameApp");
 
-        match code {
-            0x00 | 0x08 | 0x09 =>  {
-                println!("OnlyRom detected");
-                Ok(
-                    AnyGameApp::OnlyRom(GameBoy::new(
-                        boot_rom_data,
-                        rom_data,
-                        ram_data,
-                    )?)
-                )
-            }
-            0x01..=0x03 => {
-                println!("Mbc1 detected");
-                Ok(
-                    AnyGameApp::Mbc1(GameBoy::new(
-                        boot_rom_data,
-                        rom_data,
-                        ram_data,
-                    )?)
-                )
-            }
-            0x05 | 0x06 => {
-                println!("Mbc2 detected");
-                Ok(
-                    AnyGameApp::Mbc2(GameBoy::new(
-                        boot_rom_data,
-                        rom_data,
-                        ram_data,
-                    )?)
-                )
-            }
-            0x0F..=0x13 => {
-                println!("Mbc3 detected");
-                Ok(
-                    AnyGameApp::Mbc3(GameBoy::new(
-                        boot_rom_data,
-                        rom_data,
-                        ram_data,
-                    )?)
-                )
-            }
-            /*
-                0x0B | 0x0C | 0x0D => Ok(todo!()), // MMM01 pas dans le sujet
-                0x19 | 0x1A | 0x1B | 0x1C | 0x1D | 0x1E => Ok(todo!()), // Mbc5
-                0x20 => Ok(todo!()), // Mbc6
-                0x22 => Ok(todo!()),// MBC7+SENSOR+RUMBLE+RAM+BATTERY
-            */
-                _ => Err("Unmanaged cartridge type".into())
+        let mbc_code = rom_data[0x0147];
+        let supported_gb_types = GbType::supported_types(rom_data[0x0143]);
+
+        if !supported_gb_types.contains(&game_data.gbtype) {
+            return Err(format!("Cartridge doesn't support type {:#?}", game_data.gbtype));
         }
+
+        match game_data.gbtype {
+            GbType::Cgb => {
+                match mbc_code {
+                    0x00 | 0x08 | 0x09 =>  {
+                        println!("OnlyRom detected");
+                        Ok(
+                            AnyGameApp::CgbOnlyRom(GameBoy::new(
+                                boot_rom_data,
+                                rom_data,
+                                ram_data,
+                            )?)
+                        )
+                    }
+                    0x01..=0x03 => {
+                        println!("Mbc1 detected");
+                        Ok(
+                            AnyGameApp::CgbMbc1(GameBoy::new(
+                                boot_rom_data,
+                                rom_data,
+                                ram_data,
+                            )?)
+                        )
+                    }
+                    0x05 | 0x06 => {
+                        println!("Mbc2 detected");
+                        Ok(
+                            AnyGameApp::CgbMbc2(GameBoy::new(
+                                boot_rom_data,
+                                rom_data,
+                                ram_data,
+                            )?)
+                        )
+                    }
+                    0x0F..=0x13 => {
+                        println!("Mbc3 detected");
+                        Ok(
+                            AnyGameApp::CgbMbc3(GameBoy::new(
+                                boot_rom_data,
+                                rom_data,
+                                ram_data,
+                            )?)
+                        )
+                    }
+                    /*
+                    0x0B | 0x0C | 0x0D => Ok(todo!()), // MMM01 pas dans le sujet
+                    0x19 | 0x1A | 0x1B | 0x1C | 0x1D | 0x1E => Ok(todo!()), // Mbc5
+                    0x20 => Ok(todo!()), // Mbc6
+                    0x22 => Ok(todo!()),// MBC7+SENSOR+RUMBLE+RAM+BATTERY
+                    */
+                    _ => Err("Unmanaged cartridge type".into())
+
+                }
+            }
+            GbType::Gba => todo!()
+        }
+
     }
 
     fn read_ram(ram_path: &String) -> Option<Vec<u8>> {
@@ -263,10 +301,14 @@ impl AnyGameApp {
 
     pub fn launch(self, ct: Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String>{
         match self {
-            AnyGameApp::OnlyRom(g) => g.launch(ct),
-            AnyGameApp::Mbc1(g)=> g.launch(ct),
-            AnyGameApp::Mbc2(g)=> g.launch(ct),
-            AnyGameApp::Mbc3(g)=> g.launch(ct),
+            AnyGameApp::GbaOnlyRom(g) => g.launch(ct),
+            AnyGameApp::CgbOnlyRom(g) => g.launch(ct),
+            AnyGameApp::GbaMbc1(g) => g.launch(ct),
+            AnyGameApp::CgbMbc1(g) => g.launch(ct),
+            AnyGameApp::GbaMbc2(g) => g.launch(ct),
+            AnyGameApp::CgbMbc2(g) => g.launch(ct),
+            AnyGameApp::GbaMbc3(g) => g.launch(ct),
+            AnyGameApp::CgbMbc3(g) => g.launch(ct),
         }
     }
 }

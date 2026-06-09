@@ -4,8 +4,7 @@
 use crate::cpu::Cpu;
 use crate::cpu::registers::R8;
 use crate::cpu::utils;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::{MemoryMapper};
 
 const R16_MASK: u8 = 0b00110000;
 const R8_MASK: u8 = 0b00111000;
@@ -24,7 +23,7 @@ fn get_instruction_block1(instruction: u8) -> u8 {
     }
 }
 
-pub fn execute_instruction_block1<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+pub fn execute_instruction_block1<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let opcode: u8 = get_instruction_block1(instruction);
 
     match opcode {
@@ -34,7 +33,7 @@ pub fn execute_instruction_block1<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &
     }
 }
 
-fn load_r8_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn load_r8_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let source: R8 = utils::convert_source_index_to_r8(instruction);
     let dest: R8 = utils::convert_dest_index_to_r8(instruction);
 

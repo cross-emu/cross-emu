@@ -5,8 +5,7 @@ use crate::cpu::Cpu;
 use crate::cpu::conditions::Cond;
 use crate::cpu::registers::{R8, R16, R16Mem};
 use crate::cpu::utils;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::MemoryMapper;
 
 const COND_MASK: u8 = 0b00011000;
 const LAST_3_BITS_MASK: u8 = 0b00000111;
@@ -71,7 +70,7 @@ fn get_instruction_block0(instruction: u8) -> u8 {
     }
 }
 
-pub fn execute_instruction_block0<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+pub fn execute_instruction_block0<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let opcode = get_instruction_block0(instruction);
 
     match opcode {
@@ -111,7 +110,7 @@ fn convert_index_to_cond(instruction: u8) -> Cond {
     Cond::from(cond_index)
 }
 
-fn load_r16_imm16<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn load_r16_imm16<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let imm16 = utils::get_imm16(cpu, bus);
     let r16 = R16::from((instruction & utils::R16_MASK) >> 4);
 
@@ -120,7 +119,7 @@ fn load_r16_imm16<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u
     12
 }
 
-fn load_r16mem_a<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn load_r16mem_a<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let r16_mem = utils::convert_index_to_r16_mem(instruction);
     let a_value = cpu.registers.get_a();
 
@@ -133,7 +132,7 @@ fn load_r16mem_a<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8
     8
 }
 
-fn load_a_r16mem<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn load_a_r16mem<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let r16_mem = utils::convert_index_to_r16_mem(instruction);
     let value = cpu.registers.get_r16_mem_value(bus, R16::from(r16_mem));
 
@@ -146,7 +145,7 @@ fn load_a_r16mem<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8
     8
 }
 
-fn load_mem_imm16_sp<T: Mbc>(cpu: &mut Cpu, bus: &mut Mmu<T>) -> u8 {
+fn load_mem_imm16_sp<M: MemoryMapper>(cpu: &mut Cpu, bus: &mut M) -> u8 {
     let sp_msb = (cpu.registers.get_sp() >> 8) as u8;
     let sp_lsb = (cpu.registers.get_sp() & 0xFF) as u8;
 
@@ -186,7 +185,7 @@ fn add_hl_r16(cpu: &mut Cpu, instruction: u8) -> u8 {
     8
 }
 
-fn inc_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn inc_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let r8 = utils::convert_dest_index_to_r8(instruction);
     let value = cpu.get_r8_value(r8, bus);
     let new_value = value.wrapping_add(1);
@@ -200,7 +199,7 @@ fn inc_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
     4
 }
 
-fn dec_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn dec_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let r8 = utils::convert_dest_index_to_r8(instruction);
     let value = cpu.get_r8_value(r8, bus);
     let new_value = value.wrapping_sub(1);
@@ -213,7 +212,7 @@ fn dec_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
     4
 }
 
-fn ld_r8_imm8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+fn ld_r8_imm8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let imm8 = bus.read_byte(cpu.pc + 1);
     let r8 = utils::convert_dest_index_to_r8(instruction);
 
@@ -234,7 +233,7 @@ fn rotate_right(cpu: &mut Cpu, carry: bool) -> u8 {
     4
 }
 
-fn daa<T: Mbc>(cpu: &mut Cpu, bus: &mut Mmu<T>) -> u8 {
+fn daa<M: MemoryMapper>(cpu: &mut Cpu, bus: &mut M) -> u8 {
     let mut adjust: u8 = 0;
     let mut a = cpu.registers.get_a();
     if cpu.registers.get_subtract_flag() {
@@ -263,7 +262,7 @@ fn daa<T: Mbc>(cpu: &mut Cpu, bus: &mut Mmu<T>) -> u8 {
     4
 }
 
-fn cpl<T: Mbc>(cpu: &mut Cpu, bus: &mut Mmu<T>) -> u8 {
+fn cpl<M: MemoryMapper>(cpu: &mut Cpu, bus: &mut M) -> u8 {
     let a = cpu.get_r8_value(R8::A, bus);
     let new_value = !a;
     cpu.set_r8_value(R8::A, new_value, bus);
@@ -290,7 +289,7 @@ fn ccf(cpu: &mut Cpu) -> u8 {
     4
 }
 
-fn jr<T: Mbc>(cpu: &mut Cpu, instruction: u8, has_cond: bool, bus: &mut Mmu<T>) -> u8 {
+fn jr<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, has_cond: bool, bus: &mut M) -> u8 {
     if has_cond {
         let cond = convert_index_to_cond(instruction);
         if !cond.test(&mut cpu.registers) {

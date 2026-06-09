@@ -1,5 +1,4 @@
-use crate::mmu::Mmu;
-use crate::mmu::mbc::Mbc;
+use crate::mmu::{MemoryMapper};
 use crate::ppu::lcd_control::LcdControl;
 use crate::ppu::pixel::Pixel;
 use crate::ppu::colors_palette::Color;
@@ -31,7 +30,7 @@ pub struct PixelFetcher {
 
 impl PixelFetcher {
     #[allow(clippy::too_many_arguments)]
-    pub fn tick<T: Mbc>(&mut self, bus: &Mmu<T>, fifo: &PixelFifo, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool, bgp: u8) -> Option<[Pixel; 8]> {
+    pub fn tick<M: MemoryMapper>(&mut self, bus: &mut M, fifo: &PixelFifo, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool, bgp: u8) -> Option<[Pixel; 8]> {
         self.dot_counter = self.dot_counter.wrapping_add(1);
 
         if self.fetcher_state == FetcherState::PushPixel && fifo.is_empty() {
@@ -101,7 +100,7 @@ impl PixelFetcher {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn get_tile_id<T: Mbc>(&mut self, bus: &Mmu<T>, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_id<M: MemoryMapper>(&mut self, bus: &mut M, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
         let tilemap_base: std::ops::Range<u16> = if use_window {
             lcd_control.window_tile_map_area()
         } else {
@@ -125,7 +124,7 @@ impl PixelFetcher {
         bus.read_byte(tilemap_base.start + offset)
     }
 
-    fn get_tile_data_low<T: Mbc>(&mut self, bus: &Mmu<T>, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_data_low<M: MemoryMapper>(&mut self, bus: &mut M, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
         let y = if use_window {
             wly as usize
         } else {
@@ -147,7 +146,7 @@ impl PixelFetcher {
         }
     }
 
-    fn get_tile_data_high<T: Mbc>(&mut self, bus: &Mmu<T>, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_data_high<M: MemoryMapper>(&mut self, bus: &mut M, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
         let y = if use_window {
             wly as usize
         } else {

@@ -16,8 +16,7 @@ use std::fmt;
 
 use crate::communications::CpuState;
 use crate::cpu::registers::{R8, R16, Registers};
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::{MemoryMapper};
 
 const BLOCK_MASK: u8 = 0b11000000;
 
@@ -57,7 +56,7 @@ impl Cpu {
         }
     }
 
-    pub fn execute_instruction<T: Mbc>(&mut self, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+    pub fn execute_instruction<M: MemoryMapper>(&mut self, instruction: u8, bus: &mut M) -> u8 {
         let block = (instruction & BLOCK_MASK) >> 6;
         match block {
             0b00 => block0::execute_instruction_block0(self, instruction, bus),
@@ -68,7 +67,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick<T: Mbc>(&mut self, bus: &mut Mmu<T>) {
+    pub fn tick<M: MemoryMapper>(&mut self, bus: &mut M) {
         if self.tick_to_wait > 0 {
             self.tick_to_wait -= 1;
         } else {
@@ -76,7 +75,7 @@ impl Cpu {
         }
     }
 
-    fn handle_halt_state<T: Mbc>(&mut self, bus: &mut Mmu<T>) -> StepStatus {
+    fn handle_halt_state<M: MemoryMapper>(&mut self, bus: &mut M) -> StepStatus {
         if self.halted {
             let iflag = bus.read_interrupt_flag();
             let ienable = bus.read_interrupt_enable();
@@ -94,7 +93,7 @@ impl Cpu {
         StepStatus::Continue
     }
 
-    fn handle_ime_state<T: Mbc>(&mut self, bus: &mut Mmu<T>) -> StepStatus {
+    fn handle_ime_state<M: MemoryMapper>(&mut self, bus: &mut M) -> StepStatus {
         if self.ime {
             if let Some(interrupt) = bus.interrupts_next_request() {
                 self.ime = false;
@@ -134,7 +133,7 @@ impl Cpu {
         }
     }
 
-    pub fn step<T: Mbc>(&mut self, bus: &mut Mmu<T>) -> u8 {
+    pub fn step<M: MemoryMapper>(&mut self, bus: &mut M) -> u8 {
         if self.handle_halt_state(bus) == StepStatus::Halted {
             return 4;
         }
@@ -151,7 +150,7 @@ impl Cpu {
         tick_to_wait
     }
 
-    pub fn debug_step<T: Mbc>(&mut self, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+    pub fn debug_step<M: MemoryMapper>(&mut self, instruction: u8, bus: &mut M) -> u8 {
         if self.handle_halt_state(bus) == StepStatus::Halted {
             return 4;
         }
@@ -167,7 +166,7 @@ impl Cpu {
         tick_to_wait
     }
 
-    pub fn get_r8_value<T: Mbc>(&self, register: R8, bus: &mut Mmu<T>) -> u8 {
+    pub fn get_r8_value<M: MemoryMapper>(&self, register: R8, bus: &mut M) -> u8 {
         match register {
             R8::HLIndirect => {
                 let addr = self.registers.get_r16_value(R16::HL);
@@ -177,7 +176,7 @@ impl Cpu {
         }
     }
 
-    pub fn set_r8_value<T: Mbc>(&mut self, register: R8, value: u8, bus: &mut Mmu<T>) {
+    pub fn set_r8_value<M: MemoryMapper>(&mut self, register: R8, value: u8, bus: &mut M) {
         match register {
             R8::HLIndirect => {
                 let addr = self.registers.get_r16_value(R16::HL);
