@@ -17,7 +17,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         micro_ops: &[instructions::other::noop],
     },
     Instruction {
-        opcode: 0x08, //TaBONNE GROSSE DARONNE LA PUTE,
+        opcode: 0x10, //TaBONNE GROSSE DARONNE LA PUTE,
         micro_ops: &[instructions::other::noop],
     },
     Instruction {
@@ -50,6 +50,10 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::read_memory::<HL, Z>,
             instructions::add::add_r8_r8::<A, Z>,
         ],
+    },
+    Instruction {
+        opcode: 0x87,
+        micro_ops: &[instructions::add::add_r8_r8::<A, A>],
     },
     Instruction {
         opcode: 0xC6,
@@ -131,32 +135,32 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     //                              SBC
     //SBC A, B
     Instruction {
-        opcode: 0x97,
+        opcode: 0x98,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, B>],
     },
     //SBC A, C
     Instruction {
-        opcode: 0x98,
+        opcode: 0x99,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, C>],
     },
     //SBC A, D
     Instruction {
-        opcode: 0x99,
+        opcode: 0x9A,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, D>],
     },
     //SBC A, E
     Instruction {
-        opcode: 0x9A,
+        opcode: 0x9B,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, D>],
     },
     //SBC A, H
     Instruction {
-        opcode: 0x9B,
+        opcode: 0x9C,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, H>],
     },
     //SBC A, L
     Instruction {
-        opcode: 0x9C,
+        opcode: 0x9D,
         micro_ops: &[instructions::sub::sub_r8_r8_with_carry::<A, L>],
     },
     //SBC A, HL
@@ -181,16 +185,6 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         ],
     },
     //                      ADC
-    // ADC B
-    Instruction {
-        opcode: 0x88,
-        micro_ops: &[instructions::add::add_r8_r8_with_carry::<A, B>],
-    },
-    // ADC C
-    Instruction {
-        opcode: 0x89,
-        micro_ops: &[instructions::add::add_r8_r8_with_carry::<A, C>],
-    },
     // ADC D
     Instruction {
         opcode: 0x8A,
@@ -530,11 +524,6 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::cp::cp_r8_r8::<A, Z>,
         ],
     },
-    // CCF
-    Instruction {
-        opcode: 0x3F,
-        micro_ops: &[instructions::other::ccf],
-    },
     //                      LD
     //LD A, (BC)
     Instruction {
@@ -609,6 +598,14 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0xF0,
         micro_ops: &[
             instructions::load::read_memory_0xff::<C, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
+        ],
+    },
+    Instruction {
+        opcode: 0xE0,
+        micro_ops: &[
+            instructions::load::read_memory_incr::<PC, Z>,
+            instructions::load::write_memory_0xff::<A, Z>,
             instructions::load::load_r8_r8::<A, Z>,
         ],
     },
@@ -814,6 +811,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0x47,
         micro_ops: &[instructions::load::load_r8_r8::<B, A>],
     },
+    Instruction {
+        opcode: 0x06,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<B, Z>,
+        ],
+    },
     //LD C, r
     Instruction {
         opcode: 0x48,
@@ -846,9 +850,17 @@ pub static INSTRUCTIONS: &[Instruction] = &[
             instructions::load::load_r8_r8::<C, Z>,
         ],
     },
+    
     Instruction {
         opcode: 0x4f,
         micro_ops: &[instructions::load::load_r8_r8::<C, A>],
+    },
+    Instruction {
+        opcode: 0x0E,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<C, Z>,
+        ],
     },
     //LD D, r
     Instruction {
@@ -886,6 +898,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0x57,
         micro_ops: &[instructions::load::load_r8_r8::<D, A>],
     },
+    Instruction {
+        opcode: 0x16,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<D, Z>,
+        ],
+    },
     //LD E, r
     Instruction {
         opcode: 0x58,
@@ -921,6 +940,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0x5f,
         micro_ops: &[instructions::load::load_r8_r8::<E, A>],
+    },
+    Instruction {
+        opcode: 0x1E,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<E, Z>,
+        ],
     },
     //LD H, r
     Instruction {
@@ -958,6 +984,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         opcode: 0x67,
         micro_ops: &[instructions::load::load_r8_r8::<H, A>],
     },
+    Instruction {
+        opcode: 0x26,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<H, Z>,
+        ],
+    },
     //LD L, r
     Instruction {
         opcode: 0x68,
@@ -993,6 +1026,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
     Instruction {
         opcode: 0x6f,
         micro_ops: &[instructions::load::load_r8_r8::<L, A>],
+    },
+    Instruction {
+        opcode: 0x2E,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<L, Z>,
+        ],
     },
     //LD HL, r
     Instruction {
@@ -1086,6 +1126,13 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         micro_ops: &[instructions::load::load_r8_r8::<A, A>],
     },
     Instruction {
+        opcode: 0x3E,
+        micro_ops: &[
+            instructions::load::write_memory_incr::<HL, Z>,
+            instructions::load::load_r8_r8::<A, Z>,
+        ],
+    },
+    Instruction {
         opcode: 0x3F,
         micro_ops: &[instructions::other::ccf],
     },
@@ -1130,28 +1177,28 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         ],
     },
     Instruction {
-        opcode: 0x08,
+        opcode: 0x0B,
         micro_ops: &[
             instructions::inc_dec::dec_r16::<BC>,
             instructions::other::noop,
         ],
     },
     Instruction {
-        opcode: 0x18,
+        opcode: 0x1B,
         micro_ops: &[
             instructions::inc_dec::dec_r16::<DE>,
             instructions::other::noop,
         ],
     },
     Instruction {
-        opcode: 0x28,
+        opcode: 0x2B,
         micro_ops: &[
             instructions::inc_dec::dec_r16::<HL>,
             instructions::other::noop,
         ],
     },
     Instruction {
-        opcode: 0x38,
+        opcode: 0x3B,
         micro_ops: &[
             instructions::inc_dec::dec_r16::<SP>,
             instructions::other::noop,
@@ -1402,7 +1449,7 @@ pub static INSTRUCTIONS: &[Instruction] = &[
         ],
     },
     Instruction {
-        opcode: 0xD0,
+        opcode: 0xD8,
         micro_ops: &[
             instructions::cond::check_cond::<CondC>,
             instructions::load::read_memory_incr::<SP, Z>,
