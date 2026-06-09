@@ -8,8 +8,7 @@ mod pixel_fetcher;
 mod oam_fetcher;
 
 use crate::communications::GameCT;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::{MemoryMapper};
 use crate::mmu::oam::Sprite;
 use crate::ppu::colors_palette::Color;
 use crate::ppu::lcd_control::LcdControl;
@@ -27,7 +26,8 @@ pub const WIN_SIZE_Y: usize = 144;
 const OAM_DOTS: u32 = 80;
 const SCANLINE_DOTS: u32 = 456;
 
-pub struct Ppu {
+
+pub struct GbaPpu {
     pub dots: u32,
     lcd_status: LcdStatus,
     wly: u8,
@@ -68,9 +68,13 @@ pub struct Ppu {
     pub pending_stat: bool,
 }
 
-impl Ppu {
+pub struct CgbPpu {
+
+}
+
+impl GbaPpu {
     pub fn new() -> Self {
-        Ppu {
+        GbaPpu {
             dots: 0,
             lcd_status: LcdStatus::new(),
             wly: 0x00,
@@ -175,7 +179,7 @@ impl Ppu {
         sprites.into_iter().map(|(_, s)| s).collect()
     }
 
-    fn mode_oam_search<T: Mbc>(&mut self, bus: &mut Mmu<T>) {
+    fn mode_oam_search<M: MemoryMapper>(&mut self, bus: &mut M) {
         if self.dots == 1 {
             bus.set_accessed_oam_row(0);
             self.oam_scan_index = 0;
@@ -189,10 +193,10 @@ impl Ppu {
         }
 
         if self.dots.is_multiple_of(2) && self.oam_scan_index < 40 {
-            let oam = bus.get_oam();
+            let oam = bus.get_oam_reader();
 
             let mut sprite = oam.sprites[self.oam_scan_index as usize];
-
+            
             if sprite.is_visible(self.ly, self.current_obj_height)
                 && self.visible_sprites_count < 10
             {
@@ -283,7 +287,7 @@ impl Ppu {
         }
     }
 
-    fn step_pixel_fetcher<T: Mbc>(&mut self, use_window: bool, bus: &Mmu<T>) {
+    fn step_pixel_fetcher<M: MemoryMapper>(&mut self, use_window: bool, bus: &mut M) {
         let lcdc = self.read_lcdc();
         let tile_pixels = self.pixel_fetcher.tick(
             bus,
@@ -304,7 +308,7 @@ impl Ppu {
         }
     }
 
-    fn step_oam_fetcher<T: Mbc>(&mut self, bus: &Mmu<T>) {
+    fn step_oam_fetcher<M: MemoryMapper>(&mut self, bus: &mut M) {
         let height: u8 = if self.read_lcdc().is_obj_size_8x16() { 16 } else { 8 };
 
         if self.fetching_sprite {
@@ -364,7 +368,7 @@ impl Ppu {
         }
     }
 
-    fn mode_pixel_transfer<T: Mbc>(&mut self, bus: &Mmu<T>, ct: &mut Box<dyn GameCT>) {
+    fn mode_pixel_transfer<M: MemoryMapper>(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) {
         if self.ly < WIN_SIZE_Y as u8 {
             let wx = self.wx;
 
@@ -487,7 +491,7 @@ impl Ppu {
         self.stat_interrupt_line = false;
     }
 
-    pub fn tick<T: Mbc>(&mut self, bus: &mut Mmu<T>, ct: &mut Box<dyn GameCT>) {
+    pub fn tick<M: MemoryMapper>(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) {
         self.check_lyc_equals_ly();
 
         if !self.read_lcdc().is_ppu_enabled() {

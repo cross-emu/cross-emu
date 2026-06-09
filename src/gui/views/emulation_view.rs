@@ -1,11 +1,6 @@
 use crate::communications::{CpuState, InstructionList, Mode, WatchedAdresses};
 use crate::gui::{
-    AppState,
-    CoreGameDevice,
-    CoreGameOptions,
-    DebuggingDevice,
-    EmulationDevice,
-    SelectionDevice
+    AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, GbType, SelectionDevice
 };
 
 
@@ -68,8 +63,10 @@ impl From<SelectionDevice> for EmulationDevice {
     fn from(original: SelectionDevice) -> Self {
         let rom_path = original.path;
         let options = CoreGameOptions {
+            gbtype: GbType::Cgb,
             rom_path,
             boot_rom: true,
+            boot_rom_path: "boot-roms/dmg.bin".into(),
         };
         let core_game = CoreGameDevice::new(options);
         Self { core_game}

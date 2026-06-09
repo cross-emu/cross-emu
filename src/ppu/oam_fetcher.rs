@@ -1,5 +1,4 @@
-use crate::mmu::Mmu;
-use crate::mmu::mbc::Mbc;
+use crate::mmu::{MemoryMapper};
 use crate::mmu::oam::Sprite;
 use crate::ppu::obj_piso::ObjPiso;
 
@@ -26,7 +25,7 @@ pub struct OamFetcher {
 
 impl OamFetcher {
     #[allow(clippy::too_many_arguments)]
-    pub fn tick<T: Mbc>(&mut self, bus: &Mmu<T>, sprite: &Sprite, piso: &mut ObjPiso, ly: u8, height: u8, scanline_x: usize, obp0: u8, obp1: u8) -> bool {
+    pub fn tick<M: MemoryMapper>(&mut self, bus: &mut M, sprite: &Sprite, piso: &mut ObjPiso, ly: u8, height: u8, scanline_x: usize, obp0: u8, obp1: u8) -> bool {
         self.dot_counter = self.dot_counter.wrapping_add(1);
 
         if self.dot_counter.is_multiple_of(2) {
@@ -75,14 +74,14 @@ impl OamFetcher {
         tile_index
     }
 
-    fn get_tile_data_low<T: Mbc>(&mut self, bus: &Mmu<T>) -> u8 {
+    fn get_tile_data_low<M: MemoryMapper>(&mut self, bus: &mut M) -> u8 {
         let tile_address = VRAM_START
             + (self.tile_id as u16 * 16)
             + (self.actual_sprite_line % 8 * 2) as u16;
         bus.read_byte(tile_address)
     }
 
-    fn get_tile_data_high<T: Mbc>(&mut self, bus: &Mmu<T>) -> u8 {
+    fn get_tile_data_high<M: MemoryMapper>(&mut self, bus: &mut M) -> u8 {
         let tile_address = VRAM_START
             + (self.tile_id as u16 * 16)
             + (self.actual_sprite_line % 8 * 2) as u16;

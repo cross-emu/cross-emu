@@ -4,8 +4,7 @@
 use crate::cpu::Cpu;
 use crate::cpu::registers::R8;
 use crate::cpu::utils;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::{MemoryMapper};
 
 const R16_MASK: u8 = 0b00110000;
 const R8_MASK: u8 = 0b00111000;
@@ -37,7 +36,7 @@ fn get_instruction_block2(instruction: u8) -> u8 {
     }
 }
 
-pub fn execute_instruction_block2<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+pub fn execute_instruction_block2<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let opcode = get_instruction_block2(instruction);
 
     match opcode {
@@ -58,7 +57,7 @@ pub fn execute_instruction_block2<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &
     }
 }
 
-fn add_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut Mmu<T>) {
+fn add_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -66,7 +65,7 @@ fn add_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut 
     cpu.pc = cpu.pc.wrapping_add(1)
 }
 
-fn sub_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut Mmu<T>) {
+fn sub_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -74,7 +73,7 @@ fn sub_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, with_carry: bool, bus: &mut 
     cpu.pc = cpu.pc.wrapping_add(1)
 }
 
-fn and_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+fn and_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -91,7 +90,7 @@ fn and_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
     cpu.pc = cpu.pc.wrapping_add(1)
 }
 
-fn xor_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+fn xor_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -108,7 +107,7 @@ fn xor_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
     cpu.pc = cpu.pc.wrapping_add(1)
 }
 
-fn or_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+fn or_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -125,7 +124,7 @@ fn or_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
     cpu.pc = cpu.pc.wrapping_add(1)
 }
 
-fn cp_a_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+fn cp_a_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
 
     let r8_value = cpu.get_r8_value(r8, bus);

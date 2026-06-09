@@ -5,8 +5,7 @@ use crate::cpu::Cpu;
 use crate::cpu::block_prefix;
 use crate::cpu::registers::R8;
 use crate::cpu::utils;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::{MemoryMapper};
 
 const R8_MASK: u8 = 0b00000111;
 const B3_MASK: u8 = 0b00111000;
@@ -58,7 +57,7 @@ fn get_instruction_block_prefix(instruction: u8) -> u8 {
     panic!("No unique instruction found for opcode: {instruction:#04x}");
 }
 
-pub fn execute_instruction_block_prefix<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) -> u8 {
+pub fn execute_instruction_block_prefix<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) -> u8 {
     let opcode = get_instruction_block_prefix(instruction);
 
     match opcode {
@@ -86,49 +85,49 @@ pub fn execute_instruction_block_prefix<T: Mbc>(cpu: &mut Cpu, instruction: u8, 
     }
 }
 
-pub fn rlc_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn rlc_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_rotate_left(r8, false, false, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn rrc_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn rrc_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_rotate_right(r8, false, false, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn rl<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn rl<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_rotate_left(r8, true, false, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn rr<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn rr<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_rotate_right(r8, true, false, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn sla_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn sla_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_sla(r8, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn sr_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, arithmetic: bool, bus: &mut Mmu<T>) {
+pub fn sr_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, arithmetic: bool, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_sr(r8, arithmetic, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn swap_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn swap_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     cpu.op_swap(r8, bus);
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn bit_b3_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn bit_b3_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     let b3 = (instruction & B3_MASK) >> 3;
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -140,7 +139,7 @@ pub fn bit_b3_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn res_b3_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn res_b3_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     let b3 = (instruction & B3_MASK) >> 3;
     let r8_value = cpu.get_r8_value(r8, bus);
@@ -151,7 +150,7 @@ pub fn res_b3_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
     cpu.pc = cpu.pc.wrapping_add(2);
 }
 
-pub fn set_b3_r8<T: Mbc>(cpu: &mut Cpu, instruction: u8, bus: &mut Mmu<T>) {
+pub fn set_b3_r8<M: MemoryMapper>(cpu: &mut Cpu, instruction: u8, bus: &mut M) {
     let r8: R8 = utils::convert_source_index_to_r8(instruction);
     let b3 = (instruction & B3_MASK) >> 3;
     let mut r8_value = cpu.get_r8_value(r8, bus);

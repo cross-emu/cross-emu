@@ -11,15 +11,15 @@ use crate::communications::{GameCT, Mode, Request};
 use crate::cpu::Cpu;
 use crate::cpu::registers::{R8};
 use crate::gui::KeyInput;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+
+use crate::mmu::MemoryMapper;
 
 const FRAME_CYCLES: u32 = 70224;
 const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
 const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
-pub struct GameBoy<T: Mbc> {
+pub struct GameBoy<M: MemoryMapper> {
     pub cpu: Cpu,
-    pub bus: Mmu<T>,
+    pub bus: M,
 
     step_to_execute: usize,
     should_get_fps: bool,
@@ -29,11 +29,10 @@ pub struct GameBoy<T: Mbc> {
     cycles_elapsed: u32,
 }
 
+type GBMode<M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
 
-type GBMode<T> = fn(&mut GameBoy<T>, &KeyInput, &mut Box<dyn GameCT>);
-
-impl<T: Mbc>  GameBoy<T> {
-    fn send_watched_adress(&self, ct: &mut Box<dyn GameCT>) {
+impl<M: MemoryMapper>  GameBoy<M> {
+    fn send_watched_adress(&mut self, ct: &mut Box<dyn GameCT>) {
         ct.send_watched_adresses(
             WatchedAdresses(self.watched_address.iter().map(
                     |addr| (*addr, self.bus.read_byte(*addr))
@@ -57,30 +56,22 @@ impl<T: Mbc>  GameBoy<T> {
         );
     }
 
-    pub fn ram_dump(self) -> Option<Vec<u8>> {
+    pub fn ram_dump(mut self) -> Option<Vec<u8>> {
         self.bus.ram_dump()
     }
 
     pub fn new(
-        boot_rom_data: Option<[u8; 256]>,
+        boot_rom_data: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<GameBoy<T>, String> {
-        println!("new gameboy");
-        let mut bus = Mmu::<T>::new(rom_data, ram_data)?;
-
-        let with_boot_rom = if let Some(boot_rom) = boot_rom_data {
-            bus.load_boot_rom(boot_rom);
-            true
-        } else {
-            false
-        };
+    ) -> Result<GameBoy<M>, String> {
+        let skip_boot = boot_rom_data.is_none();
+        let bus = M::new(boot_rom_data, rom_data, ram_data)?;
 
         let cpu = Cpu::new();
         let mut gb = GameBoy {
             cpu,
             bus,
-
             step_to_execute: 0,
             should_get_fps: true,
             instructions_to_send: 0,
@@ -89,7 +80,7 @@ impl<T: Mbc>  GameBoy<T> {
             watched_address: HashSet::new(),
         };
 
-        if !with_boot_rom {gb.simulate_boot_rom_effect()}
+        if skip_boot {gb.simulate_boot_rom_effect()}
 
         Ok(gb)
     }
@@ -106,7 +97,7 @@ impl<T: Mbc>  GameBoy<T> {
         let mut input = KeyInput::default();
         let mut before = Instant::now();
         let mut debut: Instant;
-        let mut mode: GBMode<T> = Self::game_mode;
+        let mut mode: GBMode<M> = Self::game_mode;
         loop {
             debut = Instant::now();
             ct.poll_requests()
@@ -141,7 +132,7 @@ impl<T: Mbc>  GameBoy<T> {
         }
     }
 
-    fn treat_request(&mut self, request: Request,  mode: &mut GBMode<T>) {
+    fn treat_request(&mut self, request: Request,  mode: &mut GBMode<M>) {
         match request {
             Request::Mode(new_mode) => {
                 match new_mode {
@@ -156,7 +147,7 @@ impl<T: Mbc>  GameBoy<T> {
                 }
             },
             Request::RenderFrame(frame) => {
-                if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<T>) {
+                if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<M>) {
                     todo!()
                 }
             },
@@ -164,7 +155,7 @@ impl<T: Mbc>  GameBoy<T> {
                 self.watched_address.insert(address);
             },
             Request::Step(step) => {
-                if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<T>) {
+                if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<M>) {
                     self.step_to_execute = step;
                 }
             },
@@ -249,7 +240,7 @@ impl<T: Mbc>  GameBoy<T> {
         self.manage_input(key_input);
         self.bus.tick_timers();
         if self.cycles_elapsed.is_multiple_of(4) {
-            if self.bus.dma_index != 0xFF {
+            if self.bus.get_dma_index() != 0xFF {
                 self.bus.tick_dma();
             }
             self.cycles_elapsed = 0;

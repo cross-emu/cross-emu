@@ -1,10 +1,9 @@
 use crate::cpu::registers::R8;
 use crate::cpu::Cpu;
-use crate::mmu::mbc::Mbc;
-use crate::mmu::Mmu;
+use crate::mmu::MemoryMapper;
 
 impl Cpu {
-    pub fn op_rotate_left<T: Mbc>(&mut self, target: R8, through_carry: bool, z_always_zero: bool, bus: &mut Mmu<T>) {
+    pub fn op_rotate_left<M: MemoryMapper>(&mut self, target: R8, through_carry: bool, z_always_zero: bool, bus: &mut M) {
         let value = self.get_r8_value(target, bus);
 
         let carry_in = if through_carry && self.registers.get_carry_flag() { 1 } else { 0 };
@@ -26,7 +25,7 @@ impl Cpu {
         self.registers.set_zero_flag(zero);
     }
 
-    pub fn op_rotate_right<T: Mbc>(&mut self, target: R8, through_carry: bool, z_always_zero: bool, bus: &mut Mmu<T>) {
+    pub fn op_rotate_right<M: MemoryMapper>(&mut self, target: R8, through_carry: bool, z_always_zero: bool, bus: &mut M) {
         let value = self.get_r8_value(target, bus);
 
         let carry_in = if through_carry && self.registers.get_carry_flag() { 1 } else { 0 };
@@ -48,7 +47,7 @@ impl Cpu {
         self.registers.set_zero_flag(zero);
     }
 
-    pub fn op_sla<T: Mbc>(&mut self, target: R8, bus: &mut Mmu<T>) {
+    pub fn op_sla<M: MemoryMapper>(&mut self, target: R8, bus: &mut M) {
         let value = self.get_r8_value(target, bus);
         let carry_out = (value & 0x80) != 0;
         let result = value << 1;
@@ -60,7 +59,7 @@ impl Cpu {
         self.registers.set_carry_flag(carry_out);
     }
 
-    pub fn op_sr<T: Mbc>(&mut self, target: R8, arithmetic: bool, bus: &mut Mmu<T>) {
+    pub fn op_sr<M: MemoryMapper>(&mut self, target: R8, arithmetic: bool, bus: &mut M) {
         let value = self.get_r8_value(target, bus);
         let carry_out = (value & 0x01) != 0;
 
@@ -77,7 +76,7 @@ impl Cpu {
         self.registers.set_carry_flag(carry_out);
     }
 
-    pub fn op_swap<T: Mbc>(&mut self, target: R8, bus: &mut Mmu<T>) {
+    pub fn op_swap<M: MemoryMapper>(&mut self, target: R8, bus: &mut M) {
         let value = self.get_r8_value(target, bus);
         let result = value.rotate_left(4);
 
