@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 mod cli;
+mod cpu_def;
 mod cpu;
+mod cpucaca;
 mod gameboy;
 mod gui;
 mod mmu;

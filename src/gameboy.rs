@@ -8,8 +8,8 @@ use std::time::Instant;
 use crate::communications::InstructionList;
 use crate::communications::WatchedAdresses;
 use crate::communications::{GameCT, Mode, Request};
-use crate::cpu::Cpu;
-use crate::cpu::registers::{R8};
+use crate::cpucaca::Cpu;
+use crate::cpucaca::registers::{R8};
 use crate::gui::KeyInput;
 
 use crate::mmu::MemoryMapper;

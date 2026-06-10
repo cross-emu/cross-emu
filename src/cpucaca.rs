@@ -15,7 +15,7 @@ pub mod ops8;
 use std::fmt;
 
 use crate::communications::CpuState;
-use crate::cpu::registers::{R8, R16, Registers};
+use crate::cpucaca::registers::{R8, R16, Registers};
 use crate::mmu::{MemoryMapper};
 
 const BLOCK_MASK: u8 = 0b11000000;
