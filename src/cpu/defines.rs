@@ -10,9 +10,9 @@ pub enum Flag {
 }
 
 #[derive(Debug, Clone)]
-pub struct Instruction<'a, M: MemoryMapper> {
+pub struct Instruction<M: MemoryMapper> {
     pub opcode: u8,
-    pub micro_ops: &'a [MicroOp<M>],
+    pub micro_ops: Vec<MicroOp<M>>,
 }
 
 pub type MicroOp<M: MemoryMapper> = fn(&mut Cpu<M>, bus: &mut M);
@@ -21,6 +21,9 @@ pub type Flags = u8;
 pub struct Cpu<M: MemoryMapper> {
     pub queue: Vec<MicroOp<M>>,
     pub r8: [u8; 14],
+
+    pub instructions: Vec<Instruction<M>>,
+    pub cb_instructions: Vec<Instruction<M>>,
     /*
      * A, B, C, D, E, F, H, L -> 0:7
      * SP, PC 8:11

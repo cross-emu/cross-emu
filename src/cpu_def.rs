@@ -1,7 +1,8 @@
 use crate::communications::CpuState;
+use crate::cpu::cb_operations::build_cb_instructions;
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
-use crate::cpu::operations::InstrListe;
+use crate::cpu::operations::build_instructions_set;
 use crate::mmu::MemoryMapper;
 use std::fmt;
 
@@ -13,19 +14,19 @@ enum StepStatus {
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn new() -> Self {
-        {
-            Cpu {
-                r8: [0; 14],
-                flags: 0,
-                queue: Vec::new(),
-                op_index: 0,
-                bus: [0; 65536],
-                ime: false,
-                ime_delay: false,
-                halted: false,
-                halt_bug: false,
-                tick_to_wait: 0,
-            }
+        Self {
+            r8: [0; 14],
+            flags: 0,
+            queue: Vec::new(),
+            op_index: 0,
+            bus: [0; 65536],
+            ime: false,
+            ime_delay: false,
+            halted: false,
+            halt_bug: false,
+            tick_to_wait: 0,
+            instructions: build_instructions_set(),
+            cb_instructions: build_cb_instructions()
         }
     }
 
@@ -43,7 +44,7 @@ impl<M: MemoryMapper> Cpu<M> {
                 self.handle_ime_delay();
 
                 self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
-                self.queue = InstrListe::<M>::prout()[instruction_byte as usize]
+                self.queue = build_instructions_set()[instruction_byte as usize]
                     .micro_ops
                     .to_vec();
                 self.op_index = 0;
