@@ -26,7 +26,7 @@ pub const WIN_SIZE_Y: usize = 144;
 const OAM_DOTS: u32 = 80;
 const SCANLINE_DOTS: u32 = 456;
 
-pub trait Ppu {
+pub trait Ppu<M> {
     //Getter
     fn lcdc_byte(&self) -> u8;
     fn bgp(&self) -> u8;
@@ -62,6 +62,8 @@ pub trait Ppu {
     fn lcd_status(&mut self) -> &mut LcdStatus;
     fn lyc(&self) -> u8;
     fn stat_interrupt_line(&self) -> bool;
+    fn pending_vblank(&self) -> bool;
+    fn pending_stat(&self) -> bool;
     //Setter
     fn set_oam_scan_index(&mut self, index: u8);
     fn set_visible_sprites_count(&mut self, index: u8);
@@ -89,7 +91,7 @@ pub trait Ppu {
     //Updater
 
     //Commons
-    fn new() -> Self;
+    fn new() -> Self where Self: Sized;
     fn read_register(&self, addr: u16) -> u8;
     fn write_register(&mut self, addr: u16, val: u8);
     fn read_lcdc(&self) -> LcdControl {
@@ -119,7 +121,7 @@ pub trait Ppu {
         sprites.into_iter().map(|(_, s)| s).collect()
     }
 
-    fn mode_oam_search<M: MemoryMapper>(&mut self, bus: &mut M) {
+    fn mode_oam_search(&mut self, bus: &mut M) where M: MemoryMapper {
         if self.dots() == 1 {
             bus.set_accessed_oam_row(0);
             self.set_oam_scan_index(0);
@@ -231,7 +233,7 @@ pub trait Ppu {
         }
     }
 
-    fn step_pixel_fetcher<M: MemoryMapper>(&mut self, use_window: bool, bus: &mut M) {
+    fn step_pixel_fetcher(&mut self, use_window: bool, bus: &mut M) where M: MemoryMapper {
         let lcdc = self.read_lcdc().clone();
         let bg_fifo = self.bg_fifo().clone();
         let ly = self.ly();
@@ -250,9 +252,9 @@ pub trait Ppu {
         }
     }
 
-    fn step_oam_fetcher<M: MemoryMapper>(&mut self, bus: &mut M);
+    fn step_oam_fetcher(&mut self, bus: &mut M) where M: MemoryMapper;
 
-    fn mode_pixel_transfer<M: MemoryMapper>(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) {
+    fn mode_pixel_transfer(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) where M: MemoryMapper {
         if self.ly() < WIN_SIZE_Y as u8 {
             let wx = self.wx();
 
@@ -375,7 +377,7 @@ pub trait Ppu {
         self.set_stat_interrupt_line(false);
     }
 
-    fn tick<M: MemoryMapper>(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) {
+    fn tick(&mut self, bus: &mut M, ct: &mut Box<dyn GameCT>) where M: MemoryMapper {
         self.check_lyc_equals_ly();
 
         if !self.read_lcdc().is_ppu_enabled() {
@@ -509,182 +511,74 @@ pub struct CgbPpu {
     pub pending_stat: bool,
 }
 
-impl Ppu for GbaPpu {
+impl<M> Ppu<M> for GbaPpu {
     // Getter
-    fn lcdc_byte(&self) -> u8 {
-        self.lcdc_byte
-    }
-    fn bgp(&self) -> u8 {
-        self.bgp
-    }
-    fn visible_sprites(&mut self) -> &mut [Option<Sprite>; 10] {
-        &mut self.visible_sprites
-    }
-    fn dots(&self) -> u32 {
-        self.dots
-    }
-    fn oam_scan_index(&self) -> u8 {
-        self.oam_scan_index
-    }
-    fn ly(&self) -> u8 {
-        self.ly
-    }
-    fn current_obj_height(&self) -> u8 {
-        self.current_obj_height
-    }
-    fn visible_sprites_count(&self) -> u8 {
-        self.visible_sprites_count
-    }
-    fn use_window(&self) -> bool {
-        self.use_window
-    }
-    fn pixel_fetcher(&mut self) -> &mut PixelFetcher {
-        &mut self.pixel_fetcher
-    }
-    fn bg_fifo(&mut self) -> &mut PixelFifo {
-        &mut self.bg_fifo
-    }
-    fn wx(&self) -> u8 {
-        self.wx
-    }
-    fn wx_at_window_start(&self) -> u8 {
-        self.wx_at_window_start
-    }
-    fn x(&self) -> usize {
-        self.x
-    }
-    fn is_wx_glitch_happened(&self) -> bool {
-        self.is_wx_glitch_happened
-    }
-    fn pixels_to_discard(&self) -> u8 {
-        self.pixels_to_discard
-    }
-    fn obj_piso(&mut self) -> &mut ObjPiso {
-        &mut self.obj_piso
-    }
-    fn scx(&self) -> u8 {
-        self.scx
-    }
-    fn scy(&self) -> u8 {
-        self.scy
-    }
-    fn wly(&self) -> u8 {
-        self.wly
-    }
-    fn fetching_sprite(&self) -> bool {
-        self.fetching_sprite
-    }
-    fn current_sprite_to_fetch(&self) -> Option<usize> {
-        self.current_sprite_to_fetch
-    }
-    fn obp0(&self) -> u8 {
-        self.obp0
-    }
-    fn obp1(&self) -> u8 {
-        self.obp1
-    }
-    fn oam_fetcher(&mut self) -> &mut OamFetcher {
-        &mut self.oam_fetcher
-    }
-    fn wy_equal_ly_condition_met(&self) -> bool {
-        self.wy_equal_ly_condition_met
-    }
-    fn stall_dots(&self) -> u8 {
-        self.stall_dots
-    }
-    fn wy(&self) -> u8 {
-        self.wy
-    }
-    fn internal_ly(&self) -> u8 {
-        self.internal_ly
-    }
-    fn is_first_scanline_after_lcd_on(&self) -> bool {
-        self.is_first_scanline_after_lcd_on
-    }
-    fn lcd_was_enabled(&self) -> bool {
-        self.lcd_was_enabled
-    }
-    fn lcd_status(&mut self) -> &mut LcdStatus {
-        &mut self.lcd_status
-    }
-    fn lyc(&self) -> u8 {
-        self.lyc
-    }
-    fn stat_interrupt_line(&self) -> bool {
-        self.stat_interrupt_line
-    }
+    fn lcdc_byte(&self) -> u8 { self.lcdc_byte }
+    fn bgp(&self) -> u8 { self.bgp }
+    fn visible_sprites(&mut self) -> &mut [Option<Sprite>; 10] { &mut self.visible_sprites }
+    fn dots(&self) -> u32 { self.dots }
+    fn oam_scan_index(&self) -> u8 { self.oam_scan_index }
+    fn ly(&self) -> u8 { self.ly }
+    fn current_obj_height(&self) -> u8 { self.current_obj_height }
+    fn visible_sprites_count(&self) -> u8 { self.visible_sprites_count }
+    fn use_window(&self) -> bool { self.use_window }
+    fn pixel_fetcher(&mut self) -> &mut PixelFetcher { &mut self.pixel_fetcher }
+    fn bg_fifo(&mut self) -> &mut PixelFifo { &mut self.bg_fifo }
+    fn wx(&self) -> u8 { self.wx }
+    fn wx_at_window_start(&self) -> u8 { self.wx_at_window_start }
+    fn x(&self) -> usize { self.x }
+    fn is_wx_glitch_happened(&self) -> bool { self.is_wx_glitch_happened }
+    fn pixels_to_discard(&self) -> u8 { self.pixels_to_discard }
+    fn obj_piso(&mut self) -> &mut ObjPiso { &mut self.obj_piso }
+    fn scx(&self) -> u8 { self.scx }
+    fn scy(&self) -> u8 { self.scy }
+    fn wly(&self) -> u8 { self.wly }
+    fn fetching_sprite(&self) -> bool { self.fetching_sprite }
+    fn current_sprite_to_fetch(&self) -> Option<usize> { self.current_sprite_to_fetch }
+    fn obp0(&self) -> u8 { self.obp0 }
+    fn obp1(&self) -> u8 { self.obp1 }
+    fn oam_fetcher(&mut self) -> &mut OamFetcher { &mut self.oam_fetcher }
+    fn wy_equal_ly_condition_met(&self) -> bool { self.wy_equal_ly_condition_met }
+    fn stall_dots(&self) -> u8 { self.stall_dots }
+    fn wy(&self) -> u8 { self.wy }
+    fn internal_ly(&self) -> u8 { self.internal_ly }
+    fn is_first_scanline_after_lcd_on(&self) -> bool { self.is_first_scanline_after_lcd_on }
+    fn lcd_was_enabled(&self) -> bool { self.lcd_was_enabled }
+    fn lcd_status(&mut self) -> &mut LcdStatus { &mut self.lcd_status }
+    fn lyc(&self) -> u8 { self.lyc }
+    fn stat_interrupt_line(&self) -> bool { self.stat_interrupt_line }
+    fn pending_vblank(&self) -> bool { self.pending_vblank }
+    fn pending_stat(&self) -> bool { self.pending_stat }
     // Setter
-    fn set_oam_scan_index(&mut self, index: u8) {
-        self.oam_scan_index = index;
-    }
+    fn set_oam_scan_index(&mut self, index: u8) { self.oam_scan_index = index; }
     fn set_visible_sprites_count(&mut self, index: u8) {
-        self.visible_sprites_count = index;
-    }
+        self.visible_sprites_count = index; }
     fn set_visible_sprites(&mut self, sprites: [Option<Sprite>; 10]) {
-        self.visible_sprites = sprites;
-    }
-    fn set_current_obj_height(&mut self, val: u8) {
-        self.current_obj_height = val;
-    }
+        self.visible_sprites = sprites; }
+    fn set_current_obj_height(&mut self, val: u8) { self.current_obj_height = val; }
     fn set_one_visible_sprites(&mut self, index: usize, sprite: Option<Sprite>) {
-        self.visible_sprites[index] = sprite;
-    }
-    fn set_wx_at_window_start(&mut self, val: u8) {
-        self.wx_at_window_start = val;
-    }
-    fn set_pixels_to_discard(&mut self, val: u8) {
-        self.pixels_to_discard = val;
-    }
-    fn set_use_window(&mut self, val: bool) {
-        self.use_window = val;
-    }
-    fn set_is_wx_glitch_happened(&mut self, val: bool) {
-        self.is_wx_glitch_happened = val;
-    }
-    fn set_x(&mut self, val: usize) {
-        self.x = val;
-    }
-    fn set_fetching_sprite(&mut self, val: bool) {
-        self.fetching_sprite = val;
-    }
-    fn set_stall_dots(&mut self, val: u8) {
-        self.stall_dots = val;
-    }
-    fn set_current_sprite_to_fetch(&mut self, val: Option<usize>) {
-        self.current_sprite_to_fetch = val;
-    }
-    fn set_is_first_scanline_after_lcd_on(&mut self, val: bool) {
-        self.is_first_scanline_after_lcd_on = val;
-    }
-    fn set_wly(&mut self, val: u8) {
-        self.wly = val;
-    }
-    fn set_ly(&mut self, val: u8) {
-        self.ly = val;
-    }
-    fn set_internal_ly(&mut self, val: u8) {
-        self.internal_ly = val;
-    }
-    fn set_dots(&mut self, val: u32) {
-        self.dots = val;
-    }
-    fn set_pending_vblank(&mut self, val: bool) {
-        self.pending_vblank = val;
-    }
-    fn set_wy_equal_ly_condition_met(&mut self, val: bool) {
-        self.wy_equal_ly_condition_met = val;
-    }
-    fn set_lcd_was_enabled(&mut self, val: bool) {
-        self.lcd_was_enabled = val;
-    }
-    fn set_stat_interrupt_line(&mut self, val: bool) {
-        self.stat_interrupt_line = val;
-    }
-    fn set_pending_stat(&mut self, val: bool) {
-        self.pending_stat = val;
-    }
+        self.visible_sprites[index] = sprite; }
+    fn set_wx_at_window_start(&mut self, val: u8) { self.wx_at_window_start = val; }
+    fn set_pixels_to_discard(&mut self, val: u8) { self.pixels_to_discard = val; }
+    fn set_use_window(&mut self, val: bool) { self.use_window = val; }
+    fn set_is_wx_glitch_happened(&mut self, val: bool) { self.is_wx_glitch_happened = val; }
+    fn set_x(&mut self, val: usize) { self.x = val; }
+    fn set_fetching_sprite(&mut self, val: bool) { self.fetching_sprite = val; }
+    fn set_stall_dots(&mut self, val: u8) { self.stall_dots = val; }
+    fn set_current_sprite_to_fetch(&mut self, val: Option<usize>) { self.current_sprite_to_fetch = val; }
+    fn set_is_first_scanline_after_lcd_on(&mut self, val: bool) { self.is_first_scanline_after_lcd_on = val; }
+    fn set_wly(&mut self, val: u8) { self.wly = val; }
+    fn set_ly(&mut self, val: u8) { self.ly = val; }
+    fn set_internal_ly(&mut self, val: u8) { self.internal_ly = val; }
+    fn set_dots(&mut self, val: u32) { self.dots = val; }
+    fn set_pending_vblank(&mut self, val: bool) { self.pending_vblank = val; }
+    fn set_wy_equal_ly_condition_met(&mut self, val: bool) { self.wy_equal_ly_condition_met = val; }
+    fn set_lcd_was_enabled(&mut self, val: bool) { self.lcd_was_enabled = val; }
+    fn set_stat_interrupt_line(&mut self, val: bool) { self.stat_interrupt_line = val; }
+    fn set_pending_stat(&mut self, val: bool) { self.pending_stat = val; }
+
     fn new() -> Self {
-        GbaPpu {
+        Self {
             dots: 0,
             lcd_status: LcdStatus::new(),
             wly: 0x00,
@@ -761,8 +655,8 @@ impl Ppu for GbaPpu {
         }
     }
 
-    fn step_oam_fetcher<M: MemoryMapper>(&mut self, bus: &mut M) {
-        let height: u8 = if self.read_lcdc().is_obj_size_8x16() { 16 } else { 8 };
+    fn step_oam_fetcher(&mut self, bus: &mut M) where M: MemoryMapper {
+        let height: u8 = if LcdControl::from_byte(self.lcdc_byte).is_obj_size_8x16() { 16 } else { 8 };
 
         if self.fetching_sprite {
             if let Some(index) = self.current_sprite_to_fetch
@@ -789,7 +683,7 @@ impl Ppu for GbaPpu {
                 }
             };
         } else {
-            if !self.read_lcdc().is_obj_enabled() {
+            if !LcdControl::from_byte(self.lcdc_byte).is_obj_enabled() {
                 return;
             }
 
@@ -822,7 +716,7 @@ impl Ppu for GbaPpu {
     }
 }
 
-impl Ppu for CgbPpu {
+impl<M> Ppu<M> for CgbPpu {
     // Getter
     fn lcdc_byte(&self) -> u8 {
         self.lcdc_byte
@@ -926,6 +820,8 @@ impl Ppu for CgbPpu {
     fn stat_interrupt_line(&self) -> bool {
         self.stat_interrupt_line
     }
+    fn pending_vblank(&self) -> bool { self.pending_vblank }
+    fn pending_stat(&self) -> bool { self.pending_stat }
     // Setter
     fn set_oam_scan_index(&mut self, index: u8) {
         self.oam_scan_index = index;
@@ -1077,8 +973,8 @@ impl Ppu for CgbPpu {
             _ => {}
         }
     }
-    fn step_oam_fetcher<M: MemoryMapper>(&mut self, bus: &mut M) {
-        let height: u8 = if self.read_lcdc().is_obj_size_8x16() { 16 } else { 8 };
+    fn step_oam_fetcher(&mut self, bus: &mut M) where M: MemoryMapper {
+        let height: u8 = if LcdControl::from_byte(self.lcdc_byte).is_obj_size_8x16() { 16 } else { 8 };
 
         if self.fetching_sprite {
             if let Some(index) = self.current_sprite_to_fetch
@@ -1105,7 +1001,7 @@ impl Ppu for CgbPpu {
                 }
             };
         } else {
-            if !self.read_lcdc().is_obj_enabled() {
+            if !LcdControl::from_byte(self.lcdc_byte).is_obj_enabled() {
                 return;
             }
 
