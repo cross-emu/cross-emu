@@ -4,7 +4,7 @@ use crate::cpu::flags::FlagsOps;
 use crate::cpu_def::Reg8;
 use crate::mmu::MemoryMapper;
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn sub_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
         let src = Self::get_r8::<Src>(self);
         let dest = Self::get_r8::<Dest>(self);

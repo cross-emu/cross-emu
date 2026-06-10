@@ -39,7 +39,7 @@ impl<M: MemoryMapper> Cond<M> for CondC {
     }
 }
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn check_cond<Cc: Cond<M>>(&mut self, _bus: &mut M) {
         if !Cc::is_met(self) {
             self.op_index = self.queue.len();

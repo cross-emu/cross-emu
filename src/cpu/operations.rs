@@ -2,9 +2,18 @@ use crate::cpu::defines::{Cpu, Instruction};
 use crate::cpu::instructions::cond::*;
 use crate::cpu_def::*;
 use crate::mmu::MemoryMapper;
+use std::marker::PhantomData;
 
-pub fn build_instructions<'a, M: MemoryMapper>() -> [Instruction<'a, M>; 245] {
-    [
+pub struct InstrListe<M> {
+    a: PhantomData<M>,
+}
+
+impl<M: MemoryMapper + 'a> InstrListe<M> {
+    pub fn prout() -> &'static [Instruction<M>] {
+        &Self::LALALALA
+    }
+
+    pub const LALALALA: [Instruction<'_, M>; 245] = [
         Instruction {
             opcode: 0x00,
             micro_ops: &[Cpu::noop],
@@ -1370,5 +1379,5 @@ pub fn build_instructions<'a, M: MemoryMapper>() -> [Instruction<'a, M>; 245] {
             opcode: 0xCB,
             micro_ops: &[Cpu::decode_cb],
         },
-    ]
+    ];
 }

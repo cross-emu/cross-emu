@@ -4,7 +4,7 @@ use crate::cpu::flags::FlagsOps;
 use crate::cpu_def::{H, L, P, PC, Reg8, Reg16, S, SP, WZ, Z};
 use crate::mmu::MemoryMapper;
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn load_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
         Self::set_r8::<Dest>(self, Self::get_r8::<Src>(self));
     }

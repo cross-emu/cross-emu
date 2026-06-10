@@ -12,16 +12,14 @@ pub enum Flag {
 #[derive(Debug, Clone)]
 pub struct Instruction<'a, M: MemoryMapper> {
     pub opcode: u8,
-    pub micro_ops: &'a [MicroOp<'a, M>],
+    pub micro_ops: &'a [MicroOp<M>],
 }
 
-pub type MicroOp<'a, M: MemoryMapper> = fn(&mut Cpu<'a, M>, bus: &mut M);
+pub type MicroOp<M: MemoryMapper> = fn(&mut Cpu<M>, bus: &mut M);
 pub type Flags = u8;
 
-pub struct Cpu<'a, M: MemoryMapper> {
-    pub instructions: Box<[Instruction<'a, M>; 245]>,
-    pub cb_instructions: Box<[Instruction<'a, M>; 256]>,
-    pub queue: &'a [MicroOp<'a, M>],
+pub struct Cpu<M: MemoryMapper> {
+    pub queue: Vec<MicroOp<M>>,
     pub r8: [u8; 14],
     /*
      * A, B, C, D, E, F, H, L -> 0:7

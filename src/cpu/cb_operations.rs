@@ -3,7 +3,7 @@ use crate::cpu::defines::Instruction;
 use crate::cpu_def::*;
 use crate::mmu::MemoryMapper;
 
-pub fn build_cb_instructions<'a, M: MemoryMapper>() -> [Instruction<'a, M>; 256] {
+pub fn build_cb_instructions<M: MemoryMapper>() -> [Instruction<M>; 256] {
     [
         Instruction {
             opcode: 0x00,
@@ -1159,7 +1159,7 @@ pub fn build_cb_instructions<'a, M: MemoryMapper>() -> [Instruction<'a, M>; 256]
     ]
 }
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn decode_cb(&mut self, bus: &mut M) {
         let pc = Self::get_r16::<PC>(self);
         let cb_opcode = bus.read_byte(pc);

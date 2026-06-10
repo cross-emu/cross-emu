@@ -1,7 +1,7 @@
 use crate::mmu::MemoryMapper;
 use crate::{cpu::defines::Cpu, cpu_def::Reg8, cpu_def::Reg16};
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn inc_r8<Dest: Reg8>(&mut self, _bus: &mut M) {
         Self::set_r8::<Dest>(self, Self::get_r8::<Dest>(self).wrapping_add(1));
     }

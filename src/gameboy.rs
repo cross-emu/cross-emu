@@ -18,8 +18,8 @@ use crate::mmu::MemoryMapper;
 const FRAME_CYCLES: u32 = 70224;
 const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
 const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
-pub struct GameBoy<'a, M: MemoryMapper> {
-    pub cpu: Cpu<'a, M>,
+pub struct GameBoy<M: MemoryMapper> {
+    pub cpu: Cpu<M>,
     pub bus: M,
 
     step_to_execute: usize,
@@ -30,9 +30,9 @@ pub struct GameBoy<'a, M: MemoryMapper> {
     cycles_elapsed: u32,
 }
 
-type GBMode<'a, M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
+type GBMode<M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
 
-impl<'a, M: MemoryMapper> GameBoy<'a, M> {
+impl<M: MemoryMapper> GameBoy<M> {
     fn send_watched_adress(&mut self, ct: &mut Box<dyn GameCT>) {
         ct.send_watched_adresses(WatchedAdresses(
             self.watched_address
@@ -63,7 +63,7 @@ impl<'a, M: MemoryMapper> GameBoy<'a, M> {
         boot_rom_data: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<GameBoy<'a, M>, String> {
+    ) -> Result<GameBoy<M>, String> {
         let skip_boot = boot_rom_data.is_none();
         let bus = M::new(boot_rom_data, rom_data, ram_data)?;
 
@@ -98,7 +98,7 @@ impl<'a, M: MemoryMapper> GameBoy<'a, M> {
         let mut input = KeyInput::default();
         let mut before = Instant::now();
         let mut debut: Instant;
-        let mut mode: GBMode<'a, M> = Self::game_mode;
+        let mut mode: GBMode<M> = Self::game_mode;
         loop {
             debut = Instant::now();
             ct.poll_requests()

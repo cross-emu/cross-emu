@@ -179,18 +179,18 @@ pub enum AppState {
 use std::fs;
 use std::process;
 
-pub enum AnyGameApp<'a> {
-    GbaOnlyRom(GameBoy<'a, GbaMmu<RomOnly>>),
-    CgbOnlyRom(GameBoy<'a, GbaMmu<RomOnly>>),
-    GbaMbc1(GameBoy<'a, GbaMmu<Mbc1>>),
-    CgbMbc1(GameBoy<'a, GbaMmu<Mbc1>>),
-    GbaMbc2(GameBoy<'a, GbaMmu<Mbc2>>),
-    CgbMbc2(GameBoy<'a, GbaMmu<Mbc2>>),
-    GbaMbc3(GameBoy<'a, GbaMmu<Mbc3>>),
-    CgbMbc3(GameBoy<'a, GbaMmu<Mbc3>>),
+pub enum AnyGameApp {
+    GbaOnlyRom(GameBoy<GbaMmu<RomOnly>>),
+    CgbOnlyRom(GameBoy<GbaMmu<RomOnly>>),
+    GbaMbc1(GameBoy<GbaMmu<Mbc1>>),
+    CgbMbc1(GameBoy<GbaMmu<Mbc1>>),
+    GbaMbc2(GameBoy<GbaMmu<Mbc2>>),
+    CgbMbc2(GameBoy<GbaMmu<Mbc2>>),
+    GbaMbc3(GameBoy<GbaMmu<Mbc3>>),
+    CgbMbc3(GameBoy<GbaMmu<Mbc3>>),
 }
 
-impl<'a> AnyGameApp<'a> {
+impl AnyGameApp {
     pub fn new(game_data: CoreGameOptions) -> Result<Self, String> {
         let rom_data: Vec<u8> = Self::read_rom(&game_data.rom_path);
         let ram_path = game_data.rom_path.to_owned() + ".save";

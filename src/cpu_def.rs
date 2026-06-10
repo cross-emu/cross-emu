@@ -1,8 +1,7 @@
 use crate::communications::CpuState;
-use crate::cpu::cb_operations::build_cb_instructions;
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
-use crate::cpu::operations::build_instructions;
+use crate::cpu::operations::InstrListe;
 use crate::mmu::MemoryMapper;
 use std::fmt;
 
@@ -12,13 +11,13 @@ enum StepStatus {
     Halted,
 }
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn new() -> Self {
         {
             Cpu {
                 r8: [0; 14],
                 flags: 0,
-                queue: &[],
+                queue: Vec::new(),
                 op_index: 0,
                 bus: [0; 65536],
                 ime: false,
@@ -26,8 +25,6 @@ impl<'a, M: MemoryMapper> Cpu<'a, M> {
                 halted: false,
                 halt_bug: false,
                 tick_to_wait: 0,
-                instructions: Box::new(build_instructions::<'a, M>()),
-                cb_instructions: Box::new(build_cb_instructions::<'a, M>()),
             }
         }
     }
@@ -46,7 +43,9 @@ impl<'a, M: MemoryMapper> Cpu<'a, M> {
                 self.handle_ime_delay();
 
                 self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
-                self.queue = self.instructions[instruction_byte as usize].micro_ops;
+                self.queue = InstrListe::<M>::prout()[instruction_byte as usize]
+                    .micro_ops
+                    .to_vec();
                 self.op_index = 0;
             }
         } else {
@@ -128,7 +127,7 @@ impl<'a, M: MemoryMapper> Cpu<'a, M> {
     }
 }
 
-impl<'a, M: MemoryMapper> fmt::Debug for Cpu<'a, M> {
+impl<M: MemoryMapper> fmt::Debug for Cpu<M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Cpu")
             .field("op_index", &self.op_index)
@@ -187,7 +186,7 @@ implreg16!(SP);
 implreg16!(PC);
 implreg16!(WZ);
 
-impl<'a, M: MemoryMapper> Cpu<'a, M> {
+impl<M: MemoryMapper> Cpu<M> {
     pub fn get_r8<R: Reg8>(&self) -> u8 {
         self.r8[R::USIZE]
     }
