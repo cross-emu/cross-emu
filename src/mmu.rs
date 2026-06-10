@@ -115,6 +115,9 @@ pub trait MemoryMapper {
 
         match MemoryRegion::from(addr) {
             MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().read(addr),
+            MemoryRegion::Vram => {
+                
+            }
             MemoryRegion::Mram => {
                 let mirror = addr - 0x2000;
                 self.get_data()[mirror as usize]
