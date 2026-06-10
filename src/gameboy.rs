@@ -15,7 +15,8 @@ use crate::mmu::mbc::Mbc;
 use crate::mmu::Mmu;
 
 const FRAME_CYCLES: u32 = 70224;
-const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15900; //8000 pour 120 fps
+const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
+const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
 pub struct GameBoy<T: Mbc> {
     pub cpu: Cpu,
     pub bus: Mmu<T>,
@@ -126,12 +127,19 @@ impl<T: Mbc>  GameBoy<T> {
             let wanted_duration = Duration::from_micros(GAME_REFRESH_PERIOD_IN_MILLIS);
             let duration_elapsed = debut.elapsed();
             if wanted_duration > duration_elapsed {
-                thread::sleep(wanted_duration - duration_elapsed);
+                Self::cap_frame(wanted_duration, duration_elapsed);
             }
         }
         Ok(self.ram_dump())
     }
 
+    fn cap_frame(wanted_duration: Duration, duration_elapsed: Duration) {
+        let duration_of_the_sleep = wanted_duration - duration_elapsed;
+        for mut i in 0..CUT_TIME_FOR_CAP_FRAMES {
+            thread::sleep(duration_of_the_sleep / CUT_TIME_FOR_CAP_FRAMES);
+            i += 1;
+        }
+    }
 
     fn treat_request(&mut self, request: Request,  mode: &mut GBMode<T>) {
         match request {
