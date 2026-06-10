@@ -252,6 +252,8 @@ impl<T: Mbc>  GameBoy<T> {
         }
         self.cpu.tick();
         self.ppu.tick(ct);
+
+        self.cycles_elapsed += 1;
     }
 
 
