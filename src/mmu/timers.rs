@@ -131,24 +131,6 @@ impl TimingComponent for GbaTimers {
     
     fn previous_and_result(&self) -> bool { self.previous_and_result }
     fn set_next_and_result(&mut self, and_result: bool) { self.previous_and_result = and_result}
-
-    fn tick(&mut self) -> bool {
-        self.div = self.div.wrapping_add(1);
-        let and_result = self.and_result();
-
-        let mut overflowed = false;
-        if self.previous_and_result() && !and_result {
-            let result = self.tima.wrapping_add(1);
-            if result == 0 {
-                self.set_tima(self.tma());
-                overflowed = true
-            } else {
-                self.set_tima(result);
-            }
-        }
-        self.previous_and_result = and_result;
-        overflowed
-    }
 }
 
 #[cfg(test)]
