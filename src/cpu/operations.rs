@@ -1,12 +1,12 @@
 use crate::cpu::defines::Instruction;
 
-use crate::cpu::defines::MicroOp;
 use crate::cpu::instructions;
 use crate::cpu::instructions::cond::*;
 use crate::cpu_def::*;
+use crate::mmu::MemoryMapper;
 
-pub fn build_instruction<M>(&mut self) {
-    self.
+pub fn build_instruction<'a, M: MemoryMapper>() -> [Instruction<'a, M>; 245] {
+    [
     Instruction {
         opcode: 0x00,
         micro_ops: &[instructions::other::noop],
@@ -1545,5 +1545,5 @@ pub fn build_instruction<M>(&mut self) {
         opcode: 0xCB,
         micro_ops: &[decode_cb],
     },
-];
+    ]
 }

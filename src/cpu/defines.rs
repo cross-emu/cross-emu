@@ -10,17 +10,17 @@ pub enum Flag {
 }
 
 #[derive(Debug, Clone)]
-pub struct Instruction<M: MemoryMapper+ 'static> {
+pub struct Instruction<'a, M: MemoryMapper> {
     pub opcode: u8,
-    pub micro_ops: &'static [MicroOp<M>],
+    pub micro_ops: &'a [MicroOp<'a, M>],
 }
 
-pub type MicroOp<M: MemoryMapper> = fn(&mut Cpu::<M>,  bus: &mut M);
+pub type MicroOp<'a, M: MemoryMapper> = fn(&mut Cpu::<'a, M>,  bus: &mut M);
 pub type Flags = u8;
 
-pub struct Cpu<M: MemoryMapper+ 'static> {
-    pub instructions: [Instruction<M>; 256],
-    pub queue: &'static [MicroOp<M>],
+pub struct Cpu<'a, M: MemoryMapper> {
+    pub instructions: &'a [Instruction<'a, M>; 245],
+    pub queue: &'a [MicroOp<'a, M>],
     pub r8: [u8; 14],
     /*
      * A, B, C, D, E, F, H, L -> 0:7

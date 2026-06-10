@@ -1,7 +1,7 @@
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
 use crate::cpu::instructions::inc_dec::dec_r16;
-use crate::cpu::operations::{DISPATCH, INSTRUCTIONS};
+use crate::cpu::operations::{DISPATCH, INSTRUCTIONS, build_instruction};
 use crate::communications::CpuState;
 use crate::mmu::MemoryMapper;
 use std::fmt;
@@ -12,7 +12,7 @@ enum StepStatus {
     Halted,
 }
 
-impl<M : MemoryMapper> Cpu<M> {
+impl<'a, M : MemoryMapper> Cpu<'a, M> {
 
 
     pub fn new(test: Vec<u8>) -> Self {
@@ -37,7 +37,7 @@ impl<M : MemoryMapper> Cpu<M> {
                 halted: false,
                 halt_bug: false,
                 tick_to_wait: 0,
-                instructions : build_instruction()
+                instructions : &build_instruction::<'a, M>()
             }
         }
     }

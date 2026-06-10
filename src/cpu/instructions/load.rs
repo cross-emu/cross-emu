@@ -2,9 +2,14 @@ use crate::cpu::defines::Cpu;
 use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
 use crate::cpu_def::{H, L, P, PC, Reg8, Reg16, S, SP, WZ, Z};
+use crate::mmu::MemoryMapper;
 
-pub fn load_r8_r8<Dest: Reg8, Src: Reg8>(cpu: &mut Cpu) {
+
+impl <'a, M: MemoryMapper> Cpu<'a, M> {
+
+pub fn load_r8_r8<Dest: Reg8, Src: Reg8>(cpu: &mut Cpu, bus: &mut M) {
     cpu.set_r8::<Dest>(cpu.get_r8::<Src>());
+    bus.read_bytes()
 }
 
 pub fn read_memory<Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
@@ -88,3 +93,4 @@ pub fn write_memory_rst<const B: u16, Addr: Reg16, Dest: Reg8>(cpu: &mut Cpu) {
     cpu.set_r16::<SP>(B);
 }
 
+}
