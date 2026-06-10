@@ -75,7 +75,7 @@ impl<T: Mbc> Cpu<T> {
     }
 
     pub fn tick(&mut self) {
-        if self.tick_to_wait > 0 {
+        if self.tick_to_wait > 1 {
             self.tick_to_wait -= 1;
         } else {
             self.tick_to_wait = self.step();
