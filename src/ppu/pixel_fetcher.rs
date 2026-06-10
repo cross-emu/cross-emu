@@ -17,7 +17,7 @@ pub enum FetcherState {
     PushPixel = 4,
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct PixelFetcher {
     fetcher_state: FetcherState,
     tile_id: u8,

@@ -14,7 +14,7 @@ use crate::mmu::mbc::Mbc;
 use crate::mmu::oam::Oam;
 use crate::mmu::apu::Apu;
 use crate::communications::GameCT;
-use crate::ppu::{CgbPpu, GbaPpu};
+use crate::ppu::{CgbPpu, GbaPpu, Ppu};
 
 #[allow(unused)]
 #[derive(PartialEq, Eq, Debug)]
@@ -115,9 +115,6 @@ pub trait MemoryMapper {
 
         match MemoryRegion::from(addr) {
             MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().read(addr),
-            MemoryRegion::Vram => {
-                
-            }
             MemoryRegion::Mram => {
                 let mirror = addr - 0x2000;
                 self.get_data()[mirror as usize]
