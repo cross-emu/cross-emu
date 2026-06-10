@@ -1,48 +1,51 @@
 use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
+use crate::mmu::MemoryMapper;
 use crate::{cpu::defines::Cpu, cpu_def::Reg8};
 
-pub fn and_r8_r8<Dest: Reg8, Src: Reg8>(cpu: &mut Cpu) {
-    let src = cpu.get_r8::<Src>();
-    let dest = cpu.get_r8::<Dest>();
+impl<'a, M: MemoryMapper> Cpu<'a, M> {
+    pub fn and_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
+        let src = Self::get_r8::<Src>(self);
+        let dest = Self::get_r8::<Dest>(self);
 
-    let result = dest & src;
+        let result = dest & src;
 
-    cpu.set_r8::<Dest>(result);
+        self.set_r8::<Dest>(result);
 
-    cpu.flags.set_flag(Flag::Zero, result == 0);
-    cpu.flags.set_flag(Flag::Subtract, false);
-    cpu.flags.set_flag(Flag::HalfCarry, true);
+        self.flags.set_flag(Flag::Zero, result == 0);
+        self.flags.set_flag(Flag::Subtract, false);
+        self.flags.set_flag(Flag::HalfCarry, true);
 
-    cpu.flags.set_flag(Flag::Carry, false);
-}
+        self.flags.set_flag(Flag::Carry, false);
+    }
 
-pub fn or_r8_r8<Dest: Reg8, Src: Reg8>(cpu: &mut Cpu) {
-    let src = cpu.get_r8::<Src>();
-    let dest = cpu.get_r8::<Dest>();
+    pub fn or_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
+        let src = Self::get_r8::<Src>(self);
+        let dest = Self::get_r8::<Dest>(self);
 
-    let result = dest | src;
+        let result = dest | src;
 
-    cpu.set_r8::<Dest>(result);
+        self.set_r8::<Dest>(result);
 
-    cpu.flags.set_flag(Flag::Zero, result == 0);
-    cpu.flags.set_flag(Flag::Subtract, false);
-    cpu.flags.set_flag(Flag::HalfCarry, false);
+        self.flags.set_flag(Flag::Zero, result == 0);
+        self.flags.set_flag(Flag::Subtract, false);
+        self.flags.set_flag(Flag::HalfCarry, false);
 
-    cpu.flags.set_flag(Flag::Carry, false);
-}
+        self.flags.set_flag(Flag::Carry, false);
+    }
 
-pub fn xor_r8_r8<Dest: Reg8, Src: Reg8>(cpu: &mut Cpu) {
-    let src = cpu.get_r8::<Src>();
-    let dest = cpu.get_r8::<Dest>();
+    pub fn xor_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
+        let src = Self::get_r8::<Src>(self);
+        let dest = Self::get_r8::<Dest>(self);
 
-    let result = dest ^ src;
+        let result = dest ^ src;
 
-    cpu.set_r8::<Dest>(result);
+        self.set_r8::<Dest>(result);
 
-    cpu.flags.set_flag(Flag::Zero, result == 0);
-    cpu.flags.set_flag(Flag::Subtract, false);
-    cpu.flags.set_flag(Flag::HalfCarry, false);
+        self.flags.set_flag(Flag::Zero, result == 0);
+        self.flags.set_flag(Flag::Subtract, false);
+        self.flags.set_flag(Flag::HalfCarry, false);
 
-    cpu.flags.set_flag(Flag::Carry, false);
+        self.flags.set_flag(Flag::Carry, false);
+    }
 }

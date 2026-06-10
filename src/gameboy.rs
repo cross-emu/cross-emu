@@ -1,6 +1,8 @@
 #![allow(unused_variables)]
 
 use std::collections::HashSet;
+
+use crate::cpu_def::*;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
@@ -8,8 +10,7 @@ use std::time::Instant;
 use crate::communications::InstructionList;
 use crate::communications::WatchedAdresses;
 use crate::communications::{GameCT, Mode, Request};
-use crate::cpucaca::Cpu;
-use crate::cpucaca::registers::{R8};
+use crate::cpu::defines::Cpu;
 use crate::gui::KeyInput;
 
 use crate::mmu::MemoryMapper;
@@ -17,8 +18,8 @@ use crate::mmu::MemoryMapper;
 const FRAME_CYCLES: u32 = 70224;
 const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
 const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
-pub struct GameBoy<M: MemoryMapper> {
-    pub cpu: Cpu,
+pub struct GameBoy<'a, M: MemoryMapper> {
+    pub cpu: Cpu<'a, M>,
     pub bus: M,
 
     step_to_execute: usize,
@@ -29,31 +30,29 @@ pub struct GameBoy<M: MemoryMapper> {
     cycles_elapsed: u32,
 }
 
-type GBMode<M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
+type GBMode<'a, M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
 
-impl<M: MemoryMapper>  GameBoy<M> {
+impl<'a, M: MemoryMapper> GameBoy<'a, M> {
     fn send_watched_adress(&mut self, ct: &mut Box<dyn GameCT>) {
-        ct.send_watched_adresses(
-            WatchedAdresses(self.watched_address.iter().map(
-                    |addr| (*addr, self.bus.read_byte(*addr))
-                ).collect::<Vec<(u16, u8)>>())
-        )
+        ct.send_watched_adresses(WatchedAdresses(
+            self.watched_address
+                .iter()
+                .map(|addr| (*addr, self.bus.read_byte(*addr)))
+                .collect::<Vec<(u16, u8)>>(),
+        ))
     }
 
     fn send_registers(&self, ct: &mut Box<dyn GameCT>) {
-        ct.send_cpu_state(
-            &self.cpu.dump_state()
-        );
+        ct.send_cpu_state(&self.cpu.dump_state());
     }
 
     fn send_next_instructions(&mut self, ct: &mut Box<dyn GameCT>) {
-        ct.send_next_instructions(
-            InstructionList((0..self.instructions_to_send).map(
-                    |index: u16| self.cpu.pc as usize + index as usize
-                ).map(
-                    |addr: usize|  self.bus.read_byte(addr as u16) as u16
-                ).collect())
-        );
+        ct.send_next_instructions(InstructionList(
+            (0..self.instructions_to_send)
+                .map(|index: u16| self.cpu.get_r16::<PC>() as usize + index as usize)
+                .map(|addr: usize| self.bus.read_byte(addr as u16) as u16)
+                .collect(),
+        ));
     }
 
     pub fn ram_dump(mut self) -> Option<Vec<u8>> {
@@ -64,7 +63,7 @@ impl<M: MemoryMapper>  GameBoy<M> {
         boot_rom_data: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<GameBoy<M>, String> {
+    ) -> Result<GameBoy<'a, M>, String> {
         let skip_boot = boot_rom_data.is_none();
         let bus = M::new(boot_rom_data, rom_data, ram_data)?;
 
@@ -80,7 +79,9 @@ impl<M: MemoryMapper>  GameBoy<M> {
             watched_address: HashSet::new(),
         };
 
-        if skip_boot {gb.simulate_boot_rom_effect()}
+        if skip_boot {
+            gb.simulate_boot_rom_effect()
+        }
 
         Ok(gb)
     }
@@ -93,23 +94,20 @@ impl<M: MemoryMapper>  GameBoy<M> {
     }
 
     #[allow(unused_mut)]
-    pub fn launch(mut self, mut ct: Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String>{
+    pub fn launch(mut self, mut ct: Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String> {
         let mut input = KeyInput::default();
         let mut before = Instant::now();
         let mut debut: Instant;
-        let mut mode: GBMode<M> = Self::game_mode;
+        let mut mode: GBMode<'a, M> = Self::game_mode;
         loop {
             debut = Instant::now();
             ct.poll_requests()
                 .into_iter()
-                .for_each(|request| {
-                    self.treat_request(request, &mut mode)
-                }
-                );
+                .for_each(|request| self.treat_request(request, &mut mode));
 
             if let Err(msg) = ct.update_input(&mut input) {
                 eprintln!("Gameboy must stop : {msg}");
-                break 
+                break;
             }
             mode(&mut self, &input, &mut ct);
             if self.should_get_fps {
@@ -132,50 +130,50 @@ impl<M: MemoryMapper>  GameBoy<M> {
         }
     }
 
-    fn treat_request(&mut self, request: Request,  mode: &mut GBMode<M>) {
+    fn treat_request(&mut self, request: Request, mode: &mut GBMode<M>) {
         match request {
-            Request::Mode(new_mode) => {
-                match new_mode {
-                    Mode::Game => { *mode = Self::game_mode; },
-                    Mode::Debug => { *mode = Self::debug_mode },
-                    Mode::Stop => { *mode = Self::stopped_mode },
+            Request::Mode(new_mode) => match new_mode {
+                Mode::Game => {
+                    *mode = Self::game_mode;
                 }
+                Mode::Debug => *mode = Self::debug_mode,
+                Mode::Stop => *mode = Self::stopped_mode,
             },
             Request::Execute(instructions) => {
                 for instruction in instructions {
                     self.cpu.debug_step(instruction, &mut self.bus);
                 }
-            },
+            }
             Request::RenderFrame(frame) => {
                 if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<M>) {
                     todo!()
                 }
-            },
+            }
             Request::Watch(address) => {
                 self.watched_address.insert(address);
-            },
+            }
             Request::Step(step) => {
                 if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<M>) {
                     self.step_to_execute = step;
                 }
-            },
+            }
             Request::SetInstructionListLength(length) => {
                 self.instructions_to_send = length as u16;
-            },
-            _ => unreachable!()
+            }
+            _ => unreachable!(),
         }
     }
 
     pub fn simulate_boot_rom_effect(&mut self) {
-        self.cpu.registers.set_r8_value(R8::A, 0x01);
-        self.cpu.registers.set_r8_value(R8::B, 0xFF);
-        self.cpu.registers.set_r8_value(R8::C, 0x13);
-        self.cpu.registers.set_r8_value(R8::D, 0x00);
-        self.cpu.registers.set_r8_value(R8::E, 0xC1);
-        self.cpu.registers.set_r8_value(R8::H, 0x84);
-        self.cpu.registers.set_r8_value(R8::L, 0x03);
-        self.cpu.pc = 0x0100;
-        self.cpu.registers.set_sp(0xFFFE);
+        self.cpu.set_r8::<A>(0x01);
+        self.cpu.set_r8::<B>(0xFF);
+        self.cpu.set_r8::<C>(0x13);
+        self.cpu.set_r8::<D>(0x00);
+        self.cpu.set_r8::<E>(0xC1);
+        self.cpu.set_r8::<H>(0x84);
+        self.cpu.set_r8::<L>(0x03);
+        self.cpu.set_r16::<PC>(0x0100);
+        self.cpu.set_r16::<SP>(0xFFFE);
 
         self.bus.write_byte(0xFF00, 0xCF);
         self.bus.write_byte(0xFF01, 0x00);
@@ -219,19 +217,34 @@ impl<M: MemoryMapper>  GameBoy<M> {
         self.bus.write_byte(0xFFFF, 0x00);
     }
 
-
     pub fn manage_input(&mut self, key_input: &KeyInput) {
         let mut dpad = 0x0F;
-        if key_input.down_pushed    { dpad &= 0b1111_0111; }
-        if key_input.up_pushed      { dpad &= 0b1111_1011; }
-        if key_input.left_pushed    { dpad &= 0b1111_1101; }
-        if key_input.right_pushed   { dpad &= 0b1111_1110; }
+        if key_input.down_pushed {
+            dpad &= 0b1111_0111;
+        }
+        if key_input.up_pushed {
+            dpad &= 0b1111_1011;
+        }
+        if key_input.left_pushed {
+            dpad &= 0b1111_1101;
+        }
+        if key_input.right_pushed {
+            dpad &= 0b1111_1110;
+        }
 
         let mut buttons = 0x0F;
-        if key_input.start_pushed   { buttons &= 0b1111_0111; }
-        if key_input.select_pushed  { buttons &= 0b1111_1011; }
-        if key_input.b_pushed       { buttons &= 0b1111_1101; }
-        if key_input.a_pushed       { buttons &= 0b1111_1110; }
+        if key_input.start_pushed {
+            buttons &= 0b1111_0111;
+        }
+        if key_input.select_pushed {
+            buttons &= 0b1111_1011;
+        }
+        if key_input.b_pushed {
+            buttons &= 0b1111_1101;
+        }
+        if key_input.a_pushed {
+            buttons &= 0b1111_1110;
+        }
 
         self.bus.update_keys(dpad, buttons)
     }
@@ -249,7 +262,6 @@ impl<M: MemoryMapper>  GameBoy<M> {
         self.bus.tick_ppu(ct);
     }
 
-
     fn game_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
         for _ in 0..FRAME_CYCLES {
             self.tick_gb(key_input, ct);
@@ -257,9 +269,13 @@ impl<M: MemoryMapper>  GameBoy<M> {
     }
 
     fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
-        if !self.watched_address.is_empty() { self.send_watched_adress(ct); }
-        if self.instructions_to_send != 0 { self.send_next_instructions(ct); }
-        self.send_registers(ct); 
+        if !self.watched_address.is_empty() {
+            self.send_watched_adress(ct);
+        }
+        if self.instructions_to_send != 0 {
+            self.send_next_instructions(ct);
+        }
+        self.send_registers(ct);
         self.tick_gb(key_input, ct)
     }
 

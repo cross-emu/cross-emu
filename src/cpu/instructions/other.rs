@@ -1,15 +1,14 @@
 use crate::cpu::defines::Cpu;
-use crate::cpu::instructions::load::write_memory;
+use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
 use crate::cpu_def::Reg16;
-use crate::cpu::defines::Flag;
 use crate::cpu_def::*;
 use crate::mmu::MemoryMapper;
 
 //Some ops effectively use 2 cycles but work on one (i.e. LD (HL), r) so that we put a nothing op so it stills takes two cycles and fetch accordingly
 //
 
-impl <'a, M: MemoryMapper> Cpu<'a, M> {
+impl<'a, M: MemoryMapper> Cpu<'a, M> {
     pub fn noop(&mut self, _bus: &mut M) {}
 
     pub fn halt(&mut self, _bus: &mut M) {
@@ -150,33 +149,33 @@ impl <'a, M: MemoryMapper> Cpu<'a, M> {
     }
 
     pub fn write_rlc_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        rlc::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::rlc::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn write_rrc_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        rrc::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::rrc::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn write_rl_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        rl::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::rl::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn write_rr_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        rr::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::rr::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn write_sla_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        sla::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::sla::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn write_sra_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        sra::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+        Self::sra::<Reg>(self, _bus);
+        Self::write_memory::<HL, Reg>(self, _bus);
     }
 
     pub fn rl<Reg: Reg8>(&mut self, _bus: &mut M) {
@@ -273,7 +272,6 @@ impl <'a, M: MemoryMapper> Cpu<'a, M> {
         self.flags.set_flag(Flag::Carry, bit0 == 1);
     }
 
-
     pub fn bit<const B: u8, Reg: Reg8>(&mut self, _bus: &mut M) {
         let val = self.get_r8::<Reg>();
         let is_bit_zero = (val & (1 << B)) == 0;
@@ -295,25 +293,28 @@ impl <'a, M: MemoryMapper> Cpu<'a, M> {
         self.set_r8::<Reg>(result);
     }
 
-
-    pub fn write_swap_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        Self::swap::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+    pub fn write_swap_mem<Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
+        Self::swap::<Reg>(self, bus);
+        Self::write_memory::<HL, Reg>(self, bus);
     }
 
-    pub fn write_srl_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        Self::srl::<Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+    pub fn write_srl_mem<Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
+        Self::srl::<Reg>(self, bus);
+        Self::write_memory::<HL, Reg>(self, bus);
     }
 
-    pub fn write_res_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        Self::res::<{B}, Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+    pub fn write_res_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
+        Self::res::<{ B }, Reg>(self, bus);
+        Self::write_memory::<HL, Reg>(self, bus);
     }
 
-    pub fn write_set_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
-        Self::set::<{B}, Reg>(self, _bus);
-        write_memory::<HL, Reg>(self, _bus);
+    pub fn write_set_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
+        Self::set::<{ B }, Reg>(self, bus);
+        Self::write_memory::<HL, Reg>(self, bus);
+    }
+
+    pub fn stop(&mut self, _bus: &mut M) {
+        todo!("stop todo");
     }
 }
 

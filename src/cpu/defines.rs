@@ -15,11 +15,12 @@ pub struct Instruction<'a, M: MemoryMapper> {
     pub micro_ops: &'a [MicroOp<'a, M>],
 }
 
-pub type MicroOp<'a, M: MemoryMapper> = fn(&mut Cpu::<'a, M>,  bus: &mut M);
+pub type MicroOp<'a, M: MemoryMapper> = fn(&mut Cpu<'a, M>, bus: &mut M);
 pub type Flags = u8;
 
 pub struct Cpu<'a, M: MemoryMapper> {
-    pub instructions: &'a [Instruction<'a, M>; 245],
+    pub instructions: Box<[Instruction<'a, M>; 245]>,
+    pub cb_instructions: Box<[Instruction<'a, M>; 256]>,
     pub queue: &'a [MicroOp<'a, M>],
     pub r8: [u8; 14],
     /*

@@ -1,19 +1,18 @@
 #![allow(dead_code)]
 mod cli;
-mod cpu_def;
+mod communications;
 mod cpu;
-mod cpucaca;
+mod cpu_def;
+mod file;
 mod gameboy;
 mod gui;
 mod mmu;
 mod ppu;
-mod file;
 mod sound;
-mod communications;
 
-use sound::sound_test;
+use crate::{cli::EmulatorArguments, file::GbmuFile, gui::EmulationAppOptions};
 use gui::GraphicalApp;
-use crate::{cli::EmulatorArguments, file::{GbmuFile}, gui::EmulationAppOptions};
+use sound::sound_test;
 use std::sync::{LazyLock, Mutex};
 
 static GBMU_FILE: LazyLock<Mutex<GbmuFile>> =
@@ -25,7 +24,7 @@ async fn main() {
         Ok(args) => args,
         Err(errors) => {
             eprintln!("Enable to open emulator : {errors}");
-            return 
+            return;
         }
     };
 
@@ -42,19 +41,11 @@ async fn main() {
     };
 
     let app = if let Some(rom_path) = arguments.rom_path {
-        let options = EmulationAppOptions::new(
-            rom_path,
-            arguments.boot_rom
-        );
+        let options = EmulationAppOptions::new(rom_path, arguments.boot_rom);
         GraphicalApp::create_emulation_app(options)
     } else {
         GraphicalApp::default()
     };
 
-    let _ = eframe::run_native(
-        "egui Demo",
-        options,
-        Box::new(|_cc| Ok(Box::new(app))),
-    );
-
+    let _ = eframe::run_native("egui Demo", options, Box::new(|_cc| Ok(Box::new(app))));
 }

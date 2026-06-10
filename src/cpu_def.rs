@@ -1,8 +1,8 @@
+use crate::communications::CpuState;
+use crate::cpu::cb_operations::build_cb_instructions;
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
-use crate::cpu::instructions::inc_dec::dec_r16;
-use crate::cpu::operations::{DISPATCH, INSTRUCTIONS, build_instruction};
-use crate::communications::CpuState;
+use crate::cpu::operations::build_instructions;
 use crate::mmu::MemoryMapper;
 use std::fmt;
 
@@ -12,24 +12,13 @@ enum StepStatus {
     Halted,
 }
 
-impl<'a, M : MemoryMapper> Cpu<'a, M> {
-
-
-    pub fn new(test: Vec<u8>) -> Self {
+impl<'a, M: MemoryMapper> Cpu<'a, M> {
+    pub fn new() -> Self {
         {
-            let first_opcode = test
-                .first()
-                .expect("Error in the fetch of the first instruction");
-            let first_instr = INSTRUCTIONS
-                .iter()
-                .find(|e| e.opcode == *first_opcode)
-                .expect("Unknown opcode");
-            println!("First fetch");
-
             Cpu {
                 r8: [0; 14],
                 flags: 0,
-                queue: first_instr.micro_ops,
+                queue: &[],
                 op_index: 0,
                 bus: [0; 65536],
                 ime: false,
@@ -37,13 +26,13 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
                 halted: false,
                 halt_bug: false,
                 tick_to_wait: 0,
-                instructions : &build_instruction::<'a, M>()
+                instructions: Box::new(build_instructions::<'a, M>()),
+                cb_instructions: Box::new(build_cb_instructions::<'a, M>()),
             }
         }
     }
 
     pub fn tick(&mut self, bus: &mut M) {
-
         if self.op_index < self.queue.len() {
             let micro_op = &self.queue[self.op_index];
             self.op_index += 1;
@@ -57,14 +46,13 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
                 self.handle_ime_delay();
 
                 self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
-                self.queue = DISPATCH[instruction_byte as usize].expect("Unknown opcode");
+                self.queue = self.instructions[instruction_byte as usize].micro_ops;
                 self.op_index = 0;
             }
         } else {
             unreachable!("No instruction left!");
         }
     }
-
 
     pub fn dump_state(&self) -> CpuState {
         CpuState {
@@ -77,12 +65,11 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
             l: self.get_r8::<L>(),
             hl: self.get_r16::<HL>(),
             sp: self.get_r16::<SP>(),
-            pc :self.get_r16::<PC>()
+            pc: self.get_r16::<PC>(),
         }
     }
 
-
-    fn handle_halt_state<M: MemoryMapper>(&mut self, bus: &mut M) -> StepStatus {
+    fn handle_halt_state(&mut self, bus: &mut M) -> StepStatus {
         if self.halted {
             let iflag = bus.read_interrupt_flag();
             let ienable = bus.read_interrupt_enable();
@@ -100,7 +87,7 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
         StepStatus::Continue
     }
 
-    fn handle_ime_state<M: MemoryMapper>(&mut self, bus: &mut M) -> StepStatus {
+    fn handle_ime_state(&mut self, bus: &mut M) -> StepStatus {
         if self.ime {
             if let Some(interrupt) = bus.interrupts_next_request() {
                 self.ime = false;
@@ -108,7 +95,6 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
 
                 let ret_addr = self.get_r16::<PC>();
 
-                
                 let sp1 = self.get_r16::<SP>().wrapping_sub(1);
                 self.set_r16::<SP>(sp1);
                 bus.write_byte(sp1, (ret_addr >> 8) as u8);
@@ -129,7 +115,7 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
 
     fn handle_halt_bug(&mut self) {
         if self.halt_bug {
-            dec_r16::<PC>;
+            Self::dec_r16::<PC>;
             self.halt_bug = false;
         }
     }
@@ -142,7 +128,7 @@ impl<'a, M : MemoryMapper> Cpu<'a, M> {
     }
 }
 
-impl fmt::Debug for Cpu {
+impl<'a, M: MemoryMapper> fmt::Debug for Cpu<'a, M> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Cpu")
             .field("op_index", &self.op_index)
@@ -168,7 +154,6 @@ macro_rules! implreg8 {
         }
     };
 }
-
 
 implreg8!(A);
 implreg8!(B);
@@ -202,7 +187,7 @@ implreg16!(SP);
 implreg16!(PC);
 implreg16!(WZ);
 
-impl Cpu {
+impl<'a, M: MemoryMapper> Cpu<'a, M> {
     pub fn get_r8<R: Reg8>(&self) -> u8 {
         self.r8[R::USIZE]
     }
