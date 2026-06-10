@@ -6,7 +6,6 @@ pub mod timers;
 pub mod oam;
 pub mod apu;
 
-use self::timers::GbaTimers;
 use self::timers::CgbTimer;
 use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
@@ -14,7 +13,9 @@ use crate::mmu::mbc::Mbc;
 use crate::mmu::oam::Oam;
 use crate::mmu::apu::Apu;
 use crate::communications::GameCT;
-use crate::ppu::{CgbPpu, GbaPpu, Ppu};
+use crate::ppu::Ppu;
+use crate::ppu::CgbPpu;
+use crate::mmu::timers::TimingComponent;
 
 #[allow(unused)]
 #[derive(PartialEq, Eq, Debug)]
@@ -85,12 +86,13 @@ pub trait MemoryMapper {
     fn get_boot_rom(&self) -> &[u8; 0x0100];
     fn get_button_state(&self) -> &u8;
     fn get_cart(&mut self) -> &mut dyn Mbc;
+    fn get_timer(&mut self) -> &mut dyn TimingComponent;
     fn get_data(&self) -> &[u8; 0x10000];
     fn get_dma_source(&self) -> u16;
     fn get_dpad_state(&self) -> &u8;
     fn get_interrupts(&mut self) -> &mut InterruptController;
     fn get_oam(&self) -> &RwLock<Oam>;
-    fn get_ppu(&mut self) -> &mut GbaPpu;
+    fn get_ppu(&mut self) -> &mut dyn Ppu<Self>;
     fn set_accessed_oam_row(&mut self, val: u8);
     fn set_boot_enable(&mut self, enabled: bool);
     fn set_button_state(&mut self, buttons: u8);
@@ -108,7 +110,7 @@ pub trait MemoryMapper {
         self.get_cart().dump()
     }
 
-    fn read_byte(&mut self, addr: u16) -> u8 {
+    fn read_byte(&mut self, addr: u16) -> u8 where Self: Sized {
         if self.get_boot_enable() && addr <= 0x00FF {
             return self.get_boot_rom()[addr as usize];
         }
@@ -153,7 +155,7 @@ pub trait MemoryMapper {
         }
     }
 
-    fn write_byte(&mut self, addr: u16, val: u8) {
+    fn write_byte(&mut self, addr: u16, val: u8) where Self: Sized {
         if val != 0 && addr == 0xFF50 {
             self.update_data(addr as usize, val);
             self.set_boot_enable(false);
@@ -166,7 +168,7 @@ pub trait MemoryMapper {
                 let mirror = addr - 0x2000;
                 self.update_data(mirror as usize, val);
             }
-            MemoryRegion::Timers => self.write_timers(addr, val),
+            MemoryRegion::Timers => self.get_timer().write(addr, val),
             MemoryRegion::Io => {
                 if addr == 0xFF00 {
                     let selection_bits = val & 0b0011_0000;
@@ -258,17 +260,19 @@ pub trait MemoryMapper {
 
 }
 
-impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
+impl<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> MemoryMapper for GbaMmu<C, T, P> {
+    fn get_timer(&mut self) -> &mut dyn TimingComponent { &mut self.timers } 
     fn get_dma_index(&mut self) -> u8 { self.dma_index }
     fn set_dma_index(&mut self, val: u8) { self.dma_index = val }
 
     fn write_timers(&mut self, addr: u16, value: u8) {
-        self.timers.write_byte(addr, value)
+        self.timers.write(addr, value)
     }
 
     fn read_timers(&mut self, addr: u16) -> u8 {
-        self.timers.read_byte(addr)
+        self.timers.read(addr)
     }
+
     fn tick_dma(&mut self) {
         let byte = self.read_byte(self.dma_source + self.dma_index as u16);
 
@@ -288,14 +292,14 @@ impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
     ) -> Result<Self, String> where Self: Sized {
         let boot_enable = wrapped_boot_rom.is_some();
         let boot_rom = wrapped_boot_rom.unwrap_or([0xFF; 0x0100]);
-        Ok(GbaMmu {
+        Ok(Self {
             apu: Apu::default(),
             data: Box::new([0xFF; 0x10000]),
-            cart: T::new(rom_data, ram_data)?,
+            cart: C::new(rom_data, ram_data)?,
             interrupts: InterruptController::new(),
-            timers: GbaTimers::default(),
+            timers: T::new(),
             oam: RwLock::new(Oam::default()),
-            ppu: GbaPpu::new(),
+            ppu: P::new(),
             boot_enable,
             boot_rom,
             dpad_state: 0x0F,
@@ -309,15 +313,15 @@ impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) 
     where Self: Sized
     {
-        let mut ppu = std::mem::replace(&mut self.ppu, GbaPpu::new());
+        let mut ppu = std::mem::replace(&mut self.ppu, P::new());
         ppu.tick(self, ct);
-        if ppu.pending_vblank {
+        if ppu.pending_vblank(){
             self.interrupts_request(Interrupt::VBlank);
-            ppu.pending_vblank = false;
+            ppu.set_pending_vblank(false);
         }
-        if ppu.pending_stat {
+        if ppu.pending_stat() {
             self.interrupts_request(Interrupt::LcdStat);
-            ppu.pending_stat = false;
+            ppu.set_pending_stat(false);
         }
         self.ppu = ppu;
     }
@@ -325,6 +329,8 @@ impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
     fn get_cart(&mut self) -> &mut dyn Mbc {
         &mut self.cart
     }
+
+
     fn get_data(&self) -> &[u8; 0x10000] {
         &self.data
     }
@@ -365,12 +371,6 @@ impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
         self.boot_enable = enabled;
     }
 
-    /*
-    fn set_dma_index(&mut self, val: u8) {
-        self.dma_index = val;
-    }
-    */
-
     fn set_dma_source(&mut self, val: u16) {
         self.dma_source = val;
     }
@@ -404,17 +404,19 @@ impl <T: Mbc> MemoryMapper  for GbaMmu<T> {
         }
     }
 
-    fn get_ppu(&mut self) -> &mut GbaPpu { &mut self.ppu }
+    fn get_ppu(&mut self) -> &mut dyn Ppu<GbaMmu<C, T, P>> { &mut self.ppu }
 }
 
-pub struct GbaMmu<T: Mbc> {
+
+
+pub struct GbaMmu<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> {
     data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
-    cart: T,
+    cart: C,
     interrupts: InterruptController,
-    timers: GbaTimers,
+    timers: T,
     oam: RwLock<Oam>,
     apu: Apu,
-    pub ppu: GbaPpu,
+    pub ppu: P,
     boot_enable: bool,
     boot_rom: [u8; 0x0100],
     dpad_state: u8, // for joypad
@@ -424,7 +426,7 @@ pub struct GbaMmu<T: Mbc> {
     pub dma_index: u8,
 }
 
-impl<T: Mbc> GbaMmu<T> {
+impl<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> GbaMmu<C, T, P> {
     pub fn ram_dump(&self) ->  Option<Vec<u8>> {
         self.cart.dump()
     }
@@ -450,7 +452,7 @@ impl<T: Mbc> GbaMmu<T> {
 
                 self.data[mirror as usize]
             }
-            MemoryRegion::Timers => self.timers.read_byte(addr),
+            MemoryRegion::Timers => self.timers.read(addr),
             MemoryRegion::Io => {
                 if addr == 0xFF00 {
                     let selection = self.data[0xFF00] & 0b0011_0000;
@@ -499,7 +501,7 @@ impl<T: Mbc> GbaMmu<T> {
 
                 self.data[mirror as usize] = val;
             }
-            MemoryRegion::Timers => self.timers.write_byte(addr, val),
+            MemoryRegion::Timers => self.timers.write(addr, val),
             MemoryRegion::Io => {
                 // The CPU can only change the bits 4 and 5. The emulator use methods to write into the memory.
                 if addr == 0xFF00 {
@@ -586,15 +588,15 @@ impl<T: Mbc> GbaMmu<T> {
     }
 
     pub fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) {
-        let mut ppu = std::mem::replace(&mut self.ppu, GbaPpu::new());
+        let mut ppu = std::mem::replace(&mut self.ppu, P::new());
         ppu.tick(self, ct);
-        if ppu.pending_vblank {
+        if ppu.pending_vblank() {
             self.interrupts_request(Interrupt::VBlank);
-            ppu.pending_vblank = false;
+            ppu.set_pending_vblank(false);
         }
-        if ppu.pending_stat {
+        if ppu.pending_stat() {
             self.interrupts_request(Interrupt::LcdStat);
-            ppu.pending_stat = false;
+            ppu.set_pending_stat(false);
         }
         self.ppu = ppu;
     }
@@ -623,9 +625,9 @@ impl<T: Mbc> GbaMmu<T> {
     }
 }
 
-impl<T: Mbc> Default for GbaMmu<T> {
+impl<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> Default for GbaMmu<C, T, P> {
     fn default() -> Self {
-        GbaMmu::<T>::new(None, vec![], None).expect("This is not suppose to happen")
+        GbaMmu::<C, T, P>::new(None, vec![], None).expect("This is not suppose to happen")
     }
 }
 
@@ -649,6 +651,7 @@ pub struct CgbMmu<T: Mbc> {
 #[cfg(test)]
 mod tests {
     use crate::mmu::mbc::RomOnly;
+    use crate::mmu::timers::GbaTimers;
     use super::*;
 
     use super::{MemoryRegion, GbaMmu};
@@ -656,7 +659,7 @@ mod tests {
     #[test]
     fn mmu_routes_reads_and_writes() {
         let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu = GbaMmu::<RomOnly>::new(None, rom, None).unwrap();
+        let mut mmu = GbaMmu::<RomOnly, GbaTimers>::new(None, rom, None).unwrap();
 
         // Reading from ROM region gives you the first bank data
         assert_eq!(mmu.read_byte(0x0000), 0x12);
