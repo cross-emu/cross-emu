@@ -1,8 +1,8 @@
 use crate::communications::CpuState;
-use crate::cpu::cb_operations::build_cb_instructions;
+use crate::cpu::cb_instructions::build_cb_instructions;
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
-use crate::cpu::operations::build_instructions_set;
+use crate::cpu::instructions::build_instructions;
 use crate::mmu::MemoryMapper;
 use std::fmt;
 
@@ -25,7 +25,7 @@ impl<M: MemoryMapper> Cpu<M> {
             halted: false,
             halt_bug: false,
             tick_to_wait: 0,
-            instructions: build_instructions_set(),
+            instructions: build_instructions(),
             cb_instructions: build_cb_instructions(),
         }
     }

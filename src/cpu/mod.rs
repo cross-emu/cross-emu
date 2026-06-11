@@ -1,5 +1,6 @@
-pub mod operations;
-pub mod flags;
+pub mod cb_instructions;
 pub mod defines;
-pub mod cb_operations;
+pub mod flags;
 pub mod instructions;
+pub mod ops;
+pub mod tests;

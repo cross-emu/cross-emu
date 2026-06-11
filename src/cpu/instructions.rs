@@ -1,9 +1,9 @@
 use crate::cpu::defines::{Cpu, Instruction};
-use crate::cpu::instructions::cond::*;
+use crate::cpu::ops::cond::*;
 use crate::cpu_def::*;
 use crate::mmu::MemoryMapper;
 
-pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
+pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
     vec![
         Instruction {
             opcode: 0x00,
@@ -59,6 +59,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             ],
         },
         Instruction {
+            opcode: 0x0A,
+            micro_ops: vec![Cpu::read_memory::<BC, Z>, Cpu::load_r8_r8::<A, Z>],
+        },
+        Instruction {
             opcode: 0x0B,
             micro_ops: vec![Cpu::dec_r16::<BC>, Cpu::noop],
         },
@@ -77,10 +81,6 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
         Instruction {
             opcode: 0x0F,
             micro_ops: vec![Cpu::rrca],
-        },
-        Instruction {
-            opcode: 0x0a,
-            micro_ops: vec![Cpu::read_memory::<BC, Z>, Cpu::load_r8_r8::<A, Z>],
         },
         Instruction {
             opcode: 0x10,
@@ -134,6 +134,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             ],
         },
         Instruction {
+            opcode: 0x1A,
+            micro_ops: vec![Cpu::read_memory::<DE, Z>, Cpu::load_r8_r8::<A, Z>],
+        },
+        Instruction {
             opcode: 0x1B,
             micro_ops: vec![Cpu::dec_r16::<DE>, Cpu::noop],
         },
@@ -152,10 +156,6 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
         Instruction {
             opcode: 0x1F,
             micro_ops: vec![Cpu::rra],
-        },
-        Instruction {
-            opcode: 0x1a,
-            micro_ops: vec![Cpu::read_memory::<DE, Z>, Cpu::load_r8_r8::<A, Z>],
         },
         Instruction {
             opcode: 0x20,
@@ -1003,6 +1003,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             ],
         },
         Instruction {
+            opcode: 0xD3,
+            micro_ops: Vec::new(),
+        },
+        Instruction {
             opcode: 0xD4,
             micro_ops: vec![
                 Cpu::read_memory_incr::<PC, Z>,
@@ -1066,6 +1070,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             ],
         },
         Instruction {
+            opcode: 0xDB,
+            micro_ops: vec![],
+        },
+        Instruction {
             opcode: 0xDC,
             micro_ops: vec![
                 Cpu::read_memory_incr::<PC, Z>,
@@ -1076,6 +1084,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
                 Cpu::write_memory_reassign_pc::<SP, PcC>,
                 Cpu::noop,
             ],
+        },
+        Instruction {
+            opcode: 0xDD,
+            micro_ops: vec![],
         },
         Instruction {
             opcode: 0xDE,
@@ -1114,6 +1126,14 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![Cpu::write_memory_0xff::<C, Z>, Cpu::noop],
         },
         Instruction {
+            opcode: 0xE3,
+            micro_ops: vec![],
+        },
+        Instruction {
+            opcode: 0xE4,
+            micro_ops: vec![],
+        },
+        Instruction {
             opcode: 0xE5,
             micro_ops: vec![
                 Cpu::decrement_r16::<PC>,
@@ -1149,6 +1169,27 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![Cpu::load_r16_r16::<PC, HL>],
         },
         Instruction {
+            opcode: 0xEA,
+            micro_ops: vec![
+                Cpu::read_memory_incr::<PC, Z>,
+                Cpu::read_memory_incr::<PC, W>,
+                Cpu::write_memory::<WZ, A>,
+                Cpu::noop,
+            ],
+        },
+        Instruction {
+            opcode: 0xEB,
+            micro_ops: vec![],
+        },
+        Instruction {
+            opcode: 0xEC,
+            micro_ops: vec![],
+        },
+        Instruction {
+            opcode: 0xED,
+            micro_ops: vec![],
+        },
+        Instruction {
             opcode: 0xEE,
             micro_ops: vec![Cpu::read_memory_incr::<PC, Z>, Cpu::cp_r8_r8::<A, Z>],
         },
@@ -1179,6 +1220,10 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
         },
         Instruction {
             opcode: 0xF3,
+            micro_ops: vec![Cpu::set_ime_0],
+        },
+        Instruction {
+            opcode: 0xF4,
             micro_ops: vec![Cpu::set_ime_0],
         },
         Instruction {
@@ -1216,8 +1261,25 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![Cpu::load_r16_r16::<SP, HL>, Cpu::noop],
         },
         Instruction {
+            opcode: 0xFA,
+            micro_ops: vec![
+                Cpu::read_memory::<PC, Z>,
+                Cpu::read_memory::<PC, W>,
+                Cpu::read_memory::<WZ, Z>,
+                Cpu::load_r8_r8::<A, Z>,
+            ],
+        },
+        Instruction {
             opcode: 0xFB,
             micro_ops: vec![Cpu::set_ime_1],
+        },
+        Instruction {
+            opcode: 0xFC,
+            micro_ops: vec![],
+        },
+        Instruction {
+            opcode: 0xFD,
+            micro_ops: vec![],
         },
         Instruction {
             opcode: 0xFE,
@@ -1230,24 +1292,6 @@ pub fn build_instruction_vec<M: MemoryMapper>() -> Vec<Instruction<M>> {
                 Cpu::write_memory_rst::<0x38, SP, PcC>,
                 Cpu::load_r16_r16::<PC, WZ>,
                 Cpu::noop,
-            ],
-        },
-        Instruction {
-            opcode: 0xea,
-            micro_ops: vec![
-                Cpu::read_memory_incr::<PC, Z>,
-                Cpu::read_memory_incr::<PC, W>,
-                Cpu::write_memory::<WZ, A>,
-                Cpu::noop,
-            ],
-        },
-        Instruction {
-            opcode: 0xfa,
-            micro_ops: vec![
-                Cpu::read_memory_incr::<PC, Z>,
-                Cpu::read_memory_incr::<PC, W>,
-                Cpu::read_memory::<WZ, Z>,
-                Cpu::load_r8_r8::<A, Z>,
             ],
         },
     ]
