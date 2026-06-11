@@ -41,7 +41,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x07,
             micro_ops: vec![Cpu::rlc::<A>],
         },
-        //RRC
         Instruction {
             opcode: 0x08,
             micro_ops: vec![Cpu::rrc::<B>],
@@ -78,7 +77,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x0F,
             micro_ops: vec![Cpu::rrc::<A>],
         },
-        //RL
         Instruction {
             opcode: 0x10,
             micro_ops: vec![Cpu::rl::<B>],
@@ -115,7 +113,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x17,
             micro_ops: vec![Cpu::rl::<A>],
         },
-        //RR
         Instruction {
             opcode: 0x18,
             micro_ops: vec![Cpu::rr::<B>],
@@ -152,7 +149,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x1F,
             micro_ops: vec![Cpu::rr::<A>],
         },
-        //SLA
         Instruction {
             opcode: 0x20,
             micro_ops: vec![Cpu::sla::<B>],
@@ -189,7 +185,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x27,
             micro_ops: vec![Cpu::sla::<A>],
         },
-        //SRA
         Instruction {
             opcode: 0x28,
             micro_ops: vec![Cpu::sra::<B>],
@@ -226,7 +221,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x2F,
             micro_ops: vec![Cpu::sra::<A>],
         },
-        //SWAP
         Instruction {
             opcode: 0x30,
             micro_ops: vec![Cpu::swap::<B>],
@@ -263,7 +257,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x37,
             micro_ops: vec![Cpu::swap::<A>],
         },
-        //SRL
         Instruction {
             opcode: 0x38,
             micro_ops: vec![Cpu::srl::<B>],
@@ -300,7 +293,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x3F,
             micro_ops: vec![Cpu::srl::<A>],
         },
-        //BIT 0
         Instruction {
             opcode: 0x40,
             micro_ops: vec![Cpu::bit::<0, B>],
@@ -333,7 +325,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x47,
             micro_ops: vec![Cpu::bit::<0, A>],
         },
-        //BIT 1
         Instruction {
             opcode: 0x48,
             micro_ops: vec![Cpu::bit::<1, B>],
@@ -366,7 +357,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x4F,
             micro_ops: vec![Cpu::bit::<1, A>],
         },
-        //BIT 2
         Instruction {
             opcode: 0x50,
             micro_ops: vec![Cpu::bit::<2, B>],
@@ -399,7 +389,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x57,
             micro_ops: vec![Cpu::bit::<2, A>],
         },
-        //BIT 3
         Instruction {
             opcode: 0x58,
             micro_ops: vec![Cpu::bit::<3, B>],
@@ -432,7 +421,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x5F,
             micro_ops: vec![Cpu::bit::<3, A>],
         },
-        //BIT 4
         Instruction {
             opcode: 0x60,
             micro_ops: vec![Cpu::bit::<4, B>],
@@ -465,7 +453,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x67,
             micro_ops: vec![Cpu::bit::<4, A>],
         },
-        //BIT 5
         Instruction {
             opcode: 0x68,
             micro_ops: vec![Cpu::bit::<5, B>],
@@ -498,7 +485,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x6F,
             micro_ops: vec![Cpu::bit::<5, A>],
         },
-        //BIT 6
         Instruction {
             opcode: 0x70,
             micro_ops: vec![Cpu::bit::<6, B>],
@@ -531,7 +517,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x77,
             micro_ops: vec![Cpu::bit::<6, A>],
         },
-        //BIT 7
         Instruction {
             opcode: 0x78,
             micro_ops: vec![Cpu::bit::<7, B>],
@@ -564,7 +549,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x7F,
             micro_ops: vec![Cpu::bit::<7, A>],
         },
-        //RES 0
         Instruction {
             opcode: 0x80,
             micro_ops: vec![Cpu::res::<0, B>],
@@ -601,7 +585,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x87,
             micro_ops: vec![Cpu::res::<0, A>],
         },
-        //RES 1
         Instruction {
             opcode: 0x88,
             micro_ops: vec![Cpu::res::<1, B>],
@@ -638,7 +621,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x8F,
             micro_ops: vec![Cpu::res::<1, A>],
         },
-        //RES 2
         Instruction {
             opcode: 0x90,
             micro_ops: vec![Cpu::res::<2, B>],
@@ -675,7 +657,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x97,
             micro_ops: vec![Cpu::res::<2, A>],
         },
-        //RES 3
         Instruction {
             opcode: 0x98,
             micro_ops: vec![Cpu::res::<3, B>],
@@ -712,7 +693,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0x9F,
             micro_ops: vec![Cpu::res::<3, A>],
         },
-        //RES 4
         Instruction {
             opcode: 0xA0,
             micro_ops: vec![Cpu::res::<4, B>],
@@ -749,7 +729,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xA7,
             micro_ops: vec![Cpu::res::<4, A>],
         },
-        //RES 5
         Instruction {
             opcode: 0xA8,
             micro_ops: vec![Cpu::res::<5, B>],
@@ -786,7 +765,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xAF,
             micro_ops: vec![Cpu::res::<5, A>],
         },
-        //RES 6
         Instruction {
             opcode: 0xB0,
             micro_ops: vec![Cpu::res::<6, B>],
@@ -823,7 +801,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xB7,
             micro_ops: vec![Cpu::res::<6, A>],
         },
-        //RES 7
         Instruction {
             opcode: 0xB8,
             micro_ops: vec![Cpu::res::<7, B>],
@@ -860,7 +837,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xBF,
             micro_ops: vec![Cpu::res::<7, A>],
         },
-        //SET 0
         Instruction {
             opcode: 0xC0,
             micro_ops: vec![Cpu::set::<0, B>],
@@ -897,7 +873,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xC7,
             micro_ops: vec![Cpu::set::<0, A>],
         },
-        //SET 1
         Instruction {
             opcode: 0xC8,
             micro_ops: vec![Cpu::set::<1, B>],
@@ -934,7 +909,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xCF,
             micro_ops: vec![Cpu::set::<1, A>],
         },
-        //SET 2
         Instruction {
             opcode: 0xD0,
             micro_ops: vec![Cpu::set::<2, B>],
@@ -971,7 +945,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xD7,
             micro_ops: vec![Cpu::set::<2, A>],
         },
-        //SET 3
         Instruction {
             opcode: 0xD8,
             micro_ops: vec![Cpu::set::<3, B>],
@@ -1008,7 +981,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xDF,
             micro_ops: vec![Cpu::set::<3, A>],
         },
-        //SET 4
         Instruction {
             opcode: 0xE0,
             micro_ops: vec![Cpu::set::<4, B>],
@@ -1045,7 +1017,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xE7,
             micro_ops: vec![Cpu::set::<4, A>],
         },
-        //SET 5
         Instruction {
             opcode: 0xE8,
             micro_ops: vec![Cpu::set::<5, B>],
@@ -1082,7 +1053,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xEF,
             micro_ops: vec![Cpu::set::<5, A>],
         },
-        //SET 6
         Instruction {
             opcode: 0xF0,
             micro_ops: vec![Cpu::set::<6, B>],
@@ -1119,7 +1089,6 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             opcode: 0xF7,
             micro_ops: vec![Cpu::set::<6, A>],
         },
-        //SET 7
         Instruction {
             opcode: 0xF8,
             micro_ops: vec![Cpu::set::<7, B>],
@@ -1163,7 +1132,6 @@ impl<M: MemoryMapper> Cpu<M> {
     pub fn decode_cb(&mut self, bus: &mut M) {
         let pc = Self::get_r16::<PC>(self);
         let cb_opcode = bus.read_byte(pc);
-
         self.set_r16::<PC>(pc.wrapping_add(1));
         self.queue = self.cb_instructions[cb_opcode as usize].micro_ops.clone();
         self.op_index = 0;
