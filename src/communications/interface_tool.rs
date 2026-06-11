@@ -1,4 +1,5 @@
 use super::FRAME_SIZE_IN_U8;
+use crate::gui::keymapping::KeyInput;
 use std::fs::{self, File};
 use std::io::Write;
 use std::sync::atomic::Ordering;
@@ -7,9 +8,8 @@ use std::sync::{
     atomic::{AtomicBool, AtomicIsize},
 };
 use tokio::sync::mpsc::Sender;
-use tokio::sync::watch;
+use tokio::sync::{oneshot, watch};
 
-use crate::gui::keymapping::KeyInput;
 use crate::gui::views::emulation_view::SaveState;
 
 use super::CpuState;
@@ -46,6 +46,9 @@ pub trait InterfaceCT {
     fn watch_adress(&self, addr_to_watch: u16) -> Result<(), String>;
     fn set_instruction_list_len(&self, list_len: u8) -> Result<(), String>;
     fn remove_watch_address(&self, addr_to_delete: u16) -> Result<(), String>;
+
+    // End Procedure
+    fn get_end_result(&mut self) -> Result<Option<Result<(), String>>, String>;
 }
 
 pub struct InterfaceCommunicationTool {
@@ -57,6 +60,7 @@ pub struct InterfaceCommunicationTool {
     instructions_receiver: watch::Receiver<Arc<InstructionList>>,
     request_sender: Sender<Request>,
     watched_addresses_receiver: watch::Receiver<Arc<WatchedAdresses>>,
+    result_receiver: oneshot::Receiver<Result<(), String>>,
 }
 
 impl InterfaceCommunicationTool {
@@ -70,6 +74,7 @@ impl InterfaceCommunicationTool {
         instructions_receiver: watch::Receiver<Arc<InstructionList>>,
         request_sender: Sender<Request>,
         watched_addresses_receiver: watch::Receiver<Arc<WatchedAdresses>>,
+        result_receiver: oneshot::Receiver<Result<(), String>>,
     ) -> Self {
         Self {
             input_sender,
@@ -80,6 +85,7 @@ impl InterfaceCommunicationTool {
             instructions_receiver,
             request_sender,
             watched_addresses_receiver,
+            result_receiver,
         }
     }
 
@@ -222,6 +228,18 @@ impl InterfaceCT for InterfaceCommunicationTool {
 
     fn set_instruction_list_len(&self, list_len: u8) -> Result<(), String> {
         self.try_send_query(Request::SetInstructionListLength(list_len))
+    }
+
+    fn get_end_result(&mut self) -> Result<Option<Result<(), String>>, String> {
+        if self.result_receiver.is_empty() {
+            Ok(None)
+        } else {
+            let result = self
+                .result_receiver
+                .try_recv()
+                .map_err(|err| format!("Communication issue: {}", err))?;
+            Ok(Some(result))
+        }
     }
 
     fn remove_watch_address(&self, addr_to_delete: u16) -> Result<(), String> {

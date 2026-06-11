@@ -9,6 +9,7 @@ use crate::GBMU_FILE;
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
+
 use crate::gameboy::GameBoy;
 use crate::gui::keymapping::KeyMapping;
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
@@ -50,6 +51,7 @@ impl eframe::App for GraphicalApp {
             AppState::SelectionHub(device) => device.selection_view(_ui, _frame),
             AppState::EmulationHub(device) => device.emulation_view(_ui, _frame),
             AppState::DebuggingHub(device) => device.debug_view(_ui, _frame),
+            AppState::Error(device) => device.error_view(_ui, _frame),
             AppState::Default => unreachable!(),
         };
         let keys_down = _ui.ctx().input(|i| i.keys_down.clone());
@@ -77,6 +79,21 @@ pub struct EmulationAppOptions {
 pub enum GbType {
     Cgb,
     Dmg,
+}
+
+use std::fmt::Display;
+
+impl Display for GbType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                GbType::Cgb => "Gameboy Color (Cgb)",
+                GbType::Dmg => "Game boy (Dmg)",
+            }
+        )
+    }
 }
 
 impl GbType {
@@ -167,6 +184,7 @@ pub enum AppState {
     SelectionHub(SelectionDevice),
     EmulationHub(EmulationDevice),
     DebuggingHub(DebuggingDevice),
+    Error(ErrorDevice),
     Default,
 }
 
@@ -197,10 +215,7 @@ impl AnyGameApp {
         let gb_type = game_data.define_gb_type(&supported_gb_types);
 
         if !supported_gb_types.contains(&gb_type) {
-            return Err(format!(
-                "Cartridge doesn't support type {:#?}",
-                game_data.gb_type
-            ));
+            return Err(format!("Cartridge doesn't support type {}", gb_type));
         }
 
         // boot_rom path
@@ -355,7 +370,7 @@ impl AnyGameApp {
         }
     }
 
-    pub fn launch(self, ct: Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String> {
+    pub fn launch(self, ct: &mut Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String> {
         match self {
             AnyGameApp::DmgOnlyRom(g) => g.launch(ct),
             AnyGameApp::CgbOnlyRom(g) => g.launch(ct),
@@ -371,26 +386,39 @@ impl AnyGameApp {
     }
 }
 
-async fn async_launch_game(game_data: CoreGameOptions, ct: Box<dyn GameCT>) -> Result<(), String> {
+async fn async_launch_game(game_data: CoreGameOptions, mut ct: Box<dyn GameCT>) {
     let rom_path = game_data.rom_path.clone();
-    match AnyGameApp::new(game_data) {
-        Ok(app) => {
-            if let Some(value) = app.launch(ct)? {
+    let result = match AnyGameApp::new(game_data) {
+        Ok(app) => match app.launch(&mut ct) {
+            Ok(Some(saved_ram)) => {
                 let save_path = rom_path.clone() + ".save";
                 eprintln!("attempting to save game ram to {}", save_path);
-                fs::write(save_path, value)
-                    .unwrap_or_else(|err| eprintln!("backup was unsucessfull {:?}", err));
+                fs::write(save_path, saved_ram).map_err(|err| {
+                    let formated = format!("backup was unsucessfull {:?}", err);
+                    eprintln!("{}", formated);
+                    formated
+                })
             }
+            Err(e) => {
+                eprintln!("Error: during launch : {:?}", &e);
+                Err(e)
+            }
+            _ => Ok(()),
+        },
+        Err(e) => {
+            eprintln!("Error: during init : {:?}", &e);
+            Err(e)
         }
-        Err(e) => eprintln!("{:?}", e),
-    }
-    Ok(())
+    };
+    ct.send_end_result(result)
 }
 
 use crate::communications::FRAME_SIZE_IN_U8;
 
 pub struct CoreGameDevice {
-    pub handler: JoinHandle<Result<(), String>>,
+    game_name: String,
+
+    pub handler: Option<JoinHandle<()>>,
     buffer: [u8; FRAME_SIZE_IN_U8],
     pub sized_image: Option<SizedTexture>,
     texture_handler: Option<TextureHandle>,
@@ -401,7 +429,10 @@ pub struct CoreGameDevice {
 
 impl Drop for CoreGameDevice {
     fn drop(&mut self) {
-        println!("this was droped");
+        self.handler.as_ref().inspect(|handler| {
+            println!("Dropping Core Game Device : aborting the game task handler");
+            handler.abort()
+        });
     }
 }
 
@@ -441,9 +472,11 @@ impl CoreGameDevice {
 
         let audio_running = Arc::new(AtomicBool::new(true));
 
+        let game_name = options.rom_path.clone();
         Self {
+            game_name,
             interface_ct,
-            handler: tokio::spawn(async_launch_game(options.clone(), game_ct)),
+            handler: Some(tokio::spawn(async_launch_game(options.clone(), game_ct))),
             buffer: [0; FRAME_SIZE_IN_U8],
             texture_handler: None,
             sized_image: None,
@@ -453,14 +486,36 @@ impl CoreGameDevice {
     }
 
     pub fn reset(&mut self) {
-        self.handler.abort();
+        self.handler.take().inspect(|h| h.abort());
 
         let (game_ct, interface_ct) = create_communication_tools();
         self.interface_ct = interface_ct;
-        self.handler = tokio::spawn(async_launch_game(self.options.clone(), game_ct));
+        self.handler = Some(tokio::spawn(async_launch_game(
+            self.options.clone(),
+            game_ct,
+        )));
 
         self.buffer = [0; FRAME_SIZE_IN_U8];
         self.sized_image = None;
+    }
+
+    fn is_finished(&self) -> bool {
+        let mut is_finished = true;
+        self.handler
+            .as_ref()
+            .inspect(|handler| is_finished = handler.is_finished());
+        is_finished
+    }
+
+    fn return_value(mut self) -> String {
+        if let Some(handler) = self.handler.take() {
+            match tokio::runtime::Handle::current().block_on(handler) {
+                Ok(_) => format!("{} quitted unexpectedly", &self.game_name),
+                Err(err) => format!("{} quitted : {}", &self.game_name, err),
+            }
+        } else {
+            "".into()
+        }
     }
 }
 
@@ -534,5 +589,14 @@ pub struct DebuggingDevice {
 impl Default for AppState {
     fn default() -> Self {
         Self::SelectionHub(SelectionDevice::default())
+    }
+}
+pub struct ErrorDevice {
+    formated_error: String,
+}
+
+impl ErrorDevice {
+    fn new(formated_error: String) -> Self {
+        Self { formated_error }
     }
 }

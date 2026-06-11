@@ -118,7 +118,7 @@ impl<M: MemoryMapper> GameBoy<M> {
     }
 
     #[allow(unused_mut)]
-    pub fn launch(mut self, mut ct: Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String> {
+    pub fn launch(mut self, mut ct: &mut Box<dyn GameCT>) -> Result<Option<Vec<u8>>, String> {
         let mut input = KeyInput::default();
         let mut before = Instant::now();
         let mut debut: Instant;
@@ -133,7 +133,7 @@ impl<M: MemoryMapper> GameBoy<M> {
                 eprintln!("Gameboy must stop : {msg}");
                 break;
             }
-            mode(&mut self, &input, &mut ct);
+            mode(&mut self, &input, ct);
             if self.should_get_fps {
                 ct.update_fps(Self::calculate_fps(&mut before))?;
             }
