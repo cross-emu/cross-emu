@@ -61,10 +61,16 @@ impl<M: MemoryMapper> Cpu<M> {
             self.handle_ime_delay();
 
             self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
-            println!("{}", instruction_byte);
+            println!("{:x}", instruction_byte);
             self.queue = self.instructions[instruction_byte as usize]
                 .micro_ops
-                .to_vec();
+                .to_vec()
+                .clone();
+            println!(
+                "\nQueue: {:X?} \nPC: {}\n",
+                self.queue,
+                self.get_r16::<PC>()
+            );
             self.op_index = 0;
         }
     }

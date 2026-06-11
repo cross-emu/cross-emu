@@ -20,11 +20,11 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn set_ime_0(&mut self, _bus: &mut M) {
-        todo!()
+        self.ime = false;
     }
 
     pub fn set_ime_1(&mut self, _bus: &mut M) {
-        todo!()
+        self.ime = true;
     }
 
     pub fn cpl(&mut self, _bus: &mut M) {
