@@ -242,7 +242,7 @@ pub trait MemoryMapper {
         self.update_data(0xFF00, val);
     }
 
-    fn tick_timers(&mut self) {
+    fn tick_timers(&mut self) where Self: Sized {
         if self.get_timer().tick() {
             let interrupt_flags_addr = MemoryRegion::InterruptFlag.to_address();
             let mut interrupt_flags = self.read_byte(interrupt_flags_addr);
@@ -428,15 +428,6 @@ pub struct GbaMmu<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> {
 impl<C: Mbc, T: TimingComponent, P: Ppu<GbaMmu<C, T, P>>> GbaMmu<C, T, P> {
     pub fn ram_dump(&self) ->  Option<Vec<u8>> {
         self.cart.dump()
-    }
-
-    pub fn tick_timers(&mut self) {
-        if self.timers.tick() {
-            let interrupt_flags_addr = MemoryRegion::InterruptFlag.to_address();
-            let mut interrupt_flags = self.read_byte(interrupt_flags_addr);
-            interrupt_flags |= 0b100;
-            self.write_byte(interrupt_flags_addr, interrupt_flags);
-        }
     }
 
     pub fn read_byte(&self, addr: u16) -> u8 {
@@ -651,15 +642,23 @@ pub struct CgbMmu<T: Mbc> {
 mod tests {
     use crate::mmu::mbc::RomOnly;
     use crate::mmu::timers::GbaTimers;
+    use crate::ppu::GbaPpu;
     use super::*;
 
     use super::{MemoryRegion, GbaMmu};
 
+    fn default_dmg_mmu_from(rom: Vec<u8>) -> GbaMmu<RomOnly, GbaTimers, GbaPpu>{
+        GbaMmu::<RomOnly, GbaTimers, GbaPpu>::new(None, rom, None).unwrap()
+    }
+
+    fn default_dmg_mmu() -> GbaMmu<RomOnly, GbaTimers, GbaPpu>{
+        GbaMmu::<RomOnly, GbaTimers, GbaPpu>::default()
+    }
+
     #[test]
     fn mmu_routes_reads_and_writes() {
         let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu = GbaMmu::<RomOnly, GbaTimers>::new(None, rom, None).unwrap();
-
+        let mut mmu =  default_dmg_mmu_from(rom);
         // Reading from ROM region gives you the first bank data
         assert_eq!(mmu.read_byte(0x0000), 0x12);
         assert_eq!(mmu.read_byte(0x0001), 0x34);
@@ -687,7 +686,7 @@ mod tests {
     // MRAM ECHO RAM
     #[test]
     fn echo_ram_mirror() {
-        let mut mmu = GbaMmu::<RomOnly>::default();
+        let mut mmu = default_dmg_mmu();
 
         // Write to Work RAM (0xC000) and read from Echo RAM (0xE000)
         mmu.write_byte(0xC000, 0xAA);
@@ -701,7 +700,7 @@ mod tests {
     // UNUSABLE REGION
     #[test]
     fn unusable_region_behavior() {
-        let mut mmu = GbaMmu::<RomOnly>::default();
+        let mut mmu = default_dmg_mmu();
 
         // Unusable region reads back as 0xFF
         let base = 0xFEA0;
