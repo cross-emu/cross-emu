@@ -464,7 +464,7 @@ pub struct Mbc5 {
     ram_gate_enable: bool,
     rom_bank_register: u16,
     ram_bank_register: u8,
-    ramble: bool,
+    rumble: bool,
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
     
@@ -486,7 +486,7 @@ impl Mbc for Mbc5 {
                 ram_gate_enable: false,
                 rom_bank_register: 0,
                 ram_bank_register: 0,
-                ramble: false,
+                rumble: false,
             }
         )
     }
@@ -517,7 +517,7 @@ impl Mbc for Mbc5 {
             0x3000..0x4000 => self.rom_bank_register = self.rom_bank_register & (0x0FF + val as u16) & 0x100,
             0x4000..0x6000 => {
                 self.ram_bank_register = val & 0x0F;
-                self.ramble = (val & 0x10) != 0;
+                self.rumble = (val & 0x10) != 0;
             }
             _ => unreachable!(),
         }
