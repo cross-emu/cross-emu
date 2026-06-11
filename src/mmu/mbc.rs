@@ -75,15 +75,23 @@ fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<[u8; ROM_BANK_SIZE]>, Strin
     Ok(banks)
 }
 
-fn map_n_ram_banks<const N: usize>(ram_nb: usize, saved_ram: Option<Vec<u8>>) -> Vec<[u8; N]> {
-    if let Some(saved_ram) = saved_ram {
-        saved_ram
+fn map_n_ram_banks<const N: usize>(
+    ram_nb: usize,
+    saved_ram: Option<Vec<u8>>,
+) -> Result<Vec<[u8; N]>, String> {
+    Ok(if let Some(saved_ram) = saved_ram {
+        let banks: Result<Vec<[u8; N]>, String> = saved_ram
             .chunks(N)
-            .map(|chunk| chunk.try_into().expect("Invalid size of saved ram file"))
-            .collect()
+            .map(|chunk| {
+                chunk.try_into().map_err(|_| {
+                    "Chunk is not well sized .save was corrupted. You may delete it.".into()
+                })
+            })
+            .collect();
+        banks?
     } else {
         (0..ram_nb).map(|_| [0u8; N]).collect()
-    }
+    })
 }
 
 fn map_ram_banks(
@@ -93,7 +101,7 @@ fn map_ram_banks(
     let supposed_ram_bank_size = get_ram_bank_size(rom_image)?;
     println!("ram banks count {}", supposed_ram_bank_size);
 
-    let ram_banks = map_n_ram_banks(supposed_ram_bank_size, saved_ram);
+    let ram_banks = map_n_ram_banks(supposed_ram_bank_size, saved_ram)?;
 
     if ram_banks.len() == supposed_ram_bank_size {
         Ok(ram_banks)
@@ -237,7 +245,7 @@ impl Mbc for Mbc2 {
     {
         println!("New Mbc2");
         let rom_banks = map_rom_into_bank(&rom_image)?;
-        let ram_banks: [u8; 0x200] = map_n_ram_banks(1, saved_ram)[0];
+        let ram_banks: [u8; 0x200] = map_n_ram_banks(1, saved_ram)?[0];
         Ok(Mbc2 {
             rom_banks,
             ram_gate_register: false,

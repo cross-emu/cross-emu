@@ -7,8 +7,8 @@ use crate::GBMU_FILE;
 use crate::communications::{CpuState, FRAME_SIZE_IN_U8, InstructionList, Mode, WatchedAdresses};
 use crate::gui::egui::Id;
 use crate::gui::{
-    AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, GbType,
-    SelectionDevice,
+    AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, ErrorDevice,
+    GbType, SelectionDevice,
 };
 
 #[derive(Debug)]
@@ -22,8 +22,27 @@ use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 use std::time::Instant;
 
 impl EmulationDevice {
+    fn get_out_message_from_game(&mut self) -> Option<String> {
+        let message = self.core_game.interface_ct.get_end_result();
+        match message {
+            Ok(Some(Err(message))) => Some(message),
+            _ => None,
+        }
+    }
+
     pub fn emulation_view(mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) -> AppState {
         let debut = Instant::now();
+
+        if self.core_game.is_finished() {
+            let message = self.get_out_message_from_game();
+            return if let Some(formated_message) = message {
+                println!("Going in error state");
+                AppState::Error(ErrorDevice::new(formated_message))
+            } else {
+                AppState::SelectionHub(self.into())
+            };
+        }
+
         if self.core_game.update_and_size_image(ui).is_err() {
             eprintln!("Communication is cut : falling back to selection view.");
             return AppState::SelectionHub(self.into());
@@ -346,5 +365,23 @@ impl From<EmulationDevice> for SelectionDevice {
             key_mapping,
             ..Default::default()
         }
+    }
+}
+
+impl From<DebuggingDevice> for ErrorDevice {
+    fn from(value: DebuggingDevice) -> Self {
+        Self::new(format!(
+            "{} quitted unexpectedly",
+            value.core_game.game_name
+        ))
+    }
+}
+
+impl From<EmulationDevice> for ErrorDevice {
+    fn from(value: EmulationDevice) -> Self {
+        Self::new(format!(
+            "{} quitted unexpectedly",
+            value.core_game.game_name
+        ))
     }
 }

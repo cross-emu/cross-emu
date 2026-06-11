@@ -13,6 +13,7 @@ use std::{
     },
 };
 use tokio::sync::mpsc::channel;
+use tokio::sync::oneshot;
 use tokio::sync::watch;
 
 pub use game_tool::GameCT;
@@ -110,6 +111,8 @@ pub fn create_communication_tools() -> (Box<dyn GameCT>, Box<dyn InterfaceCT>) {
         watch::channel(Arc::new(WatchedAdresses::default()));
     let (request_sender, request_receiver) = channel::<Request>(50);
 
+    let (result_sender, result_receiver) = oneshot::channel();
+
     (
         Box::new(GameCommunicationTool::new(
             input_receiver,
@@ -120,6 +123,7 @@ pub fn create_communication_tools() -> (Box<dyn GameCT>, Box<dyn InterfaceCT>) {
             instructions_sender,
             request_receiver,
             watched_addresses_sender,
+            Some(result_sender),
         )),
         Box::new(InterfaceCommunicationTool::new(
             input_sender,
@@ -130,6 +134,7 @@ pub fn create_communication_tools() -> (Box<dyn GameCT>, Box<dyn InterfaceCT>) {
             instructions_receiver,
             request_sender,
             watched_addresses_receiver,
+            result_receiver,
         )),
     )
 }

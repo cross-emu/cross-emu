@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicBool, AtomicIsize},
 };
 use tokio::sync::mpsc::Receiver;
-use tokio::sync::watch;
+use tokio::sync::{oneshot, watch};
 
 use super::CpuState;
 use super::InstructionList;
@@ -22,6 +22,10 @@ pub trait GameCT: Send {
     fn send_next_instructions(&mut self, list: InstructionList);
     fn send_watched_adresses(&mut self, addresses: WatchedAdresses);
     fn poll_requests(&mut self) -> Vec<Request>;
+
+    // End Procedure
+
+    fn send_end_result(&mut self, result: Result<(), String>);
 }
 
 pub struct GameCommunicationTool {
@@ -33,6 +37,7 @@ pub struct GameCommunicationTool {
     instructions_sender: watch::Sender<Arc<InstructionList>>,
     request_receiver: Receiver<Request>,
     watched_addresses_sender: watch::Sender<Arc<WatchedAdresses>>,
+    result_sender: Option<oneshot::Sender<Result<(), String>>>,
 }
 
 impl GameCommunicationTool {
@@ -46,6 +51,7 @@ impl GameCommunicationTool {
         instructions_sender: watch::Sender<Arc<InstructionList>>,
         request_receiver: Receiver<Request>,
         watched_addresses_sender: watch::Sender<Arc<WatchedAdresses>>,
+        result_sender: Option<oneshot::Sender<Result<(), String>>>,
     ) -> Self {
         Self {
             input_receiver,
@@ -56,6 +62,7 @@ impl GameCommunicationTool {
             instructions_sender,
             request_receiver,
             watched_addresses_sender,
+            result_sender,
         }
     }
 }
@@ -70,6 +77,15 @@ impl GameCT for GameCommunicationTool {
             Ok(false) => Ok(()),
             Err(err) => Err(format!("Unexpected error during input update {err}")),
         }
+    }
+
+    fn send_end_result(&mut self, result: Result<(), String>) {
+        let _ = self
+            .result_sender
+            .take()
+            .expect("Unexpected error : Send end result was called twice")
+            .send(result)
+            .map_err(|err| eprintln!("{:?}", err));
     }
 
     fn put_pixel_to_frame(&mut self, offset: usize, pixel_color: [u8; 3]) {
