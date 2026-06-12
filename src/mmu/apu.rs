@@ -109,5 +109,5 @@ trait Register {
 
 impl Apu {
     pub fn read(&self, addr: u16) -> u8 { 0xFF }
-    pub fn write(&self, addr:u16 , value :u8) { }
+    pub fn write(&mut self, addr:u16 , value :u8) { }
 }
