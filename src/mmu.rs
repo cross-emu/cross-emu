@@ -1,11 +1,10 @@
-use std::sync::{RwLock, RwLockReadGuard};
+use std::sync::RwLock;
 
 pub mod interrupt;
 pub mod mbc;
 pub mod timers;
 pub mod oam;
 pub mod apu;
-mod vram;
 
 use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
@@ -13,11 +12,9 @@ use crate::mmu::mbc::Mbc;
 use crate::mmu::oam::Oam;
 use crate::mmu::apu::Apu;
 use crate::communications::GameCT;
-use crate::ppu::Ppu;
+use crate::ppu::PixelProcessor;
 use crate::mmu::timers::TimingComponent;
-use crate::mmu::vram::{CgbVram, DmgVram, Vram};
 
-#[allow(unused)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum MemoryRegion {
     Mbc,                // 0x000-0x7FFF: read-only
@@ -81,9 +78,6 @@ pub trait MemoryMapper {
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>
     ) -> Result<Self, String> where Self: Sized;
-    fn write_vram(&mut self, addr: u16, value: u8);
-    fn read_vram(&self, addr: u16) -> u8;
-    fn get_accessed_oam_ram(&self) -> &u8;
     fn get_boot_enable(&self) -> bool;
     fn get_boot_rom(&self) -> &[u8; 0x0100];
     fn get_button_state(&self) -> &u8;
@@ -93,14 +87,11 @@ pub trait MemoryMapper {
     fn get_dma_source(&self) -> u16;
     fn get_dpad_state(&self) -> &u8;
     fn get_interrupts(&mut self) -> &mut InterruptController;
-    fn get_oam(&self) -> &RwLock<Oam>;
-    fn get_ppu(&mut self) -> &mut dyn Ppu<Self>;
-    fn set_accessed_oam_row(&mut self, val: u8);
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor;
     fn set_boot_enable(&mut self, enabled: bool);
     fn set_button_state(&mut self, buttons: u8);
     fn set_dma_source(&mut self, val: u16);
     fn set_dpad_state(&mut self, dpad: u8);
-    fn update_accessed_oam_row(&mut self, val: u8);
     fn update_data(&mut self, index: usize, val: u8);
     fn get_dma_index(&mut self) -> u8;
     fn set_dma_index(&mut self, val: u8);
@@ -120,7 +111,7 @@ pub trait MemoryMapper {
         match MemoryRegion::from(addr) {
             MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().read(addr),
             MemoryRegion::Vram => {
-                self.read_vram(addr)
+                self.get_ppu().read_vram(addr)
             }
             MemoryRegion::Mram => {
                 let mirror = addr - 0x2000;
@@ -138,7 +129,6 @@ pub trait MemoryMapper {
                     if selection & 0b0010_0000 == 0 {
                         result &= self.get_button_state();
                     }
-
                     0b1100_0000 | selection | result
                 } else if matches!(addr, 0xFF40..=0xFF4B) && addr != 0xFF46 {
                     self.get_ppu().read_register(addr)
@@ -146,13 +136,7 @@ pub trait MemoryMapper {
                     self.get_data()[addr as usize]
                 }
             }
-            MemoryRegion::Oam => {
-                let mut oam = self.get_oam().write().unwrap();
-                if *self.get_accessed_oam_ram() != 0xFF {
-                    oam.trigger_oam_bug_read(*self.get_accessed_oam_ram());
-                }
-                oam.read(addr)
-            },
+            MemoryRegion::Oam => self.get_ppu().read_oam(addr),
             MemoryRegion::Unusable => 0xFF,
             MemoryRegion::InterruptFlag => self.get_interrupts().read_interrupt_flag(),
             MemoryRegion::InterruptEnable => self.get_interrupts().read_interrupt_enable(),
@@ -170,7 +154,7 @@ pub trait MemoryMapper {
         match MemoryRegion::from(addr) {
             MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().write(addr, val),
             MemoryRegion::Vram => {
-                self.write_vram(addr, val);
+                self.get_ppu().write_vram(addr, val);
             }
             MemoryRegion::Mram => {
                 let mirror = addr - 0x2000;
@@ -193,11 +177,7 @@ pub trait MemoryMapper {
                 }
             },
             MemoryRegion::Oam => {
-                let mut oam = self.get_oam().write().unwrap();
-                if *self.get_accessed_oam_ram() != 0xFF {
-                    oam.trigger_oam_bug_write(*self.get_accessed_oam_ram());
-                }
-                oam.write(addr, val)
+                self.get_ppu().write_oam(addr, val);
             },
             MemoryRegion::Unusable => {}
             MemoryRegion::InterruptFlag => self.get_interrupts().write_interrupt_flag(val),
@@ -206,29 +186,11 @@ pub trait MemoryMapper {
         }
     }
 
-    fn read_interrupt_enable(&mut self) -> u8 {
-        self.get_interrupts().read_interrupt_enable()
-    }
-
-    fn read_interrupt_flag(&mut self) -> u8 {
-        self.get_interrupts().read_interrupt_flag()
-    }
-
-    fn interrupts_next_request(&mut self) -> Option<Interrupt> {
-        self.get_interrupts().next_request()
-    }
-
-    fn interrupts_clear_request(&mut self, interrupt: Interrupt) {
-        self.get_interrupts().clear_request(interrupt);
-    }
-
-    fn interrupts_request(&mut self, interrupt: Interrupt) {
-        self.get_interrupts().request(interrupt);
-    }
-
-    fn get_oam_reader(&self) -> RwLockReadGuard<'_, Oam> {
-        self.get_oam().read().unwrap()
-    }
+    fn read_interrupt_enable(&mut self) -> u8 { self.get_interrupts().read_interrupt_enable() }
+    fn read_interrupt_flag(&mut self) -> u8 { self.get_interrupts().read_interrupt_flag() }
+    fn interrupts_next_request(&mut self) -> Option<Interrupt> { self.get_interrupts().next_request() }
+    fn interrupts_clear_request(&mut self, interrupt: Interrupt) { self.get_interrupts().clear_request(interrupt); }
+    fn interrupts_request(&mut self, interrupt: Interrupt) { self.get_interrupts().request(interrupt); }
 
     fn update_joypad_register(&mut self) {
         let mut new_inputs = 0x0F;
@@ -267,22 +229,12 @@ pub trait MemoryMapper {
 
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) where Self: Sized;
 
-    fn trigger_oam_bug_read_increase(&mut self, offset: u8) {
-        self.get_oam().write().unwrap().trigger_oam_bug_read_increase(offset);
-    }
 
     fn tick_dma(&mut self);
 
 }
 
-impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMmu<C, T, P> {
-    fn write_vram(&mut self, addr: u16, val: u8)
-    {
-        self.vram.write(addr, val);
-    }
-    fn read_vram(&self, addr: u16) -> u8 {
-        self.vram.read(addr)
-    }
+impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T, P> {
     fn get_timer(&mut self) -> &mut dyn TimingComponent { &mut self.timers }
     fn get_dma_index(&mut self) -> u8 { self.dma_index }
     fn set_dma_index(&mut self, val: u8) { self.dma_index = val }
@@ -291,9 +243,9 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMm
     fn tick_dma(&mut self) {
         let byte = self.read_byte(self.dma_source + self.dma_index as u16);
 
-        let mut oam = self.oam.write().unwrap();
+        let dma_index = self.dma_index;
 
-        oam.write(0xFE00 + self.dma_index as u16, byte);
+        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
 
         self.dma_index+= 1;
 
@@ -319,27 +271,23 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMm
             boot_rom,
             dpad_state: 0x0F,
             button_state: 0x0F,
-            accessed_oam_ram: 0xFF,
             dma_source: 0x0,
             dma_index: 0xFF,
-            vram: DmgVram::new(),
         })
     }
 
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) 
     where Self: Sized
     {
-        let mut ppu = std::mem::replace(&mut self.ppu, P::new());
-        ppu.tick(self, ct);
-        if ppu.pending_vblank(){
+        self.ppu.tick(ct);
+        if self.ppu.pending_vblank(){
             self.interrupts_request(Interrupt::VBlank);
-            ppu.set_pending_vblank(false);
+            self.ppu.set_pending_vblank(false);
         }
-        if ppu.pending_stat() {
+        if self.ppu.pending_stat() {
             self.interrupts_request(Interrupt::LcdStat);
-            ppu.set_pending_stat(false);
+            self.ppu.set_pending_stat(false);
         }
-        self.ppu = ppu;
     }
 
     fn get_cart(&mut self) -> &mut dyn Mbc {
@@ -353,10 +301,6 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMm
         &mut self.interrupts
     }
 
-    fn get_accessed_oam_ram(&self) -> &u8 {
-        &self.accessed_oam_ram
-    }
-
     fn get_boot_rom(&self) -> &[u8; 0x0100] {
         &self.boot_rom
     }
@@ -367,10 +311,6 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMm
 
     fn get_dpad_state(&self) -> &u8 {
         &self.dpad_state
-    }
-
-    fn get_oam(&self) -> &RwLock<Oam> {
-        &self.oam
     }
 
     fn get_boot_enable(&self) -> bool {
@@ -397,23 +337,16 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> MemoryMapper for DmgMm
         self.button_state = buttons;
     }
 
-    fn set_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram = val;
-    }
     
     fn update_data(&mut self, index: usize, val: u8) {
         self.data[index] = val;
     }
 
-    fn update_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram += val;
-    }
 
-
-    fn get_ppu(&mut self) -> &mut dyn Ppu<DmgMmu<C, T, P>> { &mut self.ppu }
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
 }
 
-pub struct DmgMmu<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> {
+pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
     data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
     cart: C,
     interrupts: InterruptController,
@@ -425,25 +358,19 @@ pub struct DmgMmu<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> {
     boot_rom: [u8; 0x0100],
     dpad_state: u8, // for joypad
     button_state: u8, // for joypad
-    accessed_oam_ram: u8, // for OAM Bug
     dma_source: u16,
     pub dma_index: u8,
-    vram: DmgVram
 }
 
-impl<C: Mbc, T: TimingComponent, P: Ppu<DmgMmu<C, T, P>>> Default for DmgMmu<C, T, P> {
+
+
+impl<C: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<C, T, P> {
     fn default() -> Self {
         DmgMmu::<C, T, P>::new(None, vec![], None).expect("This is not suppose to happen")
     }
 }
 
-impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMmu<C, T, P>{
-    fn write_vram(&mut self, addr: u16, value: u8) {
-        self.vram.write(addr, value);
-    }
-    fn read_vram(&self, addr: u16) -> u8 {
-        self.vram.read(addr)
-    }
+impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T, P>{
     fn get_timer(&mut self) -> &mut dyn TimingComponent { &mut self.timers }
     fn get_dma_index(&mut self) -> u8 { self.dma_index }
     fn set_dma_index(&mut self, val: u8) { self.dma_index = val }
@@ -454,9 +381,9 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
     fn tick_dma(&mut self) {
         let byte = self.read_byte(self.dma_source + self.dma_index as u16);
 
-        let mut oam = self.oam.write().unwrap();
+        let dma_index = self.dma_index;
 
-        oam.write(0xFE00 + self.dma_index as u16, byte);
+        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
 
         self.dma_index+= 1;
 
@@ -476,33 +403,28 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
             cart: C::new(rom_data, ram_data)?,
             interrupts: InterruptController::new(),
             timers: T::new(),
-            oam: RwLock::new(Oam::default()),
             ppu: P::new(),
             boot_enable,
             boot_rom,
             dpad_state: 0x0F,
             button_state: 0x0F,
-            accessed_oam_ram: 0xFF,
             dma_source: 0x0,
             dma_index: 0xFF,
-            vram: CgbVram::new()
         })
     }
 
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>)
     where Self: Sized
     {
-        let mut ppu = std::mem::replace(&mut self.ppu, P::new());
-        ppu.tick(self, ct);
-        if ppu.pending_vblank() {
+        self.ppu.tick(ct);
+        if self.ppu.pending_vblank() {
             self.interrupts_request(Interrupt::VBlank);
-            ppu.set_pending_vblank(false);
+            self.ppu.set_pending_vblank(false);
         }
-        if ppu.pending_stat() {
+        if self.ppu.pending_stat() {
             self.interrupts_request(Interrupt::LcdStat);
-            ppu.set_pending_stat(false);
+            self.ppu.set_pending_stat(false);
         }
-        self.ppu = ppu;
     }
 
     fn get_cart(&mut self) -> &mut dyn Mbc {
@@ -516,10 +438,6 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
         &mut self.interrupts
     }
 
-    fn get_accessed_oam_ram(&self) -> &u8 {
-        &self.accessed_oam_ram
-    }
-
     fn get_boot_rom(&self) -> &[u8; 0x0100] {
         &self.boot_rom
     }
@@ -530,10 +448,6 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
 
     fn get_dpad_state(&self) -> &u8 {
         &self.dpad_state
-    }
-
-    fn get_oam(&self) -> &RwLock<Oam> {
-        &self.oam
     }
 
     fn get_boot_enable(&self) -> bool {
@@ -559,16 +473,8 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
         self.button_state = buttons;
     }
 
-    fn set_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram = val;
-    }
-
     fn update_data(&mut self, index: usize, val: u8) {
         self.data[index] = val;
-    }
-
-    fn update_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram += val;
     }
 
     fn tick_timers(&mut self) {
@@ -580,25 +486,22 @@ impl<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> MemoryMapper for CgbMm
         }
     }
 
-    fn get_ppu(&mut self) -> &mut dyn Ppu<CgbMmu<C, T, P>> { &mut self.ppu }
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
 }
 
-pub struct CgbMmu<C: Mbc, T: TimingComponent, P: Ppu<CgbMmu<C, T, P>>> {
+pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
     data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
     cart: C,
     interrupts: InterruptController,
     timers: T,
-    oam: RwLock<Oam>,
     apu: Apu,
     pub ppu: P,
     boot_enable: bool,
     boot_rom: [u8; 0x0100],
     dpad_state: u8, // for joypad
     button_state: u8, // for joypad
-    accessed_oam_ram: u8, // for OAM Bug
     dma_source: u16,
     pub dma_index: u8,
-    vram: CgbVram
 }
 
 #[cfg(test)]
