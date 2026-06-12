@@ -5,7 +5,7 @@ use crate::mmu::MemoryMapper;
 use crate::{cpu::defines::Cpu, cpu_def::Reg8};
 
 impl<M: MemoryMapper> Cpu<M> {
-    pub fn add_r8_r8<Src: Reg8, Dest: Reg8>(&mut self, _bus: &mut M) {
+    pub fn add_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
         let src = Self::get_r8::<Src>(self);
         let dest = Self::get_r8::<Dest>(self);
 
@@ -22,7 +22,7 @@ impl<M: MemoryMapper> Cpu<M> {
             .set_flag(Flag::Carry, (src as u16) + (dest as u16) > 0xFF);
     }
 
-    pub fn add_r8_r8_with_carry<Src: Reg8, Dest: Reg8>(&mut self, _bus: &mut M) {
+    pub fn add_r8_r8_with_carry<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
         let src = Self::get_r8::<Src>(self);
         let dest = Self::get_r8::<Dest>(self);
 

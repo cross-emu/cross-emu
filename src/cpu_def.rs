@@ -37,42 +37,46 @@ impl<M: MemoryMapper> Cpu<M> {
         self.handle_halt_bug(bus);
         self.handle_ime_delay();
 
-        self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
         self.queue = self.instructions[instruction_byte as usize]
             .micro_ops
-            .to_vec();
-        self.op_index = 0;
+            .to_vec()
+            .clone();
+        println!(
+            "First read: {:02X}, Queue: {:X?} \nPC: {}\n",
+            instruction_byte,
+            self.queue,
+            self.get_r16::<PC>()
+        );
     }
 
     pub fn tick(&mut self, bus: &mut M) {
-        if Self::get_r16::<PC>(self) == 0 {
+        if self.get_r16::<PC>() == 0 {
             Self::first_read(self, bus);
-            return;
         }
         let micro_op = &self.queue[self.op_index];
         self.op_index += 1;
+        println!("Executing micro-op: {:?}", micro_op);
         micro_op(self, bus);
 
         if self.op_index == self.queue.len() {
+            self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
             let pc = self.get_r16::<PC>();
             let instruction_byte: u8 = bus.read_byte(pc);
-
+            
             self.handle_halt_bug(bus);
             self.handle_ime_delay();
-
-            self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
-            println!("{:x}", instruction_byte);
+            
             self.queue = self.instructions[instruction_byte as usize]
                 .micro_ops
                 .to_vec()
                 .clone();
-            println!(
-                "\nQueue: {:X?} \nPC: {}\n",
-                self.queue,
-                self.get_r16::<PC>()
-            );
             self.op_index = 0;
         }
+        println!(
+            "\nQueue: {:X?} \nPC: {}\n",
+            self.queue,
+            self.get_r16::<PC>()
+        );
     }
 
     pub fn dump_state(&self) -> CpuState {
