@@ -1,15 +1,27 @@
 pub struct CgbVram {
-    bank0: Box<[u8; 0x2000]>,
-    bank1: Box<[u8; 0x2000]>,
+    bank0: [u8; 0x2000],
+    bank1: [u8; 0x2000],
     vbk: u8,        // 0xFF4F
 }
 
+impl Default for CgbVram {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct DmgVram {
-    bank0: Box<[u8; 0x2000]>,
+    bank0: [u8; 0x2000],
+}
+
+impl Default for DmgVram {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub trait Vram {
-    fn new() -> Self;
+    fn new() -> Self where Self: Sized;
     fn write(&mut self, addr: u16, byte: u8);
     fn read(&self, addr: u16) -> u8;
 }
@@ -17,7 +29,7 @@ pub trait Vram {
 impl Vram for DmgVram {
     fn new() -> Self {
         Self {
-            bank0: Box::new([0; 0x2000]),
+            bank0: [0; 0x2000],
         }
     }
     fn write(&mut self, addr: u16, byte: u8) {
@@ -33,8 +45,8 @@ impl Vram for DmgVram {
 impl Vram for CgbVram {
     fn new() -> Self {
         Self {
-            bank0: Box::new([0x00; 0x2000]),
-            bank1: Box::new([0x00; 0x2000]),
+            bank0: [0x00; 0x2000],
+            bank1: [0x00; 0x2000],
             vbk: 0x00
         }
     }
