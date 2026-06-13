@@ -33,6 +33,7 @@ impl<M: MemoryMapper> Cpu<M> {
     pub fn first_read(&mut self, bus: &mut M) {
         let pc = self.get_r16::<PC>();
         let instruction_byte: u8 = bus.read_byte(pc);
+        self.inc_r16::<PC>(bus);
 
         self.handle_halt_bug(bus);
         self.handle_ime_delay();
@@ -59,9 +60,10 @@ impl<M: MemoryMapper> Cpu<M> {
         micro_op(self, bus);
 
         if self.op_index == self.queue.len() {
-            self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
+            println!("Instruction complete, fetching next instruction...");
             let pc = self.get_r16::<PC>();
             let instruction_byte: u8 = bus.read_byte(pc);
+            self.set_r16::<PC>(self.get_r16::<PC>().wrapping_add(1));
             
             self.handle_halt_bug(bus);
             self.handle_ime_delay();
