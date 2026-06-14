@@ -3,36 +3,36 @@
 
 #[derive(Default)]
 struct ChannelOne {
-    sweep: SweepReg,
-    ln_timer_duty_cycle: LnTimerDutyCycleReg,
-    volume_envelope: VolumeEnvReg,
-    period_high_ctrl: PeriodHighCtrlReg,
-    period_low: PeriodLowReg,
+    nr10_sweep: SweepReg,
+    nr11_ln_timer_duty_cycle: LnTimerDutyCycleReg,
+    nr12_volume_envelope: VolumeEnvReg,
+    nr13_period_high_ctrl: PeriodHighCtrlReg,
+    nr14_period_low: PeriodLowReg,
 }
 
 #[derive(Default)]
 struct ChannelTwo {
-    channel_two_ln_timer_duty_cycle: LnTimerDutyCycleReg,
-    channel_two_volume_envelope: VolumeEnvReg,
-    channel_two_period_high_ctrl: PeriodHighCtrlReg,
-    channel_two_period_low: PeriodLowReg,
+    nr21_ln_timer_duty_cycle: LnTimerDutyCycleReg,
+    nr22_volume_envelope: VolumeEnvReg,
+    nr23_period_high_ctrl: PeriodHighCtrlReg,
+    nr24_period_low: PeriodLowReg,
 }
 
 #[derive(Default)]
 struct ChannelThree {
-    channel_three_dac_enable: WaveDacEnableReg,
-    channel_three_ln_timer: WaveLengthTimerReg,
-    channel_three_output_level: OutputLevelReg,
-    channel_three_period_low: PeriodLowReg,
-    channel_three_period_high_crtl: PeriodHighCtrlReg,
+    nr30_dac_enable: WaveDacEnableReg,
+    nr31_ln_timer: WaveLengthTimerReg,
+    nr32_output_level: OutputLevelReg,
+    nr33_period_low: PeriodLowReg,
+    nr34_period_high_crtl: PeriodHighCtrlReg,
 }
 
 #[derive(Default)]
 struct ChannelFour {
-    channel_four_length_timer: NoiseLengthTimer,
-    channel_four_volume_evelope: VolumeEnvReg,
-    channel_four_freq_and_rand: FreqRandomnessReg,
-    channel_four_ctrl: ChannelFourCtrlReg,
+    nr41_length_timer: NoiseLengthTimer,
+    nr42_volume_envelope: VolumeEnvReg,
+    nr43_freq_and_randomness: FreqRandomnessReg,
+    nr44_control: ChannelFourCtrlReg,
 }
 
 #[derive(Default)]
