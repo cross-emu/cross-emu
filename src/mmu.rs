@@ -27,10 +27,10 @@ pub enum MemoryRegion {
     InterruptFlag,      // 0xFF0F: Interruption Flag: Inside IO
     Timers,             // 0xFF04-0xFF07
     Audio,              // 0xFF10-0xFF26
+    WaveRam,            // 0xFF30-0xFF3F
     Io,                 // 0xFF00-0xFF7F
     HRam,               // 0xFF80-0xFFFE
     InterruptEnable,    // 0xFFFF: Interruption Enable
-    WavePatternRam,     // 0xFF30-0xFF3F
 }
 
 impl MemoryRegion {
@@ -45,6 +45,8 @@ impl MemoryRegion {
             0xFEA0..=0xFEFF => MemoryRegion::Unusable,
             0xFF04..=0xFF07 => MemoryRegion::Timers,
             0xFF0F => MemoryRegion::InterruptFlag,
+            0xFF10..=0xFF26 => MemoryRegion::Audio,
+            0xFF30..=0xFF3F => MemoryRegion::WaveRam,
             0xFF00..=0xFF7F => MemoryRegion::Io,
             0xFF80..=0xFFFE => MemoryRegion::HRam,
             0xFFFF => MemoryRegion::InterruptEnable,
@@ -66,7 +68,7 @@ impl MemoryRegion {
             MemoryRegion::HRam => 0xFF80,
             MemoryRegion::InterruptEnable => 0xFFFF,
             MemoryRegion::Audio => 0xFF10,
-            MemoryRegion::WavePatternRam => 0xFF30,
+            MemoryRegion::WaveRam => 0xFF30,
         }
     }
 }
@@ -88,6 +90,7 @@ pub trait MemoryMapper {
     fn get_dpad_state(&self) -> &u8;
     fn get_interrupts(&mut self) -> &mut InterruptController;
     fn get_ppu(&mut self) -> &mut dyn PixelProcessor;
+    fn get_apu(&mut self) -> &mut Apu;
     fn set_boot_enable(&mut self, enabled: bool);
     fn set_button_state(&mut self, buttons: u8);
     fn set_dma_source(&mut self, val: u16);
@@ -102,6 +105,7 @@ pub trait MemoryMapper {
     fn ram_dump(&mut self) ->  Option<Vec<u8>> {
         self.get_cart().dump()
     }
+    
 
     fn read_byte(&mut self, addr: u16) -> u8 where Self: Sized {
         if self.get_boot_enable() && addr <= 0x00FF {
@@ -118,6 +122,8 @@ pub trait MemoryMapper {
                 self.get_data()[mirror as usize]
             }
             MemoryRegion::Timers => self.read_timers(addr),
+            MemoryRegion::Audio => self.get_apu().read(addr),
+            MemoryRegion::WaveRam => self.get_apu().read(addr),
             MemoryRegion::Io => {
                 if addr == 0xFF00 {
                     let selection = self.get_data()[0xFF00] & 0b0011_0000;
@@ -161,6 +167,8 @@ pub trait MemoryMapper {
                 self.update_data(mirror as usize, val);
             }
             MemoryRegion::Timers => self.get_timer().write(addr, val),
+            MemoryRegion::Audio => self.get_apu().write(addr, val),
+            MemoryRegion::WaveRam => self.get_apu().write(addr, val),
             MemoryRegion::Io => {
                 if addr == 0xFF00 {
                     let selection_bits = val & 0b0011_0000;
@@ -344,6 +352,8 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
 
 
     fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
+
+    fn get_apu(&mut self) -> &mut Apu { &mut self.apu }
 }
 
 pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
@@ -487,6 +497,8 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
     }
 
     fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
+
+    fn get_apu(&mut self) -> &mut Apu { &mut self.apu }
 }
 
 pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
@@ -544,7 +556,9 @@ mod tests {
         assert_eq!(MemoryRegion::from(0xFE50), MemoryRegion::Oam);
         assert_eq!(MemoryRegion::from(0xFEA0), MemoryRegion::Unusable);
         assert_eq!(MemoryRegion::from(0xFF0F), MemoryRegion::InterruptFlag);
-        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Io);
+        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Audio);
+        assert_eq!(MemoryRegion::from(0xFF30), MemoryRegion::WaveRam);
+        assert_eq!(MemoryRegion::from(0xFF00), MemoryRegion::Io);
         assert_eq!(MemoryRegion::from(0xFF80), MemoryRegion::HRam);
         assert_eq!(MemoryRegion::from(0xFFFF), MemoryRegion::InterruptEnable);
     }
