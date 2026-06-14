@@ -6,16 +6,16 @@ struct ChannelOne {
     nr10_sweep: SweepReg,
     nr11_ln_timer_duty_cycle: LnTimerDutyCycleReg,
     nr12_volume_envelope: VolumeEnvReg,
-    nr13_period_high_ctrl: PeriodHighCtrlReg,
-    nr14_period_low: PeriodLowReg,
+    nr13_period_low: PeriodLowReg,
+    nr14_period_high_ctrl: PeriodHighCtrlReg,
 }
 
 #[derive(Default)]
 struct ChannelTwo {
     nr21_ln_timer_duty_cycle: LnTimerDutyCycleReg,
     nr22_volume_envelope: VolumeEnvReg,
-    nr23_period_high_ctrl: PeriodHighCtrlReg,
-    nr24_period_low: PeriodLowReg,
+    nr23_period_low: PeriodLowReg,
+    nr24_period_high_ctrl: PeriodHighCtrlReg,
 }
 
 #[derive(Default)]
@@ -40,6 +40,8 @@ pub struct Apu {
     audio_master_control: AudioMasterControlReg,
     sound_panning: SoundPanningReg,
     master_vol_and_vin_panning: MasterVolVinPanningReg,
+
+    wave_ram: [u8; 16],
 
     channel_one: ChannelOne,
     channel_two: ChannelTwo,
@@ -108,6 +110,50 @@ trait Register {
 }
 
 impl Apu {
-    pub fn read(&self, addr: u16) -> u8 { 0xFF }
-    pub fn write(&mut self, addr:u16 , value :u8) { }
+    pub fn read(&self, addr: u16) -> u8 {
+        match addr {
+            0xFF10 => self.channel_one.nr10_sweep.read(),
+            0xFF11 => self.channel_one.nr11_ln_timer_duty_cycle.read(),
+            0xFF12 => self.channel_one.nr12_volume_envelope.read(),
+            0xFF13 => self.channel_one.nr13_period_low.read(),
+            0xFF14 => self.channel_one.nr14_period_high_ctrl.read(),
+            0xFF16 => self.channel_two.nr21_ln_timer_duty_cycle.read(),
+            0xFF17 => self.channel_two.nr22_volume_envelope.read(),
+            0xFF18 => self.channel_two.nr23_period_low.read(),
+            0xFF19 => self.channel_two.nr24_period_high_ctrl.read(),
+            0xFF1A => self.channel_three.nr30_dac_enable.read(),
+            0xFF1B => self.channel_three.nr31_ln_timer.read(),
+            0xFF1C => self.channel_three.nr32_output_level.read(),
+            0xFF1D => self.channel_three.nr33_period_low.read(),
+            0xFF1E => self.channel_three.nr34_period_high_crtl.read(),
+            0xFF20 => self.channel_four.nr41_length_timer.read(),
+            0xFF21 => self.channel_four.nr42_volume_envelope.read(),
+            0xFF22 => self.channel_four.nr43_freq_and_randomness.read(),
+            0xFF23 => self.channel_four.nr44_control.read(),
+            _ => 0xFF,
+        }
+    }
+    pub fn write(&mut self, addr: u16, value: u8) {
+        match addr {
+            0xFF10 => self.channel_one.nr10_sweep.write(value),
+            0xFF11 => self.channel_one.nr11_ln_timer_duty_cycle.write(value),
+            0xFF12 => self.channel_one.nr12_volume_envelope.write(value),
+            0xFF13 => self.channel_one.nr13_period_low.write(value),
+            0xFF14 => self.channel_one.nr14_period_high_ctrl.write(value),
+            0xFF16 => self.channel_two.nr21_ln_timer_duty_cycle.write(value),
+            0xFF17 => self.channel_two.nr22_volume_envelope.write(value),
+            0xFF18 => self.channel_two.nr23_period_low.write(value),
+            0xFF19 => self.channel_two.nr24_period_high_ctrl.write(value),
+            0xFF1A => self.channel_three.nr30_dac_enable.write(value),
+            0xFF1B => self.channel_three.nr31_ln_timer.write(value),
+            0xFF1C => self.channel_three.nr32_output_level.write(value),
+            0xFF1D => self.channel_three.nr33_period_low.write(value),
+            0xFF1E => self.channel_three.nr34_period_high_crtl.write(value),
+            0xFF20 => self.channel_four.nr41_length_timer.write(value),
+            0xFF21 => self.channel_four.nr42_volume_envelope.write(value),
+            0xFF22 => self.channel_four.nr43_freq_and_randomness.write(value),
+            0xFF23 => self.channel_four.nr44_control.write(value),
+            _ => {}
+        }
+    }
 }
