@@ -5,8 +5,10 @@ mod common;
 mod views;
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use std::thread;
+use std::sync::Arc;
 use egui_file_dialog::{FileDialog, Filter};
 use crate::communications::{CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools};
 use crate::gameboy::GameBoy;
@@ -14,7 +16,8 @@ use crate::mmu::DmgMmu;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, Mbc5, RomOnly};
 use crate::mmu::timers::DmgTimers;
 use crate::ppu::{self, DmgPpu};
-use crate::mmu::apu::sample_buffer::{self, SampleBuffer};
+use crate::mmu::apu::sample_buffer::SampleBuffer;
+
 use crate::sound::start_audio;
 
 use eframe::egui::{Key, TextureHandle};
@@ -362,6 +365,7 @@ pub struct CoreGameDevice {
     texture_handler: Option<TextureHandle>,
     key_mapping: KeyMapping,
     pub interface_ct: Box<dyn InterfaceCT>,
+    audio_running: Arc<AtomicBool>,
 }
 
 impl KeyMapping {
@@ -383,6 +387,7 @@ impl Drop for CoreGameDevice {
     fn drop(&mut self) {
         println!("this was droped");
         self.handler.abort();
+        self.audio_running.store(false, Ordering::Relaxed);
     }
 }
 
@@ -418,7 +423,8 @@ impl CoreGameDevice {
         let (game_ct, interface_ct) = create_communication_tools();
         let sample_buffer = SampleBuffer::new();
 
-        start_audio(sample_buffer.clone());
+        let audio_running =  Arc::new(AtomicBool::new(true));
+        start_audio(sample_buffer.clone(), audio_running.clone());
 
         Self {
             interface_ct,
@@ -431,6 +437,7 @@ impl CoreGameDevice {
             texture_handler: None,
             sized_image: None,
             key_mapping: KeyMapping::default(),
+            audio_running
         }
     }
 }

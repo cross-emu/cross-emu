@@ -492,7 +492,7 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
     }
 
     fn advance_to_next_scanline(&mut self) {
-        if self.read_lcdc().is_window_enabled() && self.ly >= self.wy && self.wx <= 166 {
+        if self.read_lcdc().is_window_enabled() && self.ly >= self.wy && self.wx <= 166 && self.wly < WIN_SIZE_Y as u8 {
             self.wly  += 1;
         }
 
