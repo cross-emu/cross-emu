@@ -9,10 +9,11 @@ mod file;
 mod sound;
 mod communications;
 
+use std::sync::atomic::AtomicBool;
 use sound::start_audio;
 use gui::GraphicalApp;
 use crate::{cli::EmulatorArguments, file::{GbmuFile}, gui::EmulationAppOptions};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 use std::f32::consts::PI;
 
 use crate::mmu::apu::sample_buffer;
@@ -38,8 +39,9 @@ async fn main() {
             phase += 2.0 * PI * 261.63 / 48000.0;
             buffer.push(phase.sin() * 0.5);
         }
-        start_audio(buffer.clone());
-        std::thread::sleep(std::time::Duration::from_secs(4));
+        let audio_running = Arc::new(AtomicBool::new(true));
+        start_audio(buffer.clone(), audio_running);
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
 
     let options = eframe::NativeOptions {

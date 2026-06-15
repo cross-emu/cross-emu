@@ -2,8 +2,6 @@
 
 pub mod sample_buffer;
 
-pub use sample_buffer::SampleBuffer;
-
 #[derive(Default)]
 struct ChannelOne {
     nr10_sweep: SweepReg,

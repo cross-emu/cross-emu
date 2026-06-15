@@ -1,10 +1,14 @@
 use cpal::{SizedSample, SampleFormat, FromSample};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
 use crate::mmu::apu::sample_buffer;
 
 // start audio on a thread, and play the audio stream
-pub fn start_audio(buffer: sample_buffer::SampleBuffer) {
+pub fn start_audio(buffer: sample_buffer::SampleBuffer, audio_running: Arc<AtomicBool>) {
     std::thread::spawn(move || {
         let host = cpal::default_host();
         let device = host.default_output_device().expect("no output device");
@@ -29,8 +33,11 @@ pub fn start_audio(buffer: sample_buffer::SampleBuffer) {
         }.unwrap();
 
         stream.play().unwrap();
-        std::thread::park(); // Park the thread to keep it alive indefinitely
-        });
+
+        while audio_running.load(Ordering::Relaxed) {
+            std::thread::park_timeout(Duration::from_millis(100));
+        }
+    });
 }
 
 fn build_stream<T>(
