@@ -705,6 +705,60 @@ use crate::mmu::mbc;
     }
 
     #[test]
+    fn op_4e_ld_c_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x4E);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<C>(), 0xAB);
+    }
+
+    #[test]
+    fn op_66_ld_h_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x66);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<H>(), 0xAB);
+    }
+
+    #[test]
+    fn op_46_ld_b_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x46);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0xAB);
+    }
+
+    #[test]
+    fn op_56_ld_d_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x56);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<D>(), 0xAB);
+    }
+
+    #[test]
+    fn op_6e_ld_l_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x6E);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0xAB);
+    }
+
+    #[test]
+    fn op_7e_ld_a_d8() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x7E);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xAB);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0xAB);
+    }
+
+    #[test]
     fn op_0f_rrca() {
         let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x0F);
         c.cpu.first_read(&mut c.bus);
@@ -1762,5 +1816,86 @@ use crate::mmu::mbc;
     test_sbc_a_r8!(op_9c_sbc_a_h, 0x9C, H);
     test_sbc_a_r8!(op_9d_sbc_a_l, 0x9D, L);
     test_sbc_a_r8!(op_9f_sbc_a_a, 0x9F, A, same);
+
+    #[test]
+    fn op_70_ld_hl_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x70);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<B>(0x69);
+
+        ticks(&mut c, 1);
+        assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+
+        #[test]
+    fn op_71_ld_hl_c() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x71);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<C>(0x69);
+
+        ticks(&mut c, 1);
+        assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+
+
+    #[test]
+    fn op_72_ld_hl_d() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x72);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<D>(0x69);
+
+        ticks(&mut c, 2);
+        assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+
+
+    #[test]
+    fn op_73_ld_hl_e() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x73);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<E>(0x69);
+
+        ticks(&mut c, 2);
+        assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+
+    #[test]
+    fn op_74_ld_hl_h() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x74);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r8::<L>(0x05);
+        c.cpu.set_r8::<H>(0x80);
+
+        ticks(&mut c, 2);
+        assert_eq!(c.bus.read_byte(0x8005), 0x80);
+    }
+
+    #[test]
+    fn op_75_ld_hl_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x75);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r8::<L>(0x05);
+        c.cpu.set_r8::<H>(0x80);
+
+        ticks(&mut c, 2);
+        assert_eq!(c.bus.read_byte(0x8005), 0x05);
+    }
+
+    #[test]
+    fn op_77_ld_hl_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x77);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<A>(0x69);
+
+
+        ticks(&mut c, 2);
+        assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+
 }
 
