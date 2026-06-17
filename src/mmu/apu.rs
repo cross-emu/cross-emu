@@ -1,5 +1,6 @@
 #![allow(unused_variables, dead_code)]
 
+use std::f32::consts::PI;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -7,7 +8,11 @@ use crate::sound::start_audio;
 
 pub mod sample_buffer;
 
-use crate::sample_buffer::SampleBuffer;
+use sample_buffer::SampleBuffer;
+
+const T_CYCLES_PER_SEC: f64 = 4_194_304.0;
+const SAMPLE_RATE: f64 = 48_000.0;
+const CYCLES_PER_SAMPLE: f64 = T_CYCLES_PER_SEC / SAMPLE_RATE; // ~= 87.38
 
 #[derive(Default)]
 struct ChannelOne {
@@ -56,66 +61,9 @@ pub struct Apu {
     channel_four: ChannelFour,
 
     audio_running: Arc<AtomicBool>,
-}
-
-trait Channel {}
-
-macro_rules! define_register {
-    ($name:ident) => {
-        #[derive(Default, Debug, Copy, Clone)]
-        struct $name { byte: u8, }
-    };
-}
-
-macro_rules! read_write_register {
-    ($name:ident) => {
-        define_register!($name);
-        impl Register for $name {
-            fn read(&self) -> u8 { self.byte }
-            fn write(&mut self, value: u8) { self.byte = value}
-        }
-    };
-}
-
-macro_rules! write_only_register {
-    ($name:ident) => {
-        define_register!($name);
-        impl Register for $name {
-            fn read(&self) -> u8 { 0xFF }
-            fn write(&mut self, value: u8) { self.byte = value}
-        }
-    };
-}
-
-read_write_register!(AudioMasterControlReg);
-read_write_register!(SoundPanningReg);
-read_write_register!(MasterVolVinPanningReg);
-read_write_register!(SweepReg);
-
-define_register!(LnTimerDutyCycleReg);
-impl Register for LnTimerDutyCycleReg {
-    fn read(&self) -> u8 { (self.byte & 0b1100_0000) | 0b0011_1111 }
-    fn write(&mut self, value: u8) { self.byte = value;}
-}
-
-read_write_register!(VolumeEnvReg);
-write_only_register!(PeriodHighCtrlReg);
-write_only_register!(PeriodLowReg);
-read_write_register!(WaveDacEnableReg);
-write_only_register!(WaveLengthTimerReg);
-
-read_write_register!(OutputLevelReg);
-read_write_register!(NoiseLengthTimer);
-read_write_register!(FreqRandomnessReg);
-define_register!(ChannelFourCtrlReg);
-impl Register for ChannelFourCtrlReg {
-    fn read(&self) -> u8 { (self.byte & 0b0110_0000) | 0b1001_1111 }
-    fn write(&mut self, value: u8) { self.byte = value }
-}
-
-trait Register {
-    fn read(&self) -> u8;
-    fn write(&mut self, value: u8);
+    sample_counter: f64,
+    sample_buffer: SampleBuffer,
+    test_phase: f32,
 }
 
 impl Apu {
@@ -134,6 +82,21 @@ impl Apu {
             channel_three: ChannelThree::default(),
             channel_four: ChannelFour::default(),
             audio_running,
+            sample_counter: 0.0,
+            sample_buffer,
+            test_phase: 0.0,
+        }
+    }
+
+    pub fn step(&mut self) {
+        self.sample_counter += 1.0;
+
+        if self.sample_counter >= CYCLES_PER_SAMPLE {
+            self.sample_counter -= CYCLES_PER_SAMPLE;
+
+            self.test_phase += 2.0 * PI * 261.63 / SAMPLE_RATE as f32;
+            let sample = self.test_phase.sin() * 0.5;
+            self.sample_buffer.push(sample);
         }
     }
 
@@ -204,4 +167,64 @@ impl Drop for Apu {
         self.audio_running.store(false, Ordering::Relaxed);
         println!("APU dropped");
     }
+}
+
+trait Channel {}
+
+macro_rules! define_register {
+    ($name:ident) => {
+        #[derive(Default, Debug, Copy, Clone)]
+        struct $name { byte: u8, }
+    };
+}
+
+macro_rules! read_write_register {
+    ($name:ident) => {
+        define_register!($name);
+        impl Register for $name {
+            fn read(&self) -> u8 { self.byte }
+            fn write(&mut self, value: u8) { self.byte = value}
+        }
+    };
+}
+
+macro_rules! write_only_register {
+    ($name:ident) => {
+        define_register!($name);
+        impl Register for $name {
+            fn read(&self) -> u8 { 0xFF }
+            fn write(&mut self, value: u8) { self.byte = value}
+        }
+    };
+}
+
+read_write_register!(AudioMasterControlReg);
+read_write_register!(SoundPanningReg);
+read_write_register!(MasterVolVinPanningReg);
+read_write_register!(SweepReg);
+
+define_register!(LnTimerDutyCycleReg);
+impl Register for LnTimerDutyCycleReg {
+    fn read(&self) -> u8 { (self.byte & 0b1100_0000) | 0b0011_1111 }
+    fn write(&mut self, value: u8) { self.byte = value;}
+}
+
+read_write_register!(VolumeEnvReg);
+write_only_register!(PeriodHighCtrlReg);
+write_only_register!(PeriodLowReg);
+read_write_register!(WaveDacEnableReg);
+write_only_register!(WaveLengthTimerReg);
+
+read_write_register!(OutputLevelReg);
+read_write_register!(NoiseLengthTimer);
+read_write_register!(FreqRandomnessReg);
+define_register!(ChannelFourCtrlReg);
+impl Register for ChannelFourCtrlReg {
+    fn read(&self) -> u8 { (self.byte & 0b0110_0000) | 0b1001_1111 }
+    fn write(&mut self, value: u8) { self.byte = value }
+}
+
+trait Register {
+    fn read(&self) -> u8;
+    fn write(&mut self, value: u8);
 }

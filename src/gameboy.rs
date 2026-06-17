@@ -248,6 +248,7 @@ impl<M: MemoryMapper>  GameBoy<M> {
         self.cycles_elapsed += 1;
         
         self.bus.tick_ppu(ct);
+        self.bus.tick_apu();
     }
 
 

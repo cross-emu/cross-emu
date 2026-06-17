@@ -235,10 +235,13 @@ pub trait MemoryMapper {
         self.update_joypad_register();
     }
 
+    fn tick_apu(&mut self) { self.get_apu().step(); }
+
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) where Self: Sized;
 
 
     fn tick_dma(&mut self);
+
 
 }
 
