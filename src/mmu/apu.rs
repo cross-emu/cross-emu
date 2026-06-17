@@ -37,9 +37,19 @@ struct ChannelTwo {
 
     freq_timer: u16,
     duty_step: u8,
+    enabled: bool,
 }
 
 impl ChannelTwo {
+    fn dac_enabled(&self) -> bool {
+        (self.nr22_volume_envelope.raw() & 0b1111_1000) != 0
+    }
+
+    fn trigger(&mut self) {
+        self.enabled = true;
+        self.freq_timer = (2048 - self.period()) * 4;
+    }
+
     fn period(&self) -> u16 {
         ((self.nr24_period_high_ctrl.raw() as u16 & 0b0000_0111) << 8)
             | self.nr23_period_low.raw() as u16
@@ -63,6 +73,10 @@ impl ChannelTwo {
     }
 
     fn output(&self) -> f32 {
+        if !self.enabled || !self.dac_enabled() {
+            return 0.0;
+        }
+
         if self.duty_output() == 1 { 0.25 } else { -0.25 }
     }
 }
@@ -177,7 +191,12 @@ impl Apu {
             0xFF16 => self.channel_two.nr21_ln_timer_duty_cycle.write(value),
             0xFF17 => self.channel_two.nr22_volume_envelope.write(value),
             0xFF18 => self.channel_two.nr23_period_low.write(value),
-            0xFF19 => self.channel_two.nr24_period_high_ctrl.write(value),
+            0xFF19 => {
+                self.channel_two.nr24_period_high_ctrl.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_two.trigger();
+                }
+            },
             0xFF1A => self.channel_three.nr30_dac_enable.write(value),
             0xFF1B => self.channel_three.nr31_ln_timer.write(value),
             0xFF1C => self.channel_three.nr32_output_level.write(value),
