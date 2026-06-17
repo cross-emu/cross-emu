@@ -39,6 +39,8 @@ struct ChannelTwo {
     duty_step: u8,
     enabled: bool,
     length_counter: u8,
+    volume: u8,
+    envelope_timer: u8,
 }
 
 impl ChannelTwo {
@@ -56,6 +58,28 @@ impl ChannelTwo {
             }
     }
 
+    fn tick_envelope(&mut self) {
+        let period = self.nr22_volume_envelope.raw() & 0b0000_0111;
+        
+        if period == 0 { return ; }
+
+        if self.envelope_timer > 0 {
+            self.envelope_timer -= 1;
+        }
+
+        if self.envelope_timer == 0 {
+            self.envelope_timer = period;
+
+            if (self.nr22_volume_envelope.raw() & 0b0000_1000) != 0
+                && self.volume < 15 {
+                self.volume += 1;
+            } else if (self.nr22_volume_envelope.raw() & 0b0000_1000) == 0
+                && self.volume > 0 {
+                self.volume -= 1;
+            }
+        }
+    }
+
     fn trigger(&mut self) {
         self.enabled = true;
         self.freq_timer = (2048 - self.period()) * 4;
@@ -63,6 +87,9 @@ impl ChannelTwo {
         let length_load = self.nr21_ln_timer_duty_cycle.raw() & 0b0011_1111;
         self.length_counter = 64 - length_load;
         if self.length_counter == 0 { self.length_counter = 64; }
+
+        self.volume = (self.nr22_volume_envelope.raw() & 0b1111_0000) >> 4;
+        self.envelope_timer = self.nr22_volume_envelope.raw() & 0b0000_0111;
     }
 
     fn period(&self) -> u16 {
@@ -92,7 +119,8 @@ impl ChannelTwo {
             return 0.0;
         }
 
-        if self.duty_output() == 1 { 0.25 } else { -0.25 }
+        let amplitude = self.volume as f32 / 15.0;
+        if self.duty_output() == 1 { amplitude } else { -amplitude }
     }
 }
 
@@ -166,6 +194,7 @@ impl Apu {
 
             match self.frame_seq_step {
                 0 | 2 | 4 | 6 => self.channel_two.tick_length(),
+                7 => self.channel_two.tick_envelope(),
                 _ => {}
             }
         }
