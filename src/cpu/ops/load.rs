@@ -33,7 +33,7 @@ impl<M: MemoryMapper> Cpu<M> {
 
     pub fn load_r16_r16_and_ime<Dest: Reg16, Src: Reg16>(&mut self, _bus: &mut M) {
         Self::set_r16::<Dest>(self, Self::get_r16::<Src>(self));
-        todo!("IME & interrupt not done");
+        self.ime = true;
     }
 
     pub fn read_memory_decr<Addr: Reg16, Dest: Reg8>(&mut self, bus: &mut M) {

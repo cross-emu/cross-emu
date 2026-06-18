@@ -958,7 +958,7 @@ use crate::mmu::mbc;
         c.cpu.first_read(&mut c.bus);
         c.bus.write_byte(0x8001, 0x05);
         c.cpu.flags.set_flag(Flag::Carry, true);
-        ticks(&mut c, 2);
+        ticks(&mut c,3);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x8003);
     }
 
@@ -1895,6 +1895,468 @@ use crate::mmu::mbc;
 
         ticks(&mut c, 2);
         assert_eq!(c.bus.read_byte(0x8005), 0x69);
+    }
+    
+    #[test]
+    fn op_86_add_a_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x86);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.cpu.set_r8::<A>(0x12);
+        c.bus.write_byte(0x8005, 0x12);
+
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0x24);
+    }
+
+    #[test]
+    fn op_8e_adc_a_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x8E);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0x00);
+        c.cpu.set_r8::<A>(0x0F);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Subtract, true);
+        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
+        c.cpu.flags.set_flag(Flag::Carry, true); 
+
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0x10);
+        
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry)); 
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn op_96_sub_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x96);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0x10);
+        c.cpu.set_r8::<A>(0x10);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+        c.cpu.flags.set_flag(Flag::Subtract, false);
+        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 2);
+        
+        // 0x10 - 0x10 = 0x00
+        assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+        
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Subtract)); 
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn op_9e_sbc_a_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0x9E);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0x00);
+        c.cpu.set_r8::<A>(0x00);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Subtract, false);
+        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 2);
+        
+        assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
+        
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));    
+    }
+
+    #[test]
+    fn op_ae_xor_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xAE);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0xAA);
+        c.cpu.set_r8::<A>(0xAA);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+        c.cpu.flags.set_flag(Flag::Subtract, true);
+        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 2);
+        
+        // 0xAA XOR 0xAA = 0x00
+        assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+        
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry)); 
+        assert!(!c.cpu.flags.get_flag(Flag::Carry)); 
+    }
+
+    #[test]
+    fn op_b6_or_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xB6);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0x00);
+        c.cpu.set_r8::<A>(0x00);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+        c.cpu.flags.set_flag(Flag::Subtract, true);
+        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 2);
+        
+        assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+        
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn op_be_cp_hl() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xBE);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<HL>(0x8005);
+        c.bus.write_byte(0x8005, 0x43);
+        c.cpu.set_r8::<A>(0x42);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Subtract, false);
+        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
+        c.cpu.flags.set_flag(Flag::Carry, false);
+
+        ticks(&mut c, 2);
+        
+        assert_eq!(c.cpu.get_r8::<A>(), 0x42); 
+        
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry)); 
+        assert!(c.cpu.flags.get_flag(Flag::Carry));   
+    }
+
+
+    // =========================================================================
+    // RET (Inconditionnel) - Opcode 0xC9
+    // =========================================================================
+    #[test]
+    fn op_c9_ret() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC9);
+        c.cpu.first_read(&mut c.bus);
+
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34); // LSB
+        c.bus.write_byte(0xFFFE, 0x12); // MSB
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Subtract, false);
+        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, false);
+
+        ticks(&mut c, 3); // 4 cycles au total
+
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn op_c0_ret_nz_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC0);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+    }
+
+    #[test]
+    fn op_c0_ret_nz_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC0);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+
+        let pc_before = c.cpu.get_r16::<PC>();
+        ticks(&mut c, 2);
+        
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
+    }
+
+    #[test]
+    fn op_c8_ret_z_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC8);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+    }
+
+    #[test]
+    fn op_c8_ret_z_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC8);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+
+        let pc_before = c.cpu.get_r16::<PC>();
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
+    }
+
+    #[test]
+    fn op_d0_ret_nc_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD0);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, false);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+    }
+
+    #[test]
+    fn op_d0_ret_nc_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD0);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        let pc_before = c.cpu.get_r16::<PC>();
+        ticks(&mut c, 1);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
+    }
+
+    #[test]
+    fn op_d8_ret_c_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD8);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+    }
+
+    #[test]
+    fn op_d8_ret_c_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD8);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, false);
+
+        let pc_before = c.cpu.get_r16::<PC>();
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
+    }
+
+    #[test]
+    fn op_d9_reti() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD9);
+        c.cpu.first_read(&mut c.bus);
+        c.cpu.set_r16::<SP>(0xFFFD);
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
+
+        c.cpu.ime = false; 
+
+        ticks(&mut c, 3);
+
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
+
+        assert_eq!(c.cpu.ime, true);
+        
+        assert!(c.cpu.ime); 
+    }
+
+
+    #[test]
+    fn op_c3_jp() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC3);
+        c.cpu.first_read(&mut c.bus);
+        
+        // On écrit l'adresse cible 0x1234 juste après l'opcode
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);     // LSB
+        c.bus.write_byte(pc + 1, 0x12); // MSB
+
+        ticks(&mut c, 3); // 1 (first_read) + 3 = 4 cycles
+
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+    }
+
+
+    #[test]
+    fn op_c2_jp_nz_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC2);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);
+        c.bus.write_byte(pc + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+
+        ticks(&mut c, 4); 
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+    }
+
+    #[test]
+    fn op_c2_jp_nz_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xC2);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc_before = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc_before, 0x34);
+        c.bus.write_byte(pc_before + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, true); 
+
+        ticks(&mut c, 3);
+        
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+    }
+
+    #[test]
+    fn op_ca_jp_z_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCA);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);
+        c.bus.write_byte(pc + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, true);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+    }
+
+    #[test]
+    fn op_ca_jp_z_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCA);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc_before = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc_before, 0x34);
+        c.bus.write_byte(pc_before + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Zero, false);
+
+        ticks(&mut c, 3);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+    }
+
+    #[test]
+    fn op_d2_jp_nc_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD2);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);
+        c.bus.write_byte(pc + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, false);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+    }
+
+    #[test]
+    fn op_d2_jp_nc_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xD2);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc_before = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc_before, 0x34);
+        c.bus.write_byte(pc_before + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 3);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+    }
+
+    #[test]
+    fn op_da_jp_c_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xDA);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);
+        c.bus.write_byte(pc + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, true);
+
+        ticks(&mut c, 4);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+    }
+
+    #[test]
+    fn op_da_jp_c_not_taken() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xDA);
+        c.cpu.first_read(&mut c.bus);
+        
+        let pc_before = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc_before, 0x34);
+        c.bus.write_byte(pc_before + 1, 0x12);
+
+        c.cpu.flags.set_flag(Flag::Carry, false);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
     }
 
 }

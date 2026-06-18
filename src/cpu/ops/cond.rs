@@ -47,19 +47,22 @@ impl<M: MemoryMapper> Cpu<M> {
         Self::read_memory_incr::<Src, Dest>(self, bus);
         
         if !Cc::is_met(self) {
-            self.op_index = self.queue.len(); 
+            self.queue = vec![Cpu::noop];
+            self.op_index = 0;
         }
     }
 
     pub fn check_cond<Cc: Cond<M>>(&mut self, _bus: &mut M) {
         if !Cc::is_met(self) {
-            self.op_index = self.queue.len();
+            self.queue = vec![Cpu::noop];
+            self.op_index = 0;
         }
     }
 
     pub fn check_cond_and_execute<Cc: Cond<M>>(&mut self, _bus: &mut M) {
         if Cc::is_met(self) {
-            self.op_index = self.queue.len();
+            self.queue = vec![Cpu::noop];
+            self.op_index = 0;
         }
     }
 

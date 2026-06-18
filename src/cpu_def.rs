@@ -51,7 +51,7 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn tick(&mut self, bus: &mut M) {
-        if self.get_r16::<PC>() == 0 {
+        if self.get_r16::<PC>() == 256 {
             Self::first_read(self, bus);
         }
         let micro_op = &self.queue[self.op_index];
