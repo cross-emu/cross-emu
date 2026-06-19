@@ -66,6 +66,7 @@ impl Apu {
     }
 
     pub fn step(&mut self) {
+        self.channel_one.step();
         self.channel_two.step();
 
         self.sample_counter += 1.0;
@@ -75,15 +76,21 @@ impl Apu {
             self.frame_seq_step = (self.frame_seq_step + 1) % 8;
 
             match self.frame_seq_step {
-                0 | 2 | 4 | 6 => self.channel_two.tick_length(),
-                7 => self.channel_two.tick_envelope(),
+                0 | 2 | 4 | 6 => {
+                    self.channel_one.tick_length();
+                    self.channel_two.tick_length();
+                },
+                7 => {
+                    self.channel_one.tick_envelope();
+                    self.channel_two.tick_envelope();
+                },
                 _ => {}
             }
         }
         if self.sample_counter >= CYCLES_PER_SAMPLE {
             self.sample_counter -= CYCLES_PER_SAMPLE;
 
-            let sample = self.channel_two.output();
+            let sample = self.channel_one.output() + self.channel_two.output();
 
             self.sample_buffer.push(sample);
         }
