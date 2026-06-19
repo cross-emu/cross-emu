@@ -60,7 +60,7 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn check_cond_and_execute<Cc: Cond<M>>(&mut self, _bus: &mut M) {
-        if Cc::is_met(self) {
+        if !Cc::is_met(self) {
             self.queue = vec![Cpu::noop];
             self.op_index = 0;
         }
@@ -96,33 +96,4 @@ impl<M: MemoryMapper> Cpu<M> {
         Self::set_r16::<PC>(self, wz);
     }
 
-    pub fn relative_jump_assign_pc(&mut self, _bus: &mut M) {
-        let z = Self::get_r8::<Z>(self);
-        let pc = Self::get_r16::<PC>(self);
-
-        let pc_low = (pc & 0xFF) as u8;
-        let pc_high = (pc >> 8) as u8;
-
-        let z_sign = (z & 0x80) != 0;
-
-        let sum = z as u16 + pc_low as u16;
-        let result = sum as u8;
-        let carry_7 = (sum & 0x0100) != 0;
-
-        let adj = if carry_7 && !z_sign {
-            1i8
-        } else if !carry_7 && z_sign {
-            -1i8
-        } else {
-            0i8
-        };
-
-        let w = (pc_high as i32 + adj as i32) as u8;
-
-        Self::set_r8::<Z>(self, result);
-        Self::set_r8::<W>(self, w);
-
-        let wz = ((w as u16) << 8) | (result as u16);
-        Self::set_r16::<PC>(self, wz);
-    }
 }

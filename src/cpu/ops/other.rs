@@ -154,7 +154,7 @@ impl<M: MemoryMapper> Cpu<M> {
 
     pub fn write_rlc_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
         Self::rlc::<Reg>(self, _bus);
-        Self::write_memory::<HL, Reg>(self, _bus);
+        Self::write_memory::<Addr, Reg>(self, _bus);
     }
 
     pub fn write_rrc_mem<Addr: Reg16, Reg: Reg8>(&mut self, _bus: &mut M) {
@@ -299,22 +299,22 @@ impl<M: MemoryMapper> Cpu<M> {
 
     pub fn write_swap_mem<Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
         Self::swap::<Reg>(self, bus);
-        Self::write_memory::<HL, Reg>(self, bus);
+        Self::write_memory::<Addr, Reg>(self, bus);
     }
 
     pub fn write_srl_mem<Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
         Self::srl::<Reg>(self, bus);
-        Self::write_memory::<HL, Reg>(self, bus);
+        Self::write_memory::<Addr, Reg>(self, bus);
     }
 
     pub fn write_res_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
         Self::res::<{ B }, Reg>(self, bus);
-        Self::write_memory::<HL, Reg>(self, bus);
+        Self::write_memory::<Addr, Reg>(self, bus);
     }
 
     pub fn write_set_mem<const B: u8, Addr: Reg16, Reg: Reg8>(&mut self, bus: &mut M) {
         Self::set::<{ B }, Reg>(self, bus);
-        Self::write_memory::<HL, Reg>(self, bus);
+        Self::write_memory::<Addr, Reg>(self, bus);
     }
 
     pub fn stop(&mut self, _bus: &mut M) {

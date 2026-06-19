@@ -3302,6 +3302,460 @@ use crate::mmu::mbc;
 
         assert_eq!(c.cpu.halted, true);
     }
+    // ============================================================
+    // Instructions CB préfixées
+    // ============================================================
+
+    // ---------- RLC (0x00–0x07) ----------
+    #[test]
+    fn cb_00_rlc_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x00);
+        c.cpu.set_r8::<B>(0b1000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b0000_0011);
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_05_rlc_l() {
+        // 0x05 = RLC L. Doit modifier L, pas la mémoire pointée par HL.
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x05);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b1000_0001);
+        c.bus.write_byte(0xC081, 0xAA); // sentinelle : ne doit pas changer
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0011);
+        assert_eq!(c.bus.read_byte(0xC081), 0xAA);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_06_rlc_hl_mem() {
+        // 0x06 = RLC (HL). Doit modifier la mémoire, pas B.
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x06);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b1000_0001);
+        c.cpu.set_r8::<B>(0x77); // sentinelle : ne doit pas changer
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b0000_0011);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_07_rlc_a() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x07);
+        c.cpu.set_r8::<A>(0b0000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0b0000_0010);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- RRC (0x08–0x0F) ----------
+    #[test]
+    fn cb_08_rrc_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x08);
+        c.cpu.set_r8::<B>(0b0000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b1000_0000);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_0d_rrc_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x0D);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b0000_0001);
+        c.bus.write_byte(0xC001, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b1000_0000);
+        assert_eq!(c.bus.read_byte(0xC001), 0xAA);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_0e_rrc_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x0E);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b0000_0001);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b1000_0000);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_0f_rrc_a() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x0F);
+        c.cpu.set_r8::<A>(0b0000_0010);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0b0000_0001);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- RL (0x10–0x17) ----------
+    #[test]
+    fn cb_10_rl_b_with_carry_in() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x10);
+        c.cpu.set_r8::<B>(0b0000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b0000_0011);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry)); // bit7 d'entrée = 0
+    }
+
+    #[test]
+    fn cb_15_rl_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x15);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b1000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        c.bus.write_byte(0xC081, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0011);
+        assert_eq!(c.bus.read_byte(0xC081), 0xAA);
+        assert!(c.cpu.flags.get_flag(Flag::Carry)); // bit7 d'entrée = 1
+    }
+
+    #[test]
+    fn cb_16_rl_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x16);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b1000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, false);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b0000_0010);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- RR (0x18–0x1F) ----------
+    #[test]
+    fn cb_18_rr_b_with_carry_in() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x18);
+        c.cpu.set_r8::<B>(0b0000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b1000_0000);
+        assert!(c.cpu.flags.get_flag(Flag::Carry)); // bit0 d'entrée = 1
+    }
+
+    #[test]
+    fn cb_1d_rr_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x1D);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b0000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, false);
+        c.bus.write_byte(0xC001, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0000);
+        assert_eq!(c.bus.read_byte(0xC001), 0xAA);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_1e_rr_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x1E);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b0000_0000);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b1000_0000);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- SLA (0x20–0x27) ----------
+    #[test]
+    fn cb_20_sla_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x20);
+        c.cpu.set_r8::<B>(0b1000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b0000_0010);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_25_sla_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x25);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b0100_0000);
+        c.bus.write_byte(0xC040, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b1000_0000);
+        assert_eq!(c.bus.read_byte(0xC040), 0xAA);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_26_sla_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x26);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b1000_0000);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0x00);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- SRA (0x28–0x2F) ----------
+    #[test]
+    fn cb_28_sra_b_preserves_sign_bit() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x28);
+        c.cpu.set_r8::<B>(0b1000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b1100_0000); // bit7 conservé
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_2d_sra_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x2D);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b0000_0010);
+        c.bus.write_byte(0xC002, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0001);
+        assert_eq!(c.bus.read_byte(0xC002), 0xAA);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_2e_sra_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x2E);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b1000_0001);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b1100_0000);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- SWAP (0x30–0x37) — déjà correct, on verrouille le comportement ----------
+    #[test]
+    fn cb_30_swap_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x30);
+        c.cpu.set_r8::<B>(0x12);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x21);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_35_swap_l_zero_flag() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x35);
+        c.cpu.set_r8::<L>(0x00);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0x00);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+    }
+
+    #[test]
+    fn cb_36_swap_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x36);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0x12);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0x21);
+    }
+
+    // ---------- SRL (0x38–0x3F) ----------
+    #[test]
+    fn cb_38_srl_b() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x38);
+        c.cpu.set_r8::<B>(0b1000_0001);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<B>(), 0b0100_0000);
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_3d_srl_l() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x3D);
+        c.cpu.set_r8::<H>(0xC0);
+        c.cpu.set_r8::<L>(0b0000_0001);
+        c.bus.write_byte(0xC001, 0xAA);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<L>(), 0x00);
+        assert_eq!(c.bus.read_byte(0xC001), 0xAA);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_3e_srl_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x3E);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b0000_0010);
+        c.cpu.set_r8::<B>(0x77);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b0000_0001);
+        assert_eq!(c.cpu.get_r8::<B>(), 0x77);
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    // ---------- BIT (0x40–0x7F) ----------
+    #[test]
+    fn cb_40_bit0_b_clear() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x40);
+        c.cpu.set_r8::<B>(0b0000_0000);
+        ticks(&mut c, 2);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));      // bit absent
+        assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+    }
+
+    #[test]
+    fn cb_47_bit0_a_set_preserves_carry() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x47);
+        c.cpu.set_r8::<A>(0b0000_0001);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        ticks(&mut c, 2);
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));     // bit présent
+        assert!(c.cpu.flags.get_flag(Flag::Carry));     // BIT ne touche pas Carry
+    }
+
+    #[test]
+    fn cb_46_bit0_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x46);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b0000_0001);
+        ticks(&mut c, 3);
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+    }
+
+    #[test]
+    fn cb_7c_bit7_h() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x7C);
+        c.cpu.set_r8::<H>(0b1000_0000);
+        ticks(&mut c, 2);
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
+    }
+
+    // ---------- RES (0x80–0xBF) ----------
+    #[test]
+    fn cb_87_res0_a_does_not_touch_flags() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x87);
+        c.cpu.set_r8::<A>(0b1111_1111);
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Subtract, true);
+        c.cpu.flags.set_flag(Flag::HalfCarry, true);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0b1111_1110);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Subtract));
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_86_res0_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0x86);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b1111_1111);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b1111_1110);
+    }
+
+    // ---------- SET (0xC0–0xFF) ----------
+    #[test]
+    fn cb_c7_set0_a_does_not_touch_flags() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xC7);
+        c.cpu.set_r8::<A>(0b0000_0000);
+        c.cpu.flags.set_flag(Flag::Zero, true);
+        c.cpu.flags.set_flag(Flag::Carry, true);
+        ticks(&mut c, 2);
+        assert_eq!(c.cpu.get_r8::<A>(), 0b0000_0001);
+        assert!(c.cpu.flags.get_flag(Flag::Zero));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
+    }
+
+    #[test]
+    fn cb_c6_set0_hl_mem() {
+        let mut c = gb::<GbaMmu<mbc::RomOnly>>(0xCB);
+        c.cpu.first_read(&mut c.bus);
+        c.bus.write_byte(0x8001, 0xC6);
+        c.cpu.set_r16::<HL>(0xC000);
+        c.bus.write_byte(0xC000, 0b0000_0000);
+        ticks(&mut c, 4);
+        assert_eq!(c.bus.read_byte(0xC000), 0b0000_0001);
+    }
 
 
 }
