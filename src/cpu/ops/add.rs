@@ -54,13 +54,6 @@ impl<M: MemoryMapper> Cpu<M> {
 
         self.flags
             .set_flag(Flag::Carry, (src as u16) + (dest as u16) > 0xFF);
-        println!(
-            "ADD R8 R8 No Zero Flag: src: {:02X}, dest: {:02X}, result: {:02X}, flags: {:08b}",
-            src,
-            dest,
-            result,
-            self.flags
-        );
     }
 
     pub fn add_r8_r8_with_carry_and_no_zero_flag<Src: Reg8, Dest: Reg8>(&mut self, _bus: &mut M) {
@@ -93,11 +86,15 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn add_hl_sp_e_high(&mut self, _bus: &mut M) {
-        let sp_high = Self::get_r8::<S>(self);
-        let e = Self::get_r8::<Z>(self);
-        let adj: u8 = if e & 0x80 != 0 { 0xFF } else { 0x00 };
-        let carry: u8 = self.flags.get_flag(Flag::Carry) as u8;
+            let sp_high = Self::get_r8::<S>(self);
+            let result_low = Self::get_r8::<Z>(self); 
+            let sp_low = Self::get_r8::<P>(self);
+            
+            let e = result_low.wrapping_sub(sp_low);
 
-        self.set_r8::<W>(sp_high.wrapping_add(adj).wrapping_add(carry));
-    }
+            let adj: u8 = if e & 0x80 != 0 { 0xFF } else { 0x00 };
+            let carry: u8 = self.flags.get_flag(Flag::Carry) as u8;
+
+            self.set_r8::<W>(sp_high.wrapping_add(adj).wrapping_add(carry));
+        }
 }

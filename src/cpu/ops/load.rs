@@ -1,7 +1,7 @@
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
-use crate::cpu_def::{H, L, P, PC, Reg8, Reg16, S, SP, WZ, Z};
+use crate::cpu_def::{H, L, P, PC, Reg8, Reg16, S, WZ, Z};
 use crate::mmu::MemoryMapper;
 
 impl<M: MemoryMapper> Cpu<M> {
@@ -35,6 +35,21 @@ impl<M: MemoryMapper> Cpu<M> {
         Self::set_r16::<Dest>(self, Self::get_r16::<Src>(self));
         self.ime = true;
     }
+
+pub fn load_r16_r16_af_flags<Dest: Reg16, Src: Reg16>(&mut self, _bus: &mut M) {
+    let mut val = Self::get_r16::<Src>(self);
+    
+    val &= 0xFFF0;
+
+    Self::set_r16::<Dest>(self, val);
+
+    let f_byte = (val & 0xFF) as u8;
+
+    self.flags.set_flag(Flag::Zero,      (f_byte & 0x80) != 0);
+    self.flags.set_flag(Flag::Subtract,       (f_byte & 0x40) != 0);
+    self.flags.set_flag(Flag::HalfCarry, (f_byte & 0x20) != 0);
+    self.flags.set_flag(Flag::Carry,     (f_byte & 0x10) != 0);
+}
 
     pub fn read_memory_decr<Addr: Reg16, Dest: Reg8>(&mut self, bus: &mut M) {
         Self::read_memory::<Addr, Dest>(self, bus);
@@ -87,6 +102,6 @@ impl<M: MemoryMapper> Cpu<M> {
 
     pub fn write_memory_rst<const B: u16, Addr: Reg16, Dest: Reg8>(&mut self, bus: &mut M) {
         Self::write_memory::<Addr, Dest>(self, bus);
-        Self::set_r16::<SP>(self, B);
+        Self::set_r16::<PC>(self, B);
     }
 }

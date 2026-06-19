@@ -12,7 +12,7 @@ impl<M: MemoryMapper> Cpu<M> {
     pub fn noop(&mut self, _bus: &mut M) {}
 
     pub fn halt(&mut self, _bus: &mut M) {
-        todo!();
+        self.halted = true;
     }
 
     pub fn decrement_r16<Reg: Reg16>(&mut self, _bus: &mut M) {
@@ -21,6 +21,10 @@ impl<M: MemoryMapper> Cpu<M> {
 
     pub fn set_ime_0(&mut self, _bus: &mut M) {
         self.ime = false;
+    }
+
+    pub fn set_ime_delay_1(&mut self, _bus: &mut M ) {
+        self.ime_delay = true;
     }
 
     pub fn set_ime_1(&mut self, _bus: &mut M) {
