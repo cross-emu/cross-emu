@@ -1135,13 +1135,8 @@ impl<M: MemoryMapper> Cpu<M> {
         self.set_r16::<PC>(pc.wrapping_add(1));
         
         let ops = &self.cb_instructions[cb_opcode as usize].micro_ops;
-        
         self.queue_len = ops.len();
-        
-        for i in 0..self.queue_len {
-            self.queue[i] = ops[i];
-        }
-        
+        self.queue[..self.queue_len].copy_from_slice(&ops[..self.queue_len]);
         self.op_index = 0;
     }
 

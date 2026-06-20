@@ -31,20 +31,16 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn load_queue(&mut self, ops: &[fn(&mut Cpu<M>, &mut M)]) {
-        self.queue_len = ops.len(); // On met à jour la vraie taille utilisée
-        for i in 0..self.queue_len {
-            self.queue[i] = ops[i];
-        }
-        self.op_index = 0; // Reset
+        self.queue_len = ops.len();
+        self.queue[..self.queue_len].copy_from_slice(&ops[..self.queue_len]);
+        self.op_index = 0;
     }
 
     pub fn load_instruction(&mut self, opcode: u8) {
         let ops = &self.instructions[opcode as usize].micro_ops;
-        self.queue_len = ops.len(); // On met à jour la vraie taille utilisée
-        for i in 0..self.queue_len {
-            self.queue[i] = ops[i];
-        }
-        self.op_index = 0; // Reset
+        self.queue_len = ops.len();
+        self.queue[..self.queue_len].copy_from_slice(&ops[..self.queue_len]);
+        self.op_index = 0;
     }
 
     pub fn first_read(&mut self, bus: &mut M) {
