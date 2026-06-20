@@ -52,7 +52,11 @@ impl<M: MemoryMapper> Cpu<M> {
         micro_op(self, bus);
 
         if self.op_index == self.queue.len() {
-            self.handle_halt_state(bus);
+            if self.handle_halt_state(bus) == StepStatus::Halted {
+                        self.queue = vec![Cpu::noop];
+                        self.op_index = 0;
+                        return;
+                    }
             self.handle_halt_bug(bus);
             self.handle_ime_delay();
 

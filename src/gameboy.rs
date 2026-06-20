@@ -253,13 +253,16 @@ impl<M: MemoryMapper> GameBoy<M> {
     pub fn tick_gb(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
         self.manage_input(key_input);
         self.bus.tick_timers();
+        self.cycles_elapsed += 1;
+
         if self.cycles_elapsed.is_multiple_of(4) {
             if self.bus.get_dma_index() != 0xFF {
                 self.bus.tick_dma();
             }
+            self.cpu.tick(&mut self.bus);
             self.cycles_elapsed = 0;
         }
-        self.cpu.tick(&mut self.bus);
+
         self.bus.tick_ppu(ct);
     }
 
