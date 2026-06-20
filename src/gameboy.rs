@@ -101,7 +101,7 @@ impl<M: MemoryMapper> GameBoy<M> {
         let mut debut: Instant;
         let mut mode: GBMode<M> = Self::game_mode;
         loop {
-            debut = Instant::now();
+            // debut = Instant::now();
             ct.poll_requests()
                 .into_iter()
                 .for_each(|request| self.treat_request(request, &mut mode));
@@ -114,11 +114,11 @@ impl<M: MemoryMapper> GameBoy<M> {
             if self.should_get_fps {
                 ct.update_fps(Self::calculate_fps(&mut before))?;
             }
-            let wanted_duration = Duration::from_micros(GAME_REFRESH_PERIOD_IN_MILLIS);
-            let duration_elapsed = debut.elapsed();
-            if wanted_duration > duration_elapsed {
-                Self::cap_frame(wanted_duration, duration_elapsed);
-            }
+            // let wanted_duration = Duration::from_micros(GAME_REFRESH_PERIOD_IN_MILLIS);
+            // let duration_elapsed = debut.elapsed();
+            // if wanted_duration > duration_elapsed {
+            //     Self::cap_frame(wanted_duration, duration_elapsed);
+            // }
         }
         Ok(self.ram_dump())
     }

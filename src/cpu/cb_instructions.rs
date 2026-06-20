@@ -1130,12 +1130,21 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn decode_cb(&mut self, bus: &mut M) {
-        let pc = Self::get_r16::<PC>(self);
+        let pc = self.get_r16::<PC>(); 
         let cb_opcode = bus.read_byte(pc);
         self.set_r16::<PC>(pc.wrapping_add(1));
-        self.queue = self.cb_instructions[cb_opcode as usize].micro_ops.clone();
+        
+        let ops = &self.cb_instructions[cb_opcode as usize].micro_ops;
+        
+        self.queue_len = ops.len();
+        
+        for i in 0..self.queue_len {
+            self.queue[i] = ops[i];
+        }
+        
         self.op_index = 0;
     }
+
     pub fn debug_step(&mut self, _instruction: u8, _bus: &mut M) -> bool {
         todo!()
     }

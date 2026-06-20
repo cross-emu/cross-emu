@@ -6,6 +6,7 @@ use crate::cpu::instructions::build_instructions;
 use crate::mmu::MemoryMapper;
 use std::fmt;
 
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StepStatus {
     Continue,
@@ -17,17 +18,33 @@ impl<M: MemoryMapper> Cpu<M> {
         Self {
             r8: [0; 14],
             flags: 0,
-            queue: Vec::new(),
+            queue: [Cpu::noop; 8],
             op_index: 0,
-            bus: [0; 65536],
+            queue_len: 0,
             ime: false,
             ime_delay: false,
             halted: false,
             halt_bug: false,
-            tick_to_wait: 0,
             instructions: build_instructions(),
             cb_instructions: build_cb_instructions(),
         }
+    }
+
+    pub fn load_queue(&mut self, ops: &[fn(&mut Cpu<M>, &mut M)]) {
+        self.queue_len = ops.len(); // On met à jour la vraie taille utilisée
+        for i in 0..self.queue_len {
+            self.queue[i] = ops[i];
+        }
+        self.op_index = 0; // Reset
+    }
+
+    pub fn load_instruction(&mut self, opcode: u8) {
+        let ops = &self.instructions[opcode as usize].micro_ops;
+        self.queue_len = ops.len(); // On met à jour la vraie taille utilisée
+        for i in 0..self.queue_len {
+            self.queue[i] = ops[i];
+        }
+        self.op_index = 0; // Reset
     }
 
     pub fn first_read(&mut self, bus: &mut M) {
@@ -40,26 +57,24 @@ impl<M: MemoryMapper> Cpu<M> {
         self.handle_halt_bug(bus);
         self.handle_ime_delay();
 
-        self.queue = self.instructions[instruction_byte as usize]
-            .micro_ops
-            .to_vec()
-            .clone();
+        self.load_instruction(instruction_byte);
     }
+
+
 
     pub fn tick(&mut self, bus: &mut M) {
         let micro_op = &self.queue[self.op_index];
         self.op_index += 1;
         micro_op(self, bus);
 
-      if self.op_index == self.queue.len() {
+      if self.op_index == self.queue_len {
         if self.handle_halt_state(bus) == StepStatus::Halted {
-            self.queue = vec![Cpu::noop];
-            self.op_index = 0;
+            self.load_queue(&[Cpu::noop]);
             return;
         }
 
         if self.handle_ime_state(bus) == StepStatus::Halted {
-            self.queue = vec![Cpu::noop; 5];
+            self.load_queue(&[Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop]);
         } else {
             let pc = self.get_r16::<PC>();
             let instruction_byte: u8 = bus.read_byte(pc);
@@ -70,12 +85,10 @@ impl<M: MemoryMapper> Cpu<M> {
                 self.set_r16::<PC>(pc.wrapping_add(1));
             }
             
-            self.queue = self.instructions[instruction_byte as usize].micro_ops.to_vec().clone();
+            self.load_instruction(instruction_byte);
         }
         
             self.handle_ime_delay();
-            
-            self.op_index = 0;
         }
     }   
 

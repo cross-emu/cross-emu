@@ -19,9 +19,10 @@ pub type MicroOp<M> = fn(&mut Cpu<M>, bus: &mut M);
 pub type Flags = u8;
 
 pub struct Cpu<M: MemoryMapper> {
-    pub queue: Vec<MicroOp<M>>,
+    pub queue: [MicroOp<M>; 8],
     pub r8: [u8; 14],
 
+    pub queue_len: usize,
     pub instructions: Vec<Instruction<M>>,
     pub cb_instructions: Vec<Instruction<M>>,
     /*
@@ -31,12 +32,10 @@ pub struct Cpu<M: MemoryMapper> {
      */
     pub flags: Flags,
     pub op_index: usize,
-    pub bus: [u8; 0x10000],
     pub ime: bool,
     pub ime_delay: bool, // mimic hardware delay in EI
     pub halted: bool,    // for HALT instruction
     pub halt_bug: bool,
-    pub tick_to_wait: u8,
 }
 
 #[allow(non_upper_case_globals)]
