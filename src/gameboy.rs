@@ -83,6 +83,7 @@ impl<M: MemoryMapper> GameBoy<M> {
             gb.simulate_boot_rom_effect()
         }
 
+        gb.cpu.first_read(&mut gb.bus);
         Ok(gb)
     }
 
