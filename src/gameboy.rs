@@ -173,6 +173,7 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.cpu.set_r8::<E>(0xC1);
         self.cpu.set_r8::<H>(0x84);
         self.cpu.set_r8::<L>(0x03);
+        self.cpu.set_r8::<F>(0xB0);
         self.cpu.set_r16::<PC>(0x0100);
         self.cpu.set_r16::<SP>(0xFFFE);
 

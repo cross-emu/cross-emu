@@ -65,7 +65,11 @@ impl<M: MemoryMapper> Cpu<M> {
             } else {
                 let pc = self.get_r16::<PC>();
                 let instruction_byte: u8 = bus.read_byte(pc);
-                self.set_r16::<PC>(pc.wrapping_add(1));
+                if self.halt_bug {
+                    self.halt_bug = false;
+                } else {
+                    self.set_r16::<PC>(pc.wrapping_add(1));
+                }
                 self.queue = self.instructions[instruction_byte as usize].micro_ops.to_vec().clone();
             }
             self.op_index = 0;
