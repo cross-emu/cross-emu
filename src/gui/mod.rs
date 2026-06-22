@@ -29,7 +29,6 @@ pub struct GraphicalApp {
     app_state: AppState,
 }
 
-pub mod themes;
 use eframe::egui;
 use tokio::task::JoinHandle;
 
