@@ -319,7 +319,3 @@ impl<M: MemoryMapper> Cpu<M> {
         todo!("stop todo");
     }
 }
-
-// pub fn increment_r16<Reg: Reg16>(&mut self, _bus: &mut M) {
-//     self.set_r16::<Reg>(self.get_r16::<Reg>().wrapping_add(1));
-// }

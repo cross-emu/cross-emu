@@ -957,7 +957,7 @@ mod tests {
         c.bus.write_byte(0x8001, 0x05);
         c.cpu.flags.set_flag(Flag::Carry, false);
         ticks(&mut c, 3);
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x8008);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x8009);
     }
 
     #[test]
@@ -967,7 +967,7 @@ mod tests {
         c.bus.write_byte(0x8001, 0x05);
         c.cpu.flags.set_flag(Flag::Carry, true);
         ticks(&mut c,3);
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x8003);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x8004);
     }
 
     #[test]
@@ -2248,7 +2248,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Zero, false);
 
         ticks(&mut c, 4); 
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
     }
 
     #[test]
@@ -2264,7 +2264,7 @@ mod tests {
 
         ticks(&mut c, 3);
         
-        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
     }
 
     #[test]
@@ -2279,7 +2279,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Zero, true);
 
         ticks(&mut c, 4);
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
     }
 
     #[test]
@@ -2294,7 +2294,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Zero, false);
 
         ticks(&mut c, 3);
-        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
     }
 
     #[test]
@@ -2309,7 +2309,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Carry, false);
 
         ticks(&mut c, 4);
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
     }
 
     #[test]
@@ -2324,7 +2324,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 3);
-        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
     }
 
     #[test]
@@ -2339,7 +2339,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 4);
-        assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
+        assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
     }
 
     #[test]
