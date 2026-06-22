@@ -5,7 +5,6 @@ use crate::cpu::*;
 use crate::mmu::MemoryMapper;
 
 //Some ops effectively use 2 cycles but work on one (i.e. LD (HL), r) so that we put a nothing op so it stills takes two cycles and fetch accordingly
-//
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn noop(&mut self, _bus: &mut M) {}
