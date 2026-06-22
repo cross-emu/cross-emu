@@ -1021,7 +1021,6 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
                 Cpu::decrement_r16::<SP>,
                 Cpu::write_memory_decr::<SP, D>,
                 Cpu::write_memory::<SP, E>,
-                Cpu::noop,
             ],
         },
         Instruction {

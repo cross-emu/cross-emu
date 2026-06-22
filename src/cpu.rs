@@ -70,29 +70,27 @@ impl<M: MemoryMapper> Cpu<M> {
         self.op_index += 1;
         micro_op(self, bus);
 
-      if self.op_index == self.queue_len {
-        if self.handle_halt_state(bus) == StepStatus::Halted {
-            self.load_queue(&[Cpu::noop]);
-            return;
-        }
-
-        if self.handle_ime_state(bus) == StepStatus::Halted {
-            self.load_queue(&[Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop]);
-        } else {
-            let pc = self.get_r16::<PC>();
-            let instruction_byte: u8 = bus.read_byte(pc);
-            
-            if self.halt_bug {
-                self.halt_bug = false;
-            } else {
-                self.set_r16::<PC>(pc.wrapping_add(1));
+        if self.op_index == self.queue_len {
+            if self.handle_halt_state(bus) == StepStatus::Halted {
+                self.load_queue(&[Cpu::noop]);
+                return;
             }
-            
-            self.load_instruction(instruction_byte);
-        }
-        
-            self.handle_ime_delay();
-        }
+
+            if self.handle_ime_state(bus) == StepStatus::Halted {
+                self.load_queue(&[Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop, Cpu::noop]);
+            } else {
+                let pc = self.get_r16::<PC>();
+                let instruction_byte: u8 = bus.read_byte(pc);
+                if self.halt_bug {
+                    self.halt_bug = false;
+                } else {
+                    self.set_r16::<PC>(pc.wrapping_add(1));
+                }
+                
+                self.load_instruction(instruction_byte);
+            }
+                self.handle_ime_delay();
+            }
     }   
 
     pub fn dump_state(&self) -> CpuState {

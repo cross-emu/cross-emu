@@ -15,7 +15,7 @@ use crate::gui::KeyInput;
 use crate::mmu::MemoryMapper;
 
 const FRAME_CYCLES: u32 = 70224;
-const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
+const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 8000; //8000 pour 120 fps
 const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
 pub struct GameBoy<M: MemoryMapper> {
     pub cpu: Cpu<M>,
@@ -216,6 +216,7 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.bus.write_byte(0xFF4A, 0x00);
         self.bus.write_byte(0xFF4B, 0x00);
         self.bus.write_byte(0xFFFF, 0x00);
+
     }
 
     pub fn manage_input(&mut self, key_input: &KeyInput) {
@@ -256,13 +257,13 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.cycles_elapsed += 1;
 
         if self.cycles_elapsed.is_multiple_of(4) {
+            self.cpu.tick(&mut self.bus);
             if self.bus.get_dma_index() != 0xFF {
                 self.bus.tick_dma();
             }
-            self.cpu.tick(&mut self.bus);
             self.cycles_elapsed = 0;
         }
-
+        
         self.bus.tick_ppu(ct);
         self.bus.tick_apu();
     }
