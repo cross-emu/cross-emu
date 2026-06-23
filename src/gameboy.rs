@@ -285,12 +285,14 @@ impl<M: MemoryMapper> GameBoy<M> {
     }
 
     fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+        for _ in 0..FRAME_CYCLES {
         if self.instructions_to_send != 0 {
             self.send_next_instructions(ct);
         }
         self.send_watched_adress(ct);
         self.send_registers(ct);
         self.tick_gb(key_input, ct)
+        }
     }
 
     fn stopped_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
