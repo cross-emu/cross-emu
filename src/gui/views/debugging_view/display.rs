@@ -1,3 +1,5 @@
+use std::fmt::Binary;
+
 use crate::{gui::common::display_game};
 
 use eframe::egui::{
@@ -456,9 +458,7 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
         }).inner
     };
     ui.add_space(4.0);
-    (hex_string, register_new_addr, remove_addr)
 
-    /*
     // Optional: Quick access to common GameBoy memory regions
     ui.collapsing("Quick Add Memory Regions", |ui| {
         ui.horizontal_wrapped(|ui| {
@@ -480,18 +480,16 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
 
             for (name, addr) in regions.iter() {
                 if ui.small_button(*name).clicked() {
-                    data.watched_address_value = *addr;
                     if !data
                         .watched_address
-                        .addresses_n_values
                         .iter()
                         .any(|(address, _)| *address == *addr)
                     {
-                        data.watch_address(*addr);
+                        hex_string = format!("{:x}", *addr);
                     }
                 }
             }
         });
     });
-    */
+    (hex_string, register_new_addr, remove_addr)
 }
