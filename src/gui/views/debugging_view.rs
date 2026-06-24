@@ -17,6 +17,7 @@ struct DebuggingDataIn<'a> {
     hex_string: &'a String,
     error_message: Option<&'a String>,
     sized_texture: Option<SizedTexture>,
+    instruction_to_exec: Option<String>
 }
 
 #[derive(Debug)]
@@ -24,7 +25,7 @@ struct DebuggingDataOut {
     close_btn_clicked: bool,
     step_clicked: bool,
     step_mode_clicked: bool,
-    instruction_to_exec: Option<u8>,
+    instruction_to_exec: Option<String>,
     refresh_register_clicked: bool,
     nb_instruction_requested: u8,
     hex_string: String,
@@ -82,6 +83,10 @@ impl DebuggingDevice {
             }
         }
 
+        if let Some(instr) = data.instruction_to_exec {
+            self.core_game.interface_ct.execute_instruction(instr)?;
+        }
+
         if let Some(addr) = data.delete_new_addr {
             self.core_game.interface_ct.remove_watch_address(addr)?;
         }
@@ -128,6 +133,7 @@ impl DebuggingDevice {
             next_instructions: &self.next_instructions,
             error_message,
             hex_string: &self.hex_string,
+            instruction_to_exec: self.instruction_to_exec.clone()
         })
     }
 

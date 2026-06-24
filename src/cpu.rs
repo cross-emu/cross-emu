@@ -6,6 +6,7 @@ pub mod ops;
 pub mod tests;
 
 use crate::communications::CpuState;
+use crate::cpu::defines::Instruction;
 use crate::cpu::cb_instructions::build_cb_instructions;
 use crate::cpu::defines::Cpu;
 use crate::cpu::defines::{r8, r16};
@@ -164,6 +165,68 @@ impl<M: MemoryMapper> Cpu<M> {
             self.ime = true;
             self.ime_delay = false;
         }
+    }
+
+    pub fn find_instruction(&self, raw: &str) -> Option<&Instruction<M>> {
+        let trimmed = raw.trim();
+
+        let binding = trimmed.to_ascii_uppercase();
+        let (is_cb, body) = match binding.strip_prefix("CB") {
+            Some(rest) => (true, rest.trim()),
+            None => (false, trimmed),
+        };
+
+        if let Some(instr) = Self::find_by_mnemonic(body, is_cb, &self.instructions, &self.cb_instructions) {
+            return Some(instr);
+        }
+
+        let opcode = Self::parse_opcode_value(body)?;
+
+        if is_cb {
+            self.cb_instructions.iter().find(|i| i.opcode == opcode)
+        } else {
+            self.instructions.iter()
+                .find(|i| i.opcode == opcode)
+                .or_else(|| self.cb_instructions.iter().find(|i| i.opcode == opcode))
+        }
+    }
+
+    fn find_by_mnemonic<'a>(
+        body: &str,
+        is_cb: bool,
+        instructions: &'a [Instruction<M>],
+        cb_instructions: &'a [Instruction<M>],
+    ) -> Option<&'a Instruction<M>> {
+        if is_cb {
+            return cb_instructions.iter().find(|i| i.name.eq_ignore_ascii_case(body));
+        }
+        instructions.iter()
+            .find(|i| i.name.eq_ignore_ascii_case(body))
+            .or_else(|| cb_instructions.iter().find(|i| i.name.eq_ignore_ascii_case(body)))
+    }
+
+    fn parse_opcode_value(s: &str) -> Option<u8> {
+        let s = s.trim();
+
+        if let Some(hex) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+            return u8::from_str_radix(hex, 16).ok();
+        }
+        if let Some(hex) = s.strip_prefix('$') {
+            return u8::from_str_radix(hex, 16).ok();
+        }
+        if let Some(hex) = s.strip_suffix('h').or_else(|| s.strip_suffix('H')) {
+            return u8::from_str_radix(hex, 16).ok();
+        }
+        if let Some(bin) = s.strip_prefix("0b").or_else(|| s.strip_prefix("0B")) {
+            return u8::from_str_radix(bin, 2).ok();
+        }
+        if s.len() == 8 && s.chars().all(|c| c == '0' || c == '1') {
+            return u8::from_str_radix(s, 2).ok();
+        }
+        if s.len() <= 2 && !s.is_empty() && s.chars().all(|c| c.is_ascii_hexdigit()) {
+            return u8::from_str_radix(s, 16).ok();
+        }
+        s.parse::<u8>().ok()
     }
 }
 

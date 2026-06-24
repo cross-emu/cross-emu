@@ -55,6 +55,7 @@ impl From<EmulationDevice> for DebuggingDevice {
             nb_instruction: 0,
             error_message: None,
             hex_string: String::new(),
+            instruction_to_exec: None
         }
     }
 }
