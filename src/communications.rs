@@ -83,7 +83,7 @@ pub enum Mode {
 pub enum Request {
     Mode(Mode),
     Fps(bool),
-    Execute(Vec<u8>),
+    Execute(String),
     RenderFrame(u16),
     Watch(u16),
     StopWatch(u16),

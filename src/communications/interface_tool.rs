@@ -28,7 +28,7 @@ pub trait InterfaceCT {
     //// Execution instructions
     fn ask_fps_counter(&self) -> Result<(), String>;
     fn disable_fps_counter(&self) -> Result<(), String>;
-    fn execute_instruction(&self, instruction: Vec<u8>) -> Result<(), String>;
+    fn execute_instruction(&self, instruction: String) -> Result<(), String>;
     fn execute_next_instructions(&self, instruction_nb: usize) -> Result<(), String>;
     fn render_frame(&self) -> Result<(), String>;
     fn render_frames(&self, frame_nb: u16) -> Result<(), String>;
@@ -146,7 +146,7 @@ impl InterfaceCT for InterfaceCommunicationTool {
         self.try_send_query(Request::Fps(false))
     }
 
-    fn execute_instruction(&self, instruction: Vec<u8>) -> Result<(), String>  {
+    fn execute_instruction(&self, instruction: String) -> Result<(), String>  {
         self.try_send_query(Request::Execute(instruction))
     }
 

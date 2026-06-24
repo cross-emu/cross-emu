@@ -324,10 +324,10 @@ mod interface_requests {
     #[test]
     fn execute_instruction_produces_request_execute_with_correct_bytes() {
         let (mut gct, ict) = setup();
-        ict.execute_instruction(vec![0xAF]).unwrap();
+        ict.execute_instruction("0xAF".to_string()).unwrap();
         let requests = gct.poll_requests();
         assert_eq!(requests.len(), 1);
-        assert!(matches!(&requests[0], Request::Execute(bytes) if bytes == &vec![0xAF]));
+        assert!(matches!(&requests[0], Request::Execute(bytes) if bytes == "0xAF"));
     }
 
     #[test]

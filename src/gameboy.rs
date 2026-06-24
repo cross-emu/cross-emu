@@ -1,11 +1,13 @@
 #![allow(unused_variables)]
 
 use std::collections::HashSet;
+use crate::gameboy::instructions::get_instruction_length;
 
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::gameboy::defines::MicroOp;
 use crate::cpu::*;
 use crate::communications::InstructionList;
 use crate::communications::WatchedAdresses;
@@ -46,27 +48,31 @@ impl<M: MemoryMapper> GameBoy<M> {
     }
 
     fn send_next_instructions(&mut self, ct: &mut Box<dyn GameCT>) {
-    let pc = self.cpu.get_r16::<PC>();
+        let mut current_pc = self.cpu.get_r16::<PC>();
+        let mut instructions: Vec<(u16, String)> = Vec::new();
 
-    let instructions: Vec<(u16, String)> = (0..self.instructions_to_send)
-        .map(|index: u16| pc as usize + index as usize)
-        .map(|addr: usize| {
-            let opcode = self.bus.read_byte(addr as u16);
+        for _ in 0..self.instructions_to_send {
+            let opcode = self.bus.read_byte(current_pc);
 
-            let name = if opcode == 0xCB {
-                // Préfixe CB : le vrai opcode est dans l'octet suivant
-                let cb_opcode = self.bus.read_byte((addr as u16).wrapping_add(1));
-                self.cpu.cb_instructions[cb_opcode as usize].name.clone()
+            let (opcode_to_push, name, instr_len) = if opcode == 0xCB {
+                let cb_opcode = self.bus.read_byte(current_pc.wrapping_add(1));
+                let name = self.cpu.cb_instructions[cb_opcode as usize].name.clone();
+                // Correction : On combine 0xCB et le cb_opcode (ex: 0xCB47) pour l'UI
+                (((opcode as u16) << 8) | cb_opcode as u16, name, 2)
             } else {
-                self.cpu.instructions[opcode as usize].name.clone()
+                let name = self.cpu.instructions[opcode as usize].name.clone();
+                let len = get_instruction_length(opcode);
+                (opcode as u16, name, len)
             };
 
-            (opcode as u16, name)
-        })
-        .collect();
+            instructions.push((opcode_to_push, name));
+            
+            current_pc = current_pc.wrapping_add(instr_len);
+        }
 
-    ct.send_next_instructions(InstructionList(instructions));
-}
+        ct.send_next_instructions(InstructionList(instructions));
+    }
+
 
     pub fn ram_dump(mut self) -> Option<Vec<u8>> {
         self.bus.ram_dump()
@@ -161,8 +167,23 @@ impl<M: MemoryMapper> GameBoy<M> {
                 }
             },
             Request::Execute(instructions) => {
-                for instruction in instructions {
-                    self.cpu.debug_step(instruction, &mut self.bus);
+                if let Some(instr) = self.cpu.find_instruction(&instructions) {
+                    println!("Found instructions {:#?}. Executing....", (instr.name.clone(), instr.opcode));
+                    let snapshot: ([MicroOp<M>; 8], usize, usize) = (self.cpu.queue, self.cpu.queue_len, self.cpu.op_index);
+                    self.cpu.load_instruction(instr.opcode);
+                    let mut i = self.cpu.queue_len;
+
+                    while i > 0 {
+                        let micro_op = &self.cpu.queue[self.cpu.op_index];
+                        self.cpu.op_index += 1;
+                        micro_op(&mut self.cpu, &mut self.bus);
+                        i -= 1;
+                    }
+                    self.cpu.queue = snapshot.0;
+                    self.cpu.queue_len = snapshot.1;
+                    self.cpu.op_index = snapshot.2;
+                } else {
+                    eprintln!("Haven't found any instructions named {:?}", instructions);
                 }
             }
             Request::RenderFrame(frame) => {
@@ -292,27 +313,48 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.bus.tick_apu();
     }
 
-    fn game_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
-        for _ in 0..FRAME_CYCLES {
+    pub fn debug_tick(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+        self.tick_gb(key_input, ct);
+
+        loop {
+            if self.cpu.op_index == 0 && self.cycles_elapsed == 0 {
+                break;
+            }
             self.tick_gb(key_input, ct);
         }
     }
 
-    fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+    fn game_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
         for _ in 0..FRAME_CYCLES {
+            self.tick_gb(key_input, ct);
+        }
+        
+        if self.instructions_to_send != 0 {
+            self.send_next_instructions(ct);
+        }
+    }
+
+   fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+        for _ in 0..FRAME_CYCLES {
+            self.tick_gb(key_input, ct)
+        }
+
         if self.instructions_to_send != 0 {
             self.send_next_instructions(ct);
         }
         self.send_watched_adress(ct);
         self.send_registers(ct);
-        self.tick_gb(key_input, ct)
-        }
     }
 
     fn stopped_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
-        for step in 0..self.step_to_execute {
-            self.debug_mode(key_input, ct);
+        if self.step_to_execute > 0 {
+            self.debug_tick(key_input, ct);
         }
+        if self.instructions_to_send != 0 {
+            self.send_next_instructions(ct);
+        }
+        self.send_watched_adress(ct);
+        self.send_registers(ct);
         self.step_to_execute = 0;
     }
 }

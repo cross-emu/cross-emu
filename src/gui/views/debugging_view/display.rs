@@ -15,13 +15,14 @@ pub fn display_interface(
     let (
         close_btn_clicked,
         step_mode_btn_clkd,
+        instruction_to_exec,
         stp_btn_clkd,
         refresh_register_clicked,
         nb_instruction_requested,
         hex_string,
         register_new_addr,
-        delete_watched_addr
-    ): (bool, bool, bool, bool, u8, String, bool, Option<u16>) = Panel::right("debug_panel")
+        delete_watched_addr,
+    ): (bool, bool, Option<String>, bool, bool, u8, String, bool, Option<u16>) = Panel::right("debug_panel")
         .resizable(true)
         .default_size(400.0)
         .min_size(300.0)
@@ -55,14 +56,14 @@ pub fn display_interface(
                     ui.add_space(8.0);
 
 
-                    let custom_instr: String = ui
+                    let custom_instr: Option<String> = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Execute Custom Instructions").strong());
                             inner_ui.label(RichText::new("Executing Custom Instructions WILL break your ROM! Do not use for serious gaming")
                                                 .size(10.0)
                                                 .color(Color32::RED)
                                                 .weak() );
-                            execute_custom_instruction(inner_ui)
+                            execute_custom_instruction(inner_ui, &data)
                         }).inner;
                     
                     let refresh_register_clicked: bool = ui
@@ -91,12 +92,13 @@ pub fn display_interface(
                     (
                         close_button_is_clicked,
                         step_mode_button_clicked,
+                        custom_instr,
                         step_button_clicked,
                         refresh_register_clicked,
                         nb_instruction_requested,
                         hex_string,
                         register_new_addr,
-                        remove_addr
+                        remove_addr,
                     )
                 })
                 .inner
@@ -116,6 +118,7 @@ pub fn display_interface(
         nb_instruction_requested,
         hex_string,
         register_new_addr,
+        instruction_to_exec
     }
 }
 
@@ -132,10 +135,26 @@ fn step_button(ui: &mut Ui) -> bool {
     ui.button("Next Step").clicked()
 }
 
-fn execute_custom_instruction(ui: &mut Ui) -> String {
-    let mut input = String::new();
-    ui.text_edit_singleline(&mut input);
-    input 
+fn execute_custom_instruction(ui: &mut egui::Ui, debugging_data: &DebuggingDataIn) -> Option<String> {
+    let id = ui.id().with("custom_instruction_input");
+    
+    let mut input = ui.data_mut(|d| {
+        d.get_temp::<String>(id)
+            .unwrap_or_else(|| debugging_data.instruction_to_exec.clone().unwrap_or_default())
+    });
+    
+    let response = ui.text_edit_singleline(&mut input);
+    
+    let mut result = None;
+    
+    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        result = Some(input.clone());
+        input.clear(); // On vide le tampon local pour la prochaine commande
+    }
+    
+    ui.data_mut(|d| d.insert_temp(id, input));
+    
+    result
 }
 
 fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
@@ -502,16 +521,15 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
             ];
 
             for (name, addr) in regions.iter() {
-                if ui.small_button(*name).clicked() {
-                    if !data
+                if ui.small_button(*name).clicked()
+                    && !data
                         .watched_address
                         .iter()
                         .any(|(address, _)| *address == *addr)
                     {
                         hex_string = format!("{:x}", *addr);
                     }
-                }
-            }
+                }   
         });
     });
     (hex_string, register_new_addr, remove_addr)
