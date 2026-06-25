@@ -89,6 +89,7 @@ pub enum Request {
     StopWatch(u16),
     Step(usize),
     SetInstructionListLength(u8),
+    SetSpeed(u8)
 }
 
 pub const FRAME_SIZE: usize = 160 * 144;
