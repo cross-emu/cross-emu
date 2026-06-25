@@ -17,8 +17,9 @@ use crate::gui::KeyInput;
 use crate::mmu::MemoryMapper;
 
 const FRAME_CYCLES: u32 = 70224;
-const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 8000; //8000 pour 120 fps
+const GAME_REFRESH_PERIOD_IN_MILLIS: u64 = 15000; //8000 pour 120 fps
 const CUT_TIME_FOR_CAP_FRAMES: u32 = 30; // A faire varier. TODO: Verifier si la meilleur version
+const SLEEP_MARGIN: Duration = Duration::from_micros(50);
 pub struct GameBoy<M: MemoryMapper> {
     pub cpu: Cpu<M>,
     pub bus: M,
@@ -29,6 +30,8 @@ pub struct GameBoy<M: MemoryMapper> {
 
     watched_address: HashSet<u16>,
     cycles_elapsed: u32,
+    speed: u64,
+    is_paused: bool
 }
 
 type GBMode<M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
@@ -95,6 +98,8 @@ impl<M: MemoryMapper> GameBoy<M> {
 
             cycles_elapsed: 0,
             watched_address: HashSet::new(),
+            speed: 1,
+            is_paused: false
         };
 
         if skip_boot {
@@ -132,23 +137,29 @@ impl<M: MemoryMapper> GameBoy<M> {
             if self.should_get_fps {
                 ct.update_fps(Self::calculate_fps(&mut before))?;
             }
-            let wanted_duration = Duration::from_micros(GAME_REFRESH_PERIOD_IN_MILLIS);
+            let wanted_duration = Duration::from_micros(GAME_REFRESH_PERIOD_IN_MILLIS / self.speed);
             let duration_elapsed = debut.elapsed();
-            if wanted_duration > duration_elapsed {
-                Self::cap_frame(wanted_duration, duration_elapsed);
-            }
+            self.cap_frame(wanted_duration, duration_elapsed);
         }
         Ok(self.ram_dump())
     }
 
-    fn cap_frame(wanted_duration: Duration, duration_elapsed: Duration) {
-        let duration_of_the_sleep = wanted_duration - duration_elapsed;
-        for mut i in 0..CUT_TIME_FOR_CAP_FRAMES {
-            thread::sleep(duration_of_the_sleep / CUT_TIME_FOR_CAP_FRAMES);
-            i += 1;
+
+
+    fn cap_frame(&self, wanted_duration: Duration, duration_elapsed: Duration) {
+        let target = wanted_duration; 
+        let start = Instant::now();
+
+        let duration_of_the_wait = target.saturating_sub(duration_elapsed);
+
+        if duration_of_the_wait > SLEEP_MARGIN {
+            thread::sleep(duration_of_the_wait - SLEEP_MARGIN);
+        }
+
+        while start.elapsed() < duration_of_the_wait {
+            std::hint::spin_loop();
         }
     }
-
     fn treat_request(&mut self, request: Request, mode: &mut GBMode<M>) {
         match request {
             Request::Mode(new_mode) => match new_mode {
@@ -204,7 +215,10 @@ impl<M: MemoryMapper> GameBoy<M> {
             Request::StopWatch(address) => {
                 self.watched_address.remove(&address);
             }
-             _ => unreachable!(),
+             Request::SetSpeed(speed) => {
+                self.speed = speed as u64;
+            }
+            _ => unreachable!(),
         }
     }
 

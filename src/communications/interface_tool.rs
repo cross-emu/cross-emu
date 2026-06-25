@@ -32,6 +32,7 @@ pub trait InterfaceCT {
     fn execute_next_instructions(&self, instruction_nb: usize) -> Result<(), String>;
     fn render_frame(&self) -> Result<(), String>;
     fn render_frames(&self, frame_nb: u16) -> Result<(), String>;
+    fn set_speed(&self, speed: u8) -> Result<(), String>;
 
     //// Debug instructions
     fn watch_adress(&self, addr_to_watch: u16) -> Result<(), String>;
@@ -164,6 +165,10 @@ impl InterfaceCT for InterfaceCommunicationTool {
 
     fn set_mode(&self, mode: Mode) -> Result<(), String> {
         self.try_send_query(Request::Mode(mode))
+    }
+
+    fn set_speed(&self, speed: u8) -> Result<(), String> {
+        self.try_send_query(Request::SetSpeed(speed))
     }
 
     //// Debug instructions

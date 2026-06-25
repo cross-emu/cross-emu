@@ -127,12 +127,12 @@ impl EmulationDevice {
                             ui.separator();
                             ui.add_space(8.0);
 
-                            let slider = egui::Slider::new(&mut self.ui_state.speed, 0.5..=8.0)
-                                .step_by(0.5)
+                            let slider = egui::Slider::new(&mut self.ui_state.speed, 1.0..=16.0)
+                                .step_by(1.0)
                                 .suffix("x")
                                 .show_value(true);
                             if ui.add_sized(vec2(140.0, 20.0), slider).changed() {
-                                println!("googoogaga")
+                                let _ = self.core_game.interface_ct.set_speed(self.ui_state.speed as u8);
                             }
 
                             ui.add_space(8.0);
