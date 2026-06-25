@@ -11,7 +11,7 @@ use crate::gui::{
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 
 
-use std::time::{Instant};
+use std::time::Instant;
 
 impl EmulationDevice {
     pub fn emulation_view(mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) -> AppState {
@@ -25,7 +25,7 @@ impl EmulationDevice {
         let fps = self.core_game.interface_ct.get_fps().unwrap();
 
         let mut open_debugger = false;
-        let mut back_to_selection = false; // <-- nouveau flag
+        let mut back_to_selection = false;
 
         const TOOLBAR_CONTENT_HEIGHT: f32 = 36.0;
         const TOOLBAR_PANEL_HEIGHT: f32 = 64.0;
@@ -71,7 +71,6 @@ impl EmulationDevice {
                             ui.separator();
                             ui.add_space(8.0);
 
-                            // --- Pause / Resume, coloré selon l'état ---
                             let (pause_label, pause_color) = if self.ui_state.is_paused {
                                 ("▶  Resume", Color32::from_rgb(120, 200, 120))
                             } else {
@@ -105,7 +104,7 @@ impl EmulationDevice {
                                     .min_size(vec2(110.0, 28.0)),
                             );
                             if save_state_button.clicked() {
-                                todo!("envoyer une requête de sauvegarde d'état au core")
+                                todo!("save state")
                             }
 
                             ui.add_space(8.0);
@@ -144,6 +143,7 @@ impl EmulationDevice {
                             );
                             if reset_button.clicked() {
                                 self.core_game.reset();
+                                self.ui_state.is_paused = false;
                             }
 
                             ui.add_space(8.0);
