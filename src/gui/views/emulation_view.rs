@@ -85,20 +85,19 @@ impl EmulationDevice {
                                 .corner_radius(egui::CornerRadius::same(6))
                                 .min_size(vec2(100.0, 28.0)),
                             );
+
                             if pause_button.clicked() {
                                 self.ui_state.is_paused = !self.ui_state.is_paused;
-                                println!(
-                                    "{}",
-                                    if self.ui_state.is_paused { "pausing!" } else { "resuming!" }
-                                );
-                                //CommunicationTool::shit() ...
+                                if self.ui_state.is_paused { 
+                                    let _ = self.core_game.interface_ct.set_mode(Mode::Stop);
+                                } else { 
+                                    let _ = self.core_game.interface_ct.set_mode(Mode::Game);
+                                }
                             }
 
                             ui.add_space(8.0);
                             ui.separator();
                             ui.add_space(8.0);
-
-
 
                             // --- Save State ---
                             let save_state_button = ui.add(
@@ -159,6 +158,15 @@ impl EmulationDevice {
         }
 
         if open_debugger {
+            if self.ui_state.is_paused {
+                return match self.core_game.interface_ct.set_mode(Mode::Stop) {
+                    Ok(()) => AppState::DebuggingHub(self.into()),
+                    Err(_) => {
+                        eprintln!("Communication is cut : falling back to selection view.");
+                        AppState::SelectionHub(self.into())
+                    }
+              };
+            }
             return match self.core_game.interface_ct.set_mode(Mode::Debug) {
                 Ok(()) => AppState::DebuggingHub(self.into()),
                 Err(_) => {
@@ -184,7 +192,8 @@ impl From<EmulationDevice> for DebuggingDevice {
             error_message: None,
             hex_string: String::new(),
             ui_state: original.ui_state,
-            instruction_to_exec: None
+            instruction_to_exec: None,
+            is_paused: false
         }
     }
 }

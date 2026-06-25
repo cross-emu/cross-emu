@@ -48,8 +48,13 @@ impl DebuggingDevice {
 
     fn execute_changes(&mut self, data: DebuggingDataOut) -> Result<OutState, String> {
         if data.close_btn_clicked {
+            if self.ui_state.is_paused {
+                self.core_game.interface_ct.set_mode(Mode::Stop)?;
+                return Ok(OutState::Emulating);
+            } else { 
             self.core_game.interface_ct.set_mode(Mode::Game)?;
             return Ok(OutState::Emulating);
+            }
         }
 
         if data.step_mode_clicked {
@@ -90,6 +95,10 @@ impl DebuggingDevice {
         if let Some(addr) = data.delete_new_addr {
             self.core_game.interface_ct.remove_watch_address(addr)?;
         }
+
+        if self.is_paused {
+            self.core_game.interface_ct.set_mode(Mode::Stop)?;
+        }
         
         Ok(OutState::Debugging)
     }
@@ -125,7 +134,7 @@ impl DebuggingDevice {
         };
 
         Ok(DebuggingDataIn {
-            is_step: self.is_step,
+            is_step: (self.is_step || self.ui_state.is_paused),
             sized_texture: self.core_game.sized_image,
             watched_address: &self.watched_adress,
             registers: &self.registers,

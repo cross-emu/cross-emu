@@ -171,6 +171,7 @@ impl InterfaceCT for InterfaceCommunicationTool {
         self.try_send_query(Request::SetSpeed(speed))
     }
 
+
     //// Debug instructions
     fn watch_adress(&self, addr_to_watch: u16) -> Result<(), String>  {
         self.try_send_query(Request::Watch(addr_to_watch))
