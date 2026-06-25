@@ -65,7 +65,6 @@ impl SelectionDevice {
     .show_inside(ui, |ui| {
         ui.heading("History");
 
-        // --- Barre de recherche ---
         ui.horizontal(|ui| {
             ui.label("🔍");
             ui.text_edit_singleline(&mut self.search);
