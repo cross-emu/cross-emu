@@ -183,7 +183,7 @@ impl From<EmulationDevice> for DebuggingDevice {
             nb_instruction: 0,
             error_message: None,
             hex_string: String::new(),
-            ui_state: original.ui_state
+            ui_state: original.ui_state,
             instruction_to_exec: None
         }
     }
