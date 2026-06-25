@@ -99,7 +99,6 @@ impl EmulationDevice {
                             ui.separator();
                             ui.add_space(8.0);
 
-                            // --- Save State ---
                             let save_state_button = ui.add(
                                 egui::Button::new(RichText::new("Save State").color(Color32::WHITE).strong())
                                     .corner_radius(egui::CornerRadius::same(6))
@@ -126,6 +125,7 @@ impl EmulationDevice {
                             ui.separator();
                             ui.add_space(8.0);
 
+                            ui.label(RichText::new("Game Speed").color(Color32::WHITE).strong());
                             let slider = egui::Slider::new(&mut self.ui_state.speed, 1.0..=16.0)
                                 .step_by(1.0)
                                 .suffix("x")
@@ -149,6 +149,15 @@ impl EmulationDevice {
                             ui.add_space(8.0);
                             ui.separator();
                             ui.add_space(8.0);
+
+                            ui.label(RichText::new("Volume").color(Color32::WHITE).strong());
+                            let slider = egui::Slider::new(&mut self.ui_state.volume, 0.0..=200.0)
+                                .step_by(10.0)
+                                .suffix("x")
+                                .show_value(true);
+                            if ui.add_sized(vec2(140.0, 20.0), slider).changed() {
+                                println!("googoogaga")
+                            }
                         });
                     });
             });
