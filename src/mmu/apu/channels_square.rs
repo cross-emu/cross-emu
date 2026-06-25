@@ -47,7 +47,7 @@ impl ChannelSquare {
         let delta = self.shadow_frequency >> self.sweep_shift();
 
         if self.sweep_negate() {
-            self.shadow_frequency - delta
+            self.shadow_frequency.saturating_sub(delta)
         } else {
             self.shadow_frequency + delta
         }
@@ -61,7 +61,7 @@ impl ChannelSquare {
         self.nr4_period_high_ctrl.write(nr14 | high);
     }
 
-    fn tick_sweep(&mut self) {
+    pub fn tick_sweep(&mut self) {
         if self.sweep_timer > 0 {
             self.sweep_timer -= 1;
         }
