@@ -76,10 +76,15 @@ impl Apu {
             self.frame_seq_step = (self.frame_seq_step + 1) % 8;
 
             match self.frame_seq_step {
-                0 | 2 | 4 | 6 => {
+                0 | 4 => {
                     self.channel_one.tick_length();
                     self.channel_two.tick_length();
                 },
+                2 | 6 => {
+                    self.channel_one.tick_length();
+                    self.channel_two.tick_length();
+                    self.channel_one.tick_sweep();
+                }
                 7 => {
                     self.channel_one.tick_envelope();
                     self.channel_two.tick_envelope();
