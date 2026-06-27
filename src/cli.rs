@@ -22,13 +22,6 @@ impl EmulatorArguments {
                     .help("If set, nintendo basic boot rom will boot first."),
             )
             .arg(
-                Arg::new("sound")
-                    .short('s')
-                    .long("sound")
-                    .action(ArgAction::SetTrue)
-                    .help("Activate sound if set."),
-            )
-            .arg(
                 Arg::new("type")
                     .short('t')
                     .long("type")
