@@ -25,7 +25,7 @@ fn choose_config(device: &Device) -> SupportedStreamConfig {
 
     for fmt in preference {
         if let Some(cfg) = supported_configs.iter().find(|c| c.sample_format() == fmt) {
-            return cfg.clone().with_sample_rate(48000);
+            return (*cfg).with_sample_rate(48000);
         }
     }
 
