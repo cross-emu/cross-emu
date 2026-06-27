@@ -26,8 +26,6 @@ pub struct Apu {
     nr51_sound_panning: SoundPanningReg,
     nr52_audio_master_control: AudioMasterControlReg,
 
-    wave_ram: [u8; 16],
-
     channel_one: ChannelSquare,
     channel_two: ChannelSquare,
     channel_three: ChannelThree,
@@ -50,7 +48,6 @@ impl Apu {
             nr50_master_vol_and_vin_panning: MasterVolVinPanningReg::default(),
             nr51_sound_panning: SoundPanningReg::default(),
             nr52_audio_master_control: AudioMasterControlReg::default(),
-            wave_ram: [0; 16],
             channel_one: ChannelSquare::default(),
             channel_two: ChannelSquare::default(),
             channel_three: ChannelThree::default(),
@@ -124,8 +121,8 @@ impl Apu {
             0xFF26 => self.nr52_audio_master_control.read(),
             0xFF30..=0xFF3F => {
                 let index = (addr - 0xFF30) as usize;
-                self.wave_ram[index]
-            }
+                self.channel_three.wave_ram[index]
+            },
             _ => 0xFF,
         }
     }
@@ -164,7 +161,7 @@ impl Apu {
             0xFF26 => self.nr52_audio_master_control.write(value),
             0xFF30..=0xFF3F => {
                 let index = (addr - 0xFF30) as usize;
-                self.wave_ram[index] = value;
+                self.channel_three.wave_ram[index] = value;
             }
             _ => {}
         }

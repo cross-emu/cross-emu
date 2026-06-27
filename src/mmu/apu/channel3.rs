@@ -7,4 +7,6 @@ pub struct ChannelThree {
     pub nr32_output_level: OutputLevelReg,
     pub nr33_period_low: PeriodLowReg,
     pub nr34_period_high_crtl: PeriodHighCtrlReg,
+
+    pub wave_ram: [u8; 16],
 }
