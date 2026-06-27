@@ -95,7 +95,7 @@ impl Apu {
         if self.sample_counter >= CYCLES_PER_SAMPLE {
             self.sample_counter -= CYCLES_PER_SAMPLE;
 
-            let sample = self.channel_one.output() + self.channel_two.output();
+            let sample = (self.channel_one.output() + self.channel_two.output()) / 2.0;
 
             self.sample_buffer.push(sample);
         }
@@ -137,7 +137,12 @@ impl Apu {
             0xFF11 => self.channel_one.nr1_ln_timer_duty_cycle.write(value),
             0xFF12 => self.channel_one.nr2_volume_envelope.write(value),
             0xFF13 => self.channel_one.nr3_period_low.write(value),
-            0xFF14 => self.channel_one.nr4_period_high_ctrl.write(value),
+            0xFF14 => {
+                self.channel_one.nr4_period_high_ctrl.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_one.trigger();
+                }
+            },
             0xFF16 => self.channel_two.nr1_ln_timer_duty_cycle.write(value),
             0xFF17 => self.channel_two.nr2_volume_envelope.write(value),
             0xFF18 => self.channel_two.nr3_period_low.write(value),
