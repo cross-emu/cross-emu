@@ -148,7 +148,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr::<PC, Z>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>,
+                Cpu::noop,
             ],
         },
         Instruction {
@@ -195,8 +195,9 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondNZ>,
                 Cpu::relative_jump,
+                Cpu::noop
             ],
-        },
+        },  
         Instruction {
             name: "LD HL,d16".to_string(),
             opcode: 0x21,
@@ -242,7 +243,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondZ>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>,
+                Cpu::noop,
             ],
         },
         Instruction {
@@ -289,6 +290,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondNC>,
                 Cpu::relative_jump,
+                Cpu::noop
             ],
         },
         Instruction {
@@ -340,7 +342,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondC>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>,
+                Cpu::noop
             ],
         },
         Instruction {
@@ -1548,7 +1550,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
 
 pub fn get_instruction_length(opcode: u8) -> u16 {
     match opcode {
-        0x01 | 0x11 | 0x21 | 0x31 | 0xC3 | 0xC4 | 0xCA | 0xCC | 0xCD | 0xD4 | 0xD2 | 0xDA
+        0x01 | 0xC2 | 0x11 | 0x21 | 0x31 | 0xC3 | 0xC4 | 0xCA | 0xCC | 0xCD | 0xD4 | 0xD2 | 0xDA
         | 0xDC | 0xEA | 0xFA => 3,
 
         0x06 | 0x0E | 0x16 | 0x1E | 0x26 | 0x2E | 0x36 | 0x3E | 0x10 | 0x18 | 0x20 | 0x28
@@ -1557,4 +1559,25 @@ pub fn get_instruction_length(opcode: u8) -> u16 {
 
         _ => 1,
     }
+}
+
+pub const DMA_ROUTINE_HRAM_ADDR: u16 = 0xFF80;
+
+pub fn build_dma_routine(source_high_byte: u8) -> [u8; 10] {
+    [
+        0x3E, source_high_byte, // LD A, source_high_byte
+        0xE0, 0x46,              // LDH [$FF46], A   -> déclenche le DMA
+        0x3E, 0x28,              // LD A, 40
+        0x3D,                    // .wait: DEC A
+        0x20, 0xFD,              // JR NZ, .wait
+        0xC9,                    // RET
+    ]
+}
+
+pub fn load_dma_routine_in_hram<M: MemoryMapper>(mmu: &mut M, source_high_byte: u8) -> u16 {
+    let routine = build_dma_routine(source_high_byte);
+    for (offset, byte) in routine.iter().enumerate() {
+        mmu.write_byte(DMA_ROUTINE_HRAM_ADDR + offset as u16, *byte);
+    }
+    DMA_ROUTINE_HRAM_ADDR
 }
