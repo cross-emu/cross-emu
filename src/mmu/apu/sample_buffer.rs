@@ -1,8 +1,8 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
-use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Default)]
 pub struct SampleBuffer {

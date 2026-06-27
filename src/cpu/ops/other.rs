@@ -21,7 +21,7 @@ impl<M: MemoryMapper> Cpu<M> {
         self.ime = false;
     }
 
-    pub fn set_ime_delay_1(&mut self, _bus: &mut M ) {
+    pub fn set_ime_delay_1(&mut self, _bus: &mut M) {
         self.ime_delay = true;
     }
 

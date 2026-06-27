@@ -4,16 +4,22 @@ const OAM_BEGINNING: u16 = 0xFE00;
 
 #[derive(Clone, Copy)]
 pub struct Sprite {
-	pub y: u8, // Y-position of the sprite
-	pub x: u8, // X-position of the sprite
-	pub tile: u8, // Tile index
-    pub oam_index: u8, // OAM index
-	pub attributes: u8, // bit 7: Priority, bit 6: Y flip, bit 5: X flip, bit 4: Palette, bit 3-0: unused for DMG
+    pub y: u8,          // Y-position of the sprite
+    pub x: u8,          // X-position of the sprite
+    pub tile: u8,       // Tile index
+    pub oam_index: u8,  // OAM index
+    pub attributes: u8, // bit 7: Priority, bit 6: Y flip, bit 5: X flip, bit 4: Palette, bit 3-0: unused for DMG
 }
 
 impl Default for Sprite {
     fn default() -> Self {
-        Self { y: 0xFF, x: 0xFF, tile: 0xFF, oam_index: 0xFF, attributes: 0xFF }
+        Self {
+            y: 0xFF,
+            x: 0xFF,
+            tile: 0xFF,
+            oam_index: 0xFF,
+            attributes: 0xFF,
+        }
     }
 }
 impl Sprite {
@@ -22,7 +28,8 @@ impl Sprite {
     }
 
     pub fn is_visible(&self, ly: u8, height: u8) -> bool {
-        if ly >= 144 { // out of the screen
+        if ly >= 144 {
+            // out of the screen
             return false;
         }
 
@@ -35,37 +42,44 @@ impl Sprite {
 }
 
 pub struct Oam {
-	pub sprites: [Sprite; 40],
+    pub sprites: [Sprite; 40],
     accessed_oam_row: u8,
 }
 
 impl Default for Oam {
-	fn default() -> Self {
-		Self { sprites: [Sprite::default(); 40] , accessed_oam_row: 0xFF}
-	}
+    fn default() -> Self {
+        Self {
+            sprites: [Sprite::default(); 40],
+            accessed_oam_row: 0xFF,
+        }
+    }
 }
 
-impl ObjectManager for  Oam {
-	fn new() -> Self {
-		Default::default()
-	}
-	fn read(&mut self, addr: u16) -> u8 {
+impl ObjectManager for Oam {
+    fn new() -> Self {
+        Default::default()
+    }
+    fn read(&mut self, addr: u16) -> u8 {
         if self.accessed_oam_row != 0xFF {
             self.trigger_oam_bug_read(self.accessed_oam_row);
         }
         self.read_raw((addr - OAM_BEGINNING) as u8)
-	}
-	fn write(&mut self, addr: u16, val: u8) {
+    }
+    fn write(&mut self, addr: u16, val: u8) {
         if self.accessed_oam_row != 0xFF {
             self.trigger_oam_bug_read_increase(self.accessed_oam_row);
         }
         self.write_raw((addr - OAM_BEGINNING) as u8, val);
     }
-    fn set_accessed_oam_row(&mut self, value: u8) { self.accessed_oam_row = value; }
+    fn set_accessed_oam_row(&mut self, value: u8) {
+        self.accessed_oam_row = value;
+    }
     fn update_accessed_oam_row(&mut self, value: u8) {
         self.accessed_oam_row += value;
     }
-    fn accessed_oam_row(&mut self) -> u8 { self.accessed_oam_row }
+    fn accessed_oam_row(&mut self) -> u8 {
+        self.accessed_oam_row
+    }
 
     fn sprite(&mut self, index: u8) -> &mut Sprite {
         &mut self.sprites[index as usize]
@@ -73,39 +87,38 @@ impl ObjectManager for  Oam {
 }
 
 impl Oam {
-	pub fn read_raw(&self, offset: u8) -> u8 {
-		let sprite = (offset / 4) as usize;
-		let byte = (offset % 4) as usize;
+    pub fn read_raw(&self, offset: u8) -> u8 {
+        let sprite = (offset / 4) as usize;
+        let byte = (offset % 4) as usize;
 
-		match byte {
-			0 => self.sprites[sprite].y,
-			1 => self.sprites[sprite].x,
-			2 => self.sprites[sprite].tile,
-			3 => self.sprites[sprite].attributes,
-			_ => 0,
-		}
-	}
+        match byte {
+            0 => self.sprites[sprite].y,
+            1 => self.sprites[sprite].x,
+            2 => self.sprites[sprite].tile,
+            3 => self.sprites[sprite].attributes,
+            _ => 0,
+        }
+    }
 
     pub fn read_word_raw(&self, offset: u8) -> u16 {
         let byte_1 = self.read_raw(offset);
         let byte_2 = self.read_raw(offset + 1);
 
-        ((byte_1  as u16) << 8) | byte_2 as u16
+        ((byte_1 as u16) << 8) | byte_2 as u16
     }
 
+    pub fn write_raw(&mut self, offset: u8, val: u8) {
+        let sprite = (offset / 4) as usize;
+        let byte = (offset % 4) as usize;
 
-	pub fn write_raw(&mut self, offset: u8, val: u8) {
-		let sprite = (offset / 4) as usize;
-		let byte = (offset % 4) as usize;
-
-		match byte {
-			0 => self.sprites[sprite].y = val,
-			1 => self.sprites[sprite].x = val,
-			2 => self.sprites[sprite].tile = val,
-			3 => self.sprites[sprite].attributes = val,
-			_ => (),
-		}
-	}
+        match byte {
+            0 => self.sprites[sprite].y = val,
+            1 => self.sprites[sprite].x = val,
+            2 => self.sprites[sprite].tile = val,
+            3 => self.sprites[sprite].attributes = val,
+            _ => (),
+        }
+    }
 
     pub fn write_word_raw(&mut self, offset: u8, val_1: u8, val_2: u8) {
         self.write_raw(offset, val_1);
@@ -116,7 +129,9 @@ impl Oam {
         let original_value = words[0];
         let first_word_of_prev_row = prev_words[0];
         let third_word_of_prev_row = prev_words[2];
-        words[0] = ((original_value ^ third_word_of_prev_row) & (first_word_of_prev_row ^ third_word_of_prev_row)) ^ third_word_of_prev_row;
+        words[0] = ((original_value ^ third_word_of_prev_row)
+            & (first_word_of_prev_row ^ third_word_of_prev_row))
+            ^ third_word_of_prev_row;
 
         for i in 1..4 {
             words[i as usize] = prev_words[i as usize];
@@ -133,7 +148,9 @@ impl Oam {
     }
 
     pub fn trigger_oam_bug_write(&mut self, offset: u8) {
-        if offset < 8 { return; }
+        if offset < 8 {
+            return;
+        }
 
         let prev_offset = offset - 8;
         let mut words: [u16; 4] = [0; 4];
@@ -165,7 +182,9 @@ impl Oam {
     }
 
     pub fn trigger_oam_bug_read(&mut self, offset: u8) {
-        if offset < 8 { return; }
+        if offset < 8 {
+            return;
+        }
 
         let prev_offset = offset - 8;
         let mut words: [u16; 4] = [0; 4];
@@ -184,19 +203,25 @@ impl Oam {
         }
     }
 
-    fn corrupt_words_if_read_increase(&self, words: [u16; 4], prev_words: [u16; 4],two_prev_words: [u16; 4]) -> u16 {
+    fn corrupt_words_if_read_increase(
+        &self,
+        words: [u16; 4],
+        prev_words: [u16; 4],
+        two_prev_words: [u16; 4],
+    ) -> u16 {
         let first_word_two_prev_row = two_prev_words[0];
         let first_word_prev_row = prev_words[0];
         let first_word_actual_row = words[0];
         let third_word_prev_row = prev_words[2];
 
-        (first_word_prev_row & (first_word_two_prev_row | first_word_actual_row | third_word_prev_row))
+        (first_word_prev_row
+            & (first_word_two_prev_row | first_word_actual_row | third_word_prev_row))
             | (first_word_two_prev_row & first_word_actual_row & third_word_prev_row)
     }
 
     pub fn trigger_oam_bug_read_increase(&mut self, offset: u8) {
         // 8 * 4 and 152 since it doesn't apply to the first 4 rows and the last row
-        if (32..152).contains(&offset) { 
+        if (32..152).contains(&offset) {
             let mut words: [u16; 4] = [0; 4];
             let mut prev_words: [u16; 4] = [0; 4];
             let mut two_prev_words: [u16; 4] = [0; 4];
@@ -208,7 +233,7 @@ impl Oam {
             }
 
             prev_words[0] = self.corrupt_words_if_read_increase(words, prev_words, two_prev_words);
-            
+
             words.copy_from_slice(&prev_words);
             two_prev_words.copy_from_slice(&prev_words);
 
@@ -222,7 +247,6 @@ impl Oam {
         self.trigger_oam_bug_read(offset);
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -262,10 +286,10 @@ mod tests {
     fn test_write_sprite_5_all_bytes() {
         let mut oam = Oam::new();
         oam.write(0xFE14, 100); // Sprite 5, Y
-        oam.write(0xFE15, 80);  // Sprite 5, X
-        oam.write(0xFE16, 25);  // Sprite 5, tile
+        oam.write(0xFE15, 80); // Sprite 5, X
+        oam.write(0xFE16, 25); // Sprite 5, tile
         oam.write(0xFE17, 0x20); // Sprite 5, attributes
-        
+
         assert_eq!(oam.sprites[5].y, 100);
         assert_eq!(oam.sprites[5].x, 80);
         assert_eq!(oam.sprites[5].tile, 25);
@@ -277,9 +301,9 @@ mod tests {
         let mut oam = Oam::new();
         oam.write(0xFE9C, 144); // Sprite 39, Y
         oam.write(0xFE9D, 160); // Sprite 39, X
-        oam.write(0xFE9E, 99);  // Sprite 39, tile
+        oam.write(0xFE9E, 99); // Sprite 39, tile
         oam.write(0xFE9F, 0xFF); // Sprite 39, attributes
-        
+
         assert_eq!(oam.sprites[39].y, 144);
         assert_eq!(oam.sprites[39].x, 160);
         assert_eq!(oam.sprites[39].tile, 99);
@@ -299,7 +323,7 @@ mod tests {
         oam.sprites[6].y = 0x88;
         assert_eq!(oam.read(0xFE18), 0x88);
     }
-	
+
     #[test]
     fn test_read_sprite_0_x_position() {
         let mut oam = Oam::new();
@@ -324,13 +348,13 @@ mod tests {
     #[test]
     fn test_read_write_roundtrip() {
         let mut oam = Oam::new();
-        
+
         // Write values
-        oam.write(0xFE20, 55);  // Sprite 8, Y
-        oam.write(0xFE21, 99);  // Sprite 8, X
+        oam.write(0xFE20, 55); // Sprite 8, Y
+        oam.write(0xFE21, 99); // Sprite 8, X
         oam.write(0xFE22, 123); // Sprite 8, tile
         oam.write(0xFE23, 0xAB); // Sprite 8, attributes
-        
+
         // Read them back
         assert_eq!(oam.read(0xFE20), 55);
         assert_eq!(oam.read(0xFE21), 99);
@@ -341,118 +365,178 @@ mod tests {
     #[test]
     fn test_multiple_sprites_independence() {
         let mut oam = Oam::new();
-        
+
         // Write to sprite 0
         oam.write(0xFE00, 10);
         oam.write(0xFE01, 20);
-        
+
         // Write to sprite 1
         oam.write(0xFE04, 30);
         oam.write(0xFE05, 40);
-        
+
         // Verify sprite 0
         assert_eq!(oam.read(0xFE00), 10);
         assert_eq!(oam.read(0xFE01), 20);
-        
+
         // Verify sprite 1
         assert_eq!(oam.read(0xFE04), 30);
         assert_eq!(oam.read(0xFE05), 40);
-    } 
-    
+    }
+
     /*
         is sprite visible tests
     */
 
     #[test]
-        fn test_sprite_visible_middle_of_screen() {
-            let sprite = Sprite { y: 50, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 50 - 16 = 34
-            // Visible sur lignes 34 à 41 (8 pixels de haut)
-            assert!(sprite.is_visible(34, 8));
-            assert!(sprite.is_visible(37, 8));
-            assert!(sprite.is_visible(41, 8));
-        }
+    fn test_sprite_visible_middle_of_screen() {
+        let sprite = Sprite {
+            y: 50,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 50 - 16 = 34
+        // Visible sur lignes 34 à 41 (8 pixels de haut)
+        assert!(sprite.is_visible(34, 8));
+        assert!(sprite.is_visible(37, 8));
+        assert!(sprite.is_visible(41, 8));
+    }
 
-        #[test]
-        fn test_sprite_not_visible_before() {
-            let sprite = Sprite { y: 50, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 34, donc pas visible sur ligne 33
-            assert!(!sprite.is_visible(33, 8));
-            assert!(!sprite.is_visible(20, 8));
-            assert!(!sprite.is_visible(0, 8));
-        }
+    #[test]
+    fn test_sprite_not_visible_before() {
+        let sprite = Sprite {
+            y: 50,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 34, donc pas visible sur ligne 33
+        assert!(!sprite.is_visible(33, 8));
+        assert!(!sprite.is_visible(20, 8));
+        assert!(!sprite.is_visible(0, 8));
+    }
 
-        #[test]
-        fn test_sprite_not_visible_after() {
-            let sprite = Sprite { y: 50, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 34, hauteur 8, donc pas visible après ligne 41
-            assert!(!sprite.is_visible(42, 8));
-            assert!(!sprite.is_visible(100, 8));
-            assert!(!sprite.is_visible(143, 8));
-        }
+    #[test]
+    fn test_sprite_not_visible_after() {
+        let sprite = Sprite {
+            y: 50,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 34, hauteur 8, donc pas visible après ligne 41
+        assert!(!sprite.is_visible(42, 8));
+        assert!(!sprite.is_visible(100, 8));
+        assert!(!sprite.is_visible(143, 8));
+    }
 
-        #[test]
-        fn test_sprite_at_top_edge() {
-            let sprite = Sprite { y: 16, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 16 - 16 = 0
-            // Visible sur lignes 0 à 7
-            assert!(sprite.is_visible(0, 8));
-            assert!(sprite.is_visible(7, 8));
-            assert!(!sprite.is_visible(8, 8));
-        }
+    #[test]
+    fn test_sprite_at_top_edge() {
+        let sprite = Sprite {
+            y: 16,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 16 - 16 = 0
+        // Visible sur lignes 0 à 7
+        assert!(sprite.is_visible(0, 8));
+        assert!(sprite.is_visible(7, 8));
+        assert!(!sprite.is_visible(8, 8));
+    }
 
-        #[test]
-        fn test_sprite_partially_offscreen_top() {
-            let sprite = Sprite { y: 10, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 10 - 16 = -6 (partiellement hors écran en haut)
-            // Visible sur lignes 0 à 1 (les 2 dernières lignes du sprite)
-            assert!(sprite.is_visible(0, 8));
-            assert!(sprite.is_visible(1, 8));
-            assert!(!sprite.is_visible(2, 8));
-        }
+    #[test]
+    fn test_sprite_partially_offscreen_top() {
+        let sprite = Sprite {
+            y: 10,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 10 - 16 = -6 (partiellement hors écran en haut)
+        // Visible sur lignes 0 à 1 (les 2 dernières lignes du sprite)
+        assert!(sprite.is_visible(0, 8));
+        assert!(sprite.is_visible(1, 8));
+        assert!(!sprite.is_visible(2, 8));
+    }
 
-        #[test]
-        fn test_sprite_completely_offscreen_top() {
-            let sprite = Sprite { y: 5, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 5 - 16 = -11 (complètement hors écran)
-            assert!(!sprite.is_visible(0, 8));
-            assert!(!sprite.is_visible(10, 8));
-        }
+    #[test]
+    fn test_sprite_completely_offscreen_top() {
+        let sprite = Sprite {
+            y: 5,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 5 - 16 = -11 (complètement hors écran)
+        assert!(!sprite.is_visible(0, 8));
+        assert!(!sprite.is_visible(10, 8));
+    }
 
-        #[test]
-        fn test_sprite_at_bottom_edge() {
-            let sprite = Sprite { y: 160, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 160 - 16 = 144
-            // Ligne 144 et au-delà sont hors de l'écran visible (écran = 0-143)
-            assert!(!sprite.is_visible(143, 8));
-            assert!(!sprite.is_visible(144, 8));
-        }
+    #[test]
+    fn test_sprite_at_bottom_edge() {
+        let sprite = Sprite {
+            y: 160,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 160 - 16 = 144
+        // Ligne 144 et au-delà sont hors de l'écran visible (écran = 0-143)
+        assert!(!sprite.is_visible(143, 8));
+        assert!(!sprite.is_visible(144, 8));
+    }
 
-        #[test]
-        fn test_sprite_8x16_mode() {
-            let sprite = Sprite { y: 50, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 34
-            // En mode 8x16, visible sur lignes 34 à 49 (16 pixels de haut)
-            assert!(sprite.is_visible(34, 16));
-            assert!(sprite.is_visible(40, 16));
-            assert!(sprite.is_visible(49, 16));
-            assert!(!sprite.is_visible(50, 16));
-            assert!(!sprite.is_visible(33, 16));
-        }
+    #[test]
+    fn test_sprite_8x16_mode() {
+        let sprite = Sprite {
+            y: 50,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 34
+        // En mode 8x16, visible sur lignes 34 à 49 (16 pixels de haut)
+        assert!(sprite.is_visible(34, 16));
+        assert!(sprite.is_visible(40, 16));
+        assert!(sprite.is_visible(49, 16));
+        assert!(!sprite.is_visible(50, 16));
+        assert!(!sprite.is_visible(33, 16));
+    }
 
-        #[test]
-        fn test_edge_case_y_equals_zero() {
-            let sprite = Sprite { y: 0, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 0 - 16 = -16 (complètement hors écran)
-            assert!(!sprite.is_visible(0, 8));
-            assert!(!sprite.is_visible(100, 8));
-        }
+    #[test]
+    fn test_edge_case_y_equals_zero() {
+        let sprite = Sprite {
+            y: 0,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 0 - 16 = -16 (complètement hors écran)
+        assert!(!sprite.is_visible(0, 8));
+        assert!(!sprite.is_visible(100, 8));
+    }
 
-        #[test]
-        fn test_edge_case_y_equals_255() {
-            let sprite = Sprite { y: 255, x: 80, tile: 0, oam_index: 0xFF, attributes: 0 };
-            // Position réelle = 255 - 16 = 239 (très en bas, hors écran)
-            assert!(!sprite.is_visible(143, 8));
-            assert!(!sprite.is_visible(0, 8));
-        }
+    #[test]
+    fn test_edge_case_y_equals_255() {
+        let sprite = Sprite {
+            y: 255,
+            x: 80,
+            tile: 0,
+            oam_index: 0xFF,
+            attributes: 0,
+        };
+        // Position réelle = 255 - 16 = 239 (très en bas, hors écran)
+        assert!(!sprite.is_visible(143, 8));
+        assert!(!sprite.is_visible(0, 8));
+    }
 }

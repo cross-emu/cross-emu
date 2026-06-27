@@ -689,7 +689,7 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
         },
         Instruction {
             name: "RES 0,D".to_string(),
-            opcode: 0x82,   
+            opcode: 0x82,
             micro_ops: vec![Cpu::res::<0, D>],
         },
         Instruction {
@@ -713,7 +713,7 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory::<HL, Z>,
                 Cpu::write_res_mem::<0, HL, Z>,
-                Cpu::noop
+                Cpu::noop,
             ],
         },
         Instruction {
@@ -1386,10 +1386,10 @@ pub fn build_cb_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn decode_cb(&mut self, bus: &mut M) {
-        let pc = self.get_r16::<PC>(); 
+        let pc = self.get_r16::<PC>();
         let cb_opcode = bus.read_byte(pc);
         self.set_r16::<PC>(pc.wrapping_add(1));
-        
+
         let ops = &self.cb_instructions[cb_opcode as usize].micro_ops;
         self.queue_len = ops.len();
         self.queue[..self.queue_len].copy_from_slice(&ops[..self.queue_len]);

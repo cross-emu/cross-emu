@@ -4,22 +4,24 @@
 mod common;
 mod views;
 
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
-use std::time::Duration;
-use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
-use std::thread;
-use std::sync::Arc;
-use egui::load::SizedTexture;
-use egui::{ColorImage, TextureOptions, vec2};
-use egui_file_dialog::{FileDialog, Filter};
-use crate::communications::{CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools};
+use crate::communications::{
+    CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
+};
 use crate::gameboy::GameBoy;
+use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 use crate::mmu::DmgMmu;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, Mbc5, RomOnly};
 use crate::mmu::timers::DmgTimers;
 use crate::ppu::{self, DmgPpu};
+use egui::load::SizedTexture;
+use egui::{ColorImage, TextureOptions, vec2};
+use egui_file_dialog::{FileDialog, Filter};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::thread;
+use std::time::Duration;
 
 use eframe::egui::{Key, TextureHandle};
 use std::str::FromStr;
@@ -70,7 +72,7 @@ pub struct EmulationAppOptions {
 #[derive(PartialEq, Debug, Clone)]
 pub enum GbType {
     Cgb,
-    Dmg
+    Dmg,
 }
 
 impl GbType {
@@ -90,7 +92,10 @@ impl FromStr for GbType {
         match s.to_lowercase().as_str() {
             "cgb" => Ok(GbType::Cgb),
             "dmg" => Ok(GbType::Dmg),
-            _ => Err(format!("Unknown GameBoy type: {}. Choose between Cgb and Dmg", s)),
+            _ => Err(format!(
+                "Unknown GameBoy type: {}. Choose between Cgb and Dmg",
+                s
+            )),
         }
     }
 }
@@ -125,7 +130,7 @@ impl GraphicalApp {
         Self {
             app_state: AppState::EmulationHub(EmulationDevice {
                 core_game: CoreGameDevice::new(options.into()),
-                ui_state: EmulationUiState::default()
+                ui_state: EmulationUiState::default(),
             }),
         }
     }
@@ -244,56 +249,46 @@ impl AnyGameApp {
         match game_data.gbtype {
             GbType::Cgb => {
                 match mbc_code {
-                    0x00 | 0x08 | 0x09 =>  {
+                    0x00 | 0x08 | 0x09 => {
                         println!("Cgb OnlyRom detected");
-                        Ok(
-                            AnyGameApp::CgbOnlyRom(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
+                        Ok(AnyGameApp::CgbOnlyRom(GameBoy::new(
+                            boot_rom_data,
+                            rom_data,
+                            ram_data,
+                        )?))
                     }
                     0x01..=0x03 => {
                         println!("Cgb Mbc1 detected");
-                        Ok(
-                            AnyGameApp::CgbMbc1(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
+                        Ok(AnyGameApp::CgbMbc1(GameBoy::new(
+                            boot_rom_data,
+                            rom_data,
+                            ram_data,
+                        )?))
                     }
                     0x05 | 0x06 => {
                         println!("Cgb Mbc2 detected");
-                        Ok(
-                            AnyGameApp::CgbMbc2(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
+                        Ok(AnyGameApp::CgbMbc2(GameBoy::new(
+                            boot_rom_data,
+                            rom_data,
+                            ram_data,
+                        )?))
                     }
                     0x0F..=0x13 => {
                         println!("Cgb Mbc3 detected");
-                        Ok(
-                            AnyGameApp::CgbMbc3(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
+                        Ok(AnyGameApp::CgbMbc3(GameBoy::new(
+                            boot_rom_data,
+                            rom_data,
+                            ram_data,
+                        )?))
                     }
                     0x19..=0x1E => {
                         println!("Cgb Mbc5 detected");
-                        Ok(
-                            AnyGameApp::CgbMbc5(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    },
+                        Ok(AnyGameApp::CgbMbc5(GameBoy::new(
+                            boot_rom_data,
+                            rom_data,
+                            ram_data,
+                        )?))
+                    }
                     /*
                     0x0B | 0x0C | 0x0D => Ok(todo!()), // MMM01 pas dans le sujet
                     0x20 => Ok(todo!()), // Mbc6
@@ -302,61 +297,49 @@ impl AnyGameApp {
                     _ => Err("Unmanaged cartridge type".into()),
                 }
             }
-            GbType::Dmg => {
-                match mbc_code {
-                    0x00 | 0x08 | 0x09 => {
-                        println!("Dmg OnlyRom detected");
-                        Ok(
-                            AnyGameApp::DmgOnlyRom(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    }
-                    0x01..=0x03 => {
-                        println!("Dmg Mbc1 detected");
-                        Ok(
-                            AnyGameApp::DmgMbc1(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    }
-                    0x05 | 0x06 => {
-                        println!("Dmg Mbc2 detected");
-                        Ok(
-                            AnyGameApp::DmgMbc2(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    }
-                    0x0F..=0x13 => {
-                        println!("Dmg Mbc3 detected");
-                        Ok(
-                            AnyGameApp::DmgMbc3(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    }
-                    0x19..=0x1E => {
-                        println!("Dmg Mbc5 detected");
-                        Ok(
-                            AnyGameApp::DmgMbc5(GameBoy::new(
-                                boot_rom_data,
-                                rom_data,
-                                ram_data,
-                            )?)
-                        )
-                    },
-                    _ => Err("Unmanaged cartridge type".into())
+            GbType::Dmg => match mbc_code {
+                0x00 | 0x08 | 0x09 => {
+                    println!("Dmg OnlyRom detected");
+                    Ok(AnyGameApp::DmgOnlyRom(GameBoy::new(
+                        boot_rom_data,
+                        rom_data,
+                        ram_data,
+                    )?))
                 }
-            }
+                0x01..=0x03 => {
+                    println!("Dmg Mbc1 detected");
+                    Ok(AnyGameApp::DmgMbc1(GameBoy::new(
+                        boot_rom_data,
+                        rom_data,
+                        ram_data,
+                    )?))
+                }
+                0x05 | 0x06 => {
+                    println!("Dmg Mbc2 detected");
+                    Ok(AnyGameApp::DmgMbc2(GameBoy::new(
+                        boot_rom_data,
+                        rom_data,
+                        ram_data,
+                    )?))
+                }
+                0x0F..=0x13 => {
+                    println!("Dmg Mbc3 detected");
+                    Ok(AnyGameApp::DmgMbc3(GameBoy::new(
+                        boot_rom_data,
+                        rom_data,
+                        ram_data,
+                    )?))
+                }
+                0x19..=0x1E => {
+                    println!("Dmg Mbc5 detected");
+                    Ok(AnyGameApp::DmgMbc5(GameBoy::new(
+                        boot_rom_data,
+                        rom_data,
+                        ram_data,
+                    )?))
+                }
+                _ => Err("Unmanaged cartridge type".into()),
+            },
         }
     }
 
@@ -395,11 +378,7 @@ impl AnyGameApp {
     }
 }
 
-
-async fn async_launch_game(
-    game_data: CoreGameOptions,
-    ct: Box<dyn GameCT>,
-) -> Result<(), String> {
+async fn async_launch_game(game_data: CoreGameOptions, ct: Box<dyn GameCT>) -> Result<(), String> {
     let rom_path = game_data.rom_path.clone();
     let app = AnyGameApp::new(game_data)?;
     if let Some(value) = app.launch(ct)? {
@@ -508,7 +487,7 @@ pub struct SelectionDevice {
     path: String,
     file_dialog: FileDialog,
     picked_file: Option<PathBuf>,
-    search: String
+    search: String,
 }
 
 impl Default for SelectionDevice {
@@ -533,7 +512,7 @@ impl Default for SelectionDevice {
                     }),
                 )
                 .default_file_filter("GameBoy ROMS"),
-            search: String::new()
+            search: String::new(),
         }
     }
 }
@@ -560,7 +539,7 @@ pub struct DebuggingDevice {
     pub error_message: Option<String>,
     pub hex_string: String,
     pub instruction_to_exec: Option<String>,
-    pub is_paused: bool
+    pub is_paused: bool,
 }
 
 impl Default for AppState {

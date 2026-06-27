@@ -1,14 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use crate::cpu::*;
     use crate::cpu::defines::Flag;
+    use crate::cpu::flags::FlagsOps;
+    use crate::cpu::*;
+    use crate::gameboy::GameBoy;
+    use crate::mmu::DmgMmu;
+    use crate::mmu::MemoryMapper;
+    use crate::mmu::mbc::*;
     use crate::mmu::timers::DmgTimers;
     use crate::ppu::DmgPpu;
-    use crate::mmu::MemoryMapper;
-    use crate::cpu::flags::FlagsOps;
-    use crate::mmu::DmgMmu;
-    use crate::gameboy::GameBoy;
-    use crate::mmu::mbc::*;
 
     // Creates a GameBoy with the given first opcode and pads with NOPs so post-instruction
     // fetch never goes out of bounds. Tests operate on the GameBoy and its inner CPU (`gb.cpu`).
@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn op_00_noop() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x00);
-        c.cpu.set_r16::<PC>(0x8000); 
+        c.cpu.set_r16::<PC>(0x8000);
         c.cpu.first_read(&mut c.bus);
         ticks(&mut c, 1);
         assert_eq!(c.cpu.get_r8::<A>(), 0);
@@ -58,7 +58,7 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
         c.bus.write_byte(0x8001, 0x34);
         c.bus.write_byte(0x8002, 0x12);
-        
+
         ticks(&mut c, 3);
         assert_eq!(c.cpu.get_r16::<BC>(), 0x1234);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x8004);
@@ -106,7 +106,6 @@ mod tests {
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
         assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
     }
-
 
     #[test]
     fn op_0c_inc_c_no_half_carry() {
@@ -256,10 +255,10 @@ mod tests {
     fn op_34_inc_hl_mem_half_carry() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x34);
         c.cpu.first_read(&mut c.bus);
-        
+
         c.cpu.set_r16::<HL>(0xC000);
-        c.bus.write_byte(0xC000, 0x0F); 
-        
+        c.bus.write_byte(0xC000, 0x0F);
+
         ticks(&mut c, 3);
         assert_eq!(c.bus.read_byte(0xC000), 0x10);
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
@@ -461,7 +460,6 @@ mod tests {
         assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
     }
 
-
     #[test]
     fn op_35_dec_hl_mem_no_half_carry() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x35);
@@ -570,7 +568,6 @@ mod tests {
         assert_eq!(c.bus.read_byte(0x8035), 0x12);
     }
 
-
     #[test]
     fn op_09_add_hl_bc() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x09);
@@ -642,7 +639,6 @@ mod tests {
         assert_eq!(c.cpu.get_r16::<BC>(), 0x1233);
     }
 
-    
     #[test]
     fn op_1b_dec_de() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x1B);
@@ -651,7 +647,7 @@ mod tests {
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r16::<DE>(), 0x1233);
     }
-    
+
     #[test]
     fn op_2b_dec_hl() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x2B);
@@ -710,7 +706,7 @@ mod tests {
     fn op_4e_ld_c_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x4E);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<C>(), 0xAB);
@@ -720,7 +716,7 @@ mod tests {
     fn op_66_ld_h_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x66);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<H>(), 0xAB);
@@ -730,7 +726,7 @@ mod tests {
     fn op_46_ld_b_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x46);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<B>(), 0xAB);
@@ -740,7 +736,7 @@ mod tests {
     fn op_56_ld_d_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x56);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<D>(), 0xAB);
@@ -750,7 +746,7 @@ mod tests {
     fn op_6e_ld_l_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x6E);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<L>(), 0xAB);
@@ -760,7 +756,7 @@ mod tests {
     fn op_7e_ld_a_d8() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x7E);
         c.cpu.first_read(&mut c.bus);
-        c.cpu.set_r16::<HL>(0x8001);      
+        c.cpu.set_r16::<HL>(0x8001);
         c.bus.write_byte(0x8001, 0xAB);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<A>(), 0xAB);
@@ -786,12 +782,11 @@ mod tests {
         c.cpu.set_r8::<A>(0b0000_0010);
         ticks(&mut c, 1);
         assert_eq!(c.cpu.get_r8::<A>(), 0b0000_0001);
-        assert!(!c.cpu.flags.get_flag(Flag::Zero)); 
+        assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
         assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
         assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
-
 
     #[test]
     fn op_11_ld_de_d16() {
@@ -799,7 +794,7 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
         c.bus.write_byte(0x8001, 0x34);
         c.bus.write_byte(0x8002, 0x12);
-        
+
         ticks(&mut c, 3);
         assert_eq!(c.cpu.get_r16::<DE>(), 0x1234);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x8004);
@@ -822,7 +817,7 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
         c.bus.write_byte(0x8001, 0x34);
         c.bus.write_byte(0x8002, 0x12);
-        ticks(&mut c, 3);   
+        ticks(&mut c, 3);
         assert_eq!(c.cpu.get_r16::<SP>(), 0x1234);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x8004);
     }
@@ -867,7 +862,6 @@ mod tests {
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r16::<DE>(), 0x1235);
     }
-
 
     #[test]
     fn op_16_ld_d_d8() {
@@ -966,7 +960,7 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
         c.bus.write_byte(0x8001, 0x05);
         c.cpu.flags.set_flag(Flag::Carry, true);
-        ticks(&mut c,3);
+        ticks(&mut c, 3);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x8004);
     }
 
@@ -1099,21 +1093,20 @@ mod tests {
 
     #[test]
     fn op_27_daa_add_adjust_low() {
-   
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x27);
         c.cpu.first_read(&mut c.bus);
-        
+
         c.cpu.set_r8::<A>(0x4B);
         c.cpu.flags.set_flag(Flag::Subtract, false);
         c.cpu.flags.set_flag(Flag::HalfCarry, false);
         c.cpu.flags.set_flag(Flag::Carry, false);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x51);
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry)); 
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
         assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
 
@@ -1121,14 +1114,14 @@ mod tests {
     fn op_27_daa_add_zero_and_carry() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x27);
         c.cpu.first_read(&mut c.bus);
-        
+
         c.cpu.set_r8::<A>(0x9A);
         c.cpu.flags.set_flag(Flag::Subtract, false);
         c.cpu.flags.set_flag(Flag::HalfCarry, false);
         c.cpu.flags.set_flag(Flag::Carry, false);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x00);
         assert!(c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
@@ -1140,33 +1133,33 @@ mod tests {
     fn op_27_daa_sub_adjust_with_half_carry() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x27);
         c.cpu.first_read(&mut c.bus);
-        
+
         c.cpu.set_r8::<A>(0x1B);
         c.cpu.flags.set_flag(Flag::Subtract, true);
         c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, false);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x15);
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
-        assert!(c.cpu.flags.get_flag(Flag::Subtract));    
+        assert!(c.cpu.flags.get_flag(Flag::Subtract));
         assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-        assert!(!c.cpu.flags.get_flag(Flag::Carry));     
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
     fn op_27_daa_sub_with_carry() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x27);
         c.cpu.first_read(&mut c.bus);
-         
+
         c.cpu.set_r8::<A>(0xE3);
         c.cpu.flags.set_flag(Flag::Subtract, true);
         c.cpu.flags.set_flag(Flag::HalfCarry, false);
         c.cpu.flags.set_flag(Flag::Carry, true);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x83);
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(c.cpu.flags.get_flag(Flag::Subtract));
@@ -1178,11 +1171,11 @@ mod tests {
     pub fn op_2f_cpl() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x2f);
         c.cpu.first_read(&mut c.bus);
-         
+
         c.cpu.set_r8::<A>(0b1010_0101);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0b0101_1010);
         assert!(c.cpu.flags.get_flag(Flag::Subtract));
         assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
@@ -1192,11 +1185,11 @@ mod tests {
     pub fn op_2f_cpl_2() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x2f);
         c.cpu.first_read(&mut c.bus);
-         
+
         c.cpu.set_r8::<A>(0b0000_0000);
-        
+
         ticks(&mut c, 1);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0b1111_1111);
         assert!(c.cpu.flags.get_flag(Flag::Subtract));
         assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
@@ -1243,51 +1236,51 @@ mod tests {
     }
 
     macro_rules! test_ld_r8_r8 {
-    ($name:ident, $opcode:expr, $dest:ident, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<$src>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<$dest>(), 0x5A);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-        }
-    };
-    ($name:ident, $opcode:expr, $dest:ident, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<$dest>(0x00);
-            c.cpu.set_r8::<$src>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<$dest>(), 0x5A);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $dest:ident, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<$src>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<$dest>(), 0x5A);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+            }
+        };
+        ($name:ident, $opcode:expr, $dest:ident, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<$dest>(0x00);
+                c.cpu.set_r8::<$src>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<$dest>(), 0x5A);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+            }
+        };
+    }
 
     test_ld_r8_r8!(op_40_ld_b_b, 0x40, B, B, same);
     test_ld_r8_r8!(op_41_ld_b_c, 0x41, B, C);
@@ -1345,25 +1338,24 @@ mod tests {
     test_ld_r8_r8!(op_7d_ld_a_l, 0x7D, A, L);
     test_ld_r8_r8!(op_7f_ld_a_a, 0x7F, A, A, same);
 
-
     macro_rules! test_add_a_r8 {
         ($name:ident, $opcode:expr, $src:ident, same) => {
             #[test]
             fn $name() {
                 let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
                 c.cpu.first_read(&mut c.bus);
-                
+
                 c.cpu.set_r8::<A>(0x84);
-                
+
                 c.cpu.flags.set_flag(Flag::Zero, true);
                 c.cpu.flags.set_flag(Flag::Subtract, true);
                 c.cpu.flags.set_flag(Flag::HalfCarry, true);
                 c.cpu.flags.set_flag(Flag::Carry, false);
-                
+
                 ticks(&mut c, 1);
-                
+
                 assert_eq!(c.cpu.get_r8::<A>(), 0x08);
-                
+
                 assert!(!c.cpu.flags.get_flag(Flag::Zero));
                 assert!(!c.cpu.flags.get_flag(Flag::Subtract));
                 assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
@@ -1375,20 +1367,20 @@ mod tests {
             fn $name() {
                 let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
                 c.cpu.first_read(&mut c.bus);
-                
+
                 c.cpu.set_r8::<A>(0x78);
                 c.cpu.set_r8::<$src>(0x8A);
-                
+
                 c.cpu.flags.set_flag(Flag::Zero, true);
                 c.cpu.flags.set_flag(Flag::Subtract, true);
                 c.cpu.flags.set_flag(Flag::HalfCarry, false);
                 c.cpu.flags.set_flag(Flag::Carry, false);
-                
+
                 ticks(&mut c, 1);
-                
+
                 assert_eq!(c.cpu.get_r8::<A>(), 0x02);
                 assert_eq!(c.cpu.get_r8::<$src>(), 0x8A);
-                
+
                 assert!(!c.cpu.flags.get_flag(Flag::Zero));
                 assert!(!c.cpu.flags.get_flag(Flag::Subtract));
                 assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
@@ -1406,52 +1398,52 @@ mod tests {
     test_add_a_r8!(op_87_add_a_a, 0x87, A, same);
 
     macro_rules! test_and_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);  
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            c.cpu.flags.set_flag(Flag::Carry, true);     
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0xF0);
-            c.cpu.set_r8::<$src>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x50);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0xF0);
+                c.cpu.set_r8::<$src>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x50);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
             }
         };
     }
@@ -1464,57 +1456,56 @@ mod tests {
     test_and_a_r8!(op_a5_and_a_l, 0xA5, L);
     test_and_a_r8!(op_a7_and_a_a, 0xA7, A, same);
 
-
     macro_rules! test_xor_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, false);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0xF0);
-            c.cpu.set_r8::<$src>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0xAA);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, false);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0xF0);
+                c.cpu.set_r8::<$src>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0xAA);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x5A);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+    }
 
     test_xor_a_r8!(op_a8_xor_a_b, 0xA8, B);
     test_xor_a_r8!(op_a9_xor_a_c, 0xA9, C);
@@ -1525,55 +1516,55 @@ mod tests {
     test_xor_a_r8!(op_af_xor_a_a, 0xAF, A, same);
 
     macro_rules! test_or_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x50);
-            c.cpu.set_r8::<$src>(0x0A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x0A); 
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x50);
+                c.cpu.set_r8::<$src>(0x0A);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x0A);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+    }
     test_or_a_r8!(op_b0_or_a_b, 0xB0, B);
     test_or_a_r8!(op_b1_or_a_c, 0xB1, C);
     test_or_a_r8!(op_b2_or_a_d, 0xB2, D);
@@ -1582,57 +1573,56 @@ mod tests {
     test_or_a_r8!(op_b5_or_a_l, 0xB5, L);
     test_or_a_r8!(op_b7_or_a_a, 0xB7, A, same);
 
-
     macro_rules! test_cp_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, false);
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x3A);
-            c.cpu.set_r8::<$src>(0x5F);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);       
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            c.cpu.flags.set_flag(Flag::Carry, false);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x3A);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x5F);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, false);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x5A);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x3A);
+                c.cpu.set_r8::<$src>(0x5F);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, false);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x3A);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x5F);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+    }
     test_cp_a_r8!(op_b8_cp_a_b, 0xB8, B);
     test_cp_a_r8!(op_b9_cp_a_c, 0xB9, C);
     test_cp_a_r8!(op_ba_cp_a_d, 0xBA, D);
@@ -1641,56 +1631,55 @@ mod tests {
     test_cp_a_r8!(op_bd_cp_a_l, 0xBD, L);
     test_cp_a_r8!(op_bf_cp_a_a, 0xBF, A, same);
 
-
     macro_rules! test_adc_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x7F);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false); 
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x78);
-            c.cpu.set_r8::<$src>(0x87);
-            
-            c.cpu.flags.set_flag(Flag::Zero, false);
-            c.cpu.flags.set_flag(Flag::Subtract, true);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            c.cpu.flags.set_flag(Flag::Carry, true);      
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x87); 
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x7F);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+                assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x78);
+                c.cpu.set_r8::<$src>(0x87);
+
+                c.cpu.flags.set_flag(Flag::Zero, false);
+                c.cpu.flags.set_flag(Flag::Subtract, true);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x87);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(!c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+    }
 
     test_adc_a_r8!(op_88_adc_a_b, 0x88, B);
     test_adc_a_r8!(op_89_adc_a_c, 0x89, C);
@@ -1700,57 +1689,56 @@ mod tests {
     test_adc_a_r8!(op_8d_adc_a_l, 0x8D, L);
     test_adc_a_r8!(op_8f_adc_a_a, 0x8F, A, same);
 
-
     macro_rules! test_sub_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Zero, false);     
-            c.cpu.flags.set_flag(Flag::Subtract, false); 
-            c.cpu.flags.set_flag(Flag::HalfCarry, true);
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x3A);
-            c.cpu.set_r8::<$src>(0x5F);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true); 
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            c.cpu.flags.set_flag(Flag::Carry, false);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0xDB);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x5F);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-}
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Zero, false);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, true);
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x3A);
+                c.cpu.set_r8::<$src>(0x5F);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+                c.cpu.flags.set_flag(Flag::Carry, false);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0xDB);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x5F);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+    }
 
     test_sub_a_r8!(op_90_sub_a_b, 0x90, B);
     test_sub_a_r8!(op_91_sub_a_c, 0x91, C);
@@ -1761,56 +1749,56 @@ mod tests {
     test_sub_a_r8!(op_97_sub_a_a, 0x97, A, same);
 
     macro_rules! test_sbc_a_r8 {
-    ($name:ident, $opcode:expr, $src:ident, same) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x5A);
-            
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            c.cpu.flags.set_flag(Flag::Zero, true);
-            c.cpu.flags.set_flag(Flag::Subtract, false);
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
-            
-            assert!(!c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
-    ($name:ident, $opcode:expr, $src:ident) => {
-        #[test]
-        fn $name() {
-            let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
-            c.cpu.first_read(&mut c.bus);
-            
-            c.cpu.set_r8::<A>(0x80);
-            c.cpu.set_r8::<$src>(0x7F);
-            
-            c.cpu.flags.set_flag(Flag::Carry, true);
-            
-            c.cpu.flags.set_flag(Flag::Zero, false);      
-            c.cpu.flags.set_flag(Flag::Subtract, false);  
-            c.cpu.flags.set_flag(Flag::HalfCarry, false);
-            
-            ticks(&mut c, 1);
-            
-            assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-            assert_eq!(c.cpu.get_r8::<$src>(), 0x7F);
-            
-            assert!(c.cpu.flags.get_flag(Flag::Zero));
-            assert!(c.cpu.flags.get_flag(Flag::Subtract));
-            assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-            assert!(!c.cpu.flags.get_flag(Flag::Carry));
-        }
-    };
+        ($name:ident, $opcode:expr, $src:ident, same) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x5A);
+
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                c.cpu.flags.set_flag(Flag::Zero, true);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
+
+                assert!(!c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
+        ($name:ident, $opcode:expr, $src:ident) => {
+            #[test]
+            fn $name() {
+                let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>($opcode);
+                c.cpu.first_read(&mut c.bus);
+
+                c.cpu.set_r8::<A>(0x80);
+                c.cpu.set_r8::<$src>(0x7F);
+
+                c.cpu.flags.set_flag(Flag::Carry, true);
+
+                c.cpu.flags.set_flag(Flag::Zero, false);
+                c.cpu.flags.set_flag(Flag::Subtract, false);
+                c.cpu.flags.set_flag(Flag::HalfCarry, false);
+
+                ticks(&mut c, 1);
+
+                assert_eq!(c.cpu.get_r8::<A>(), 0x00);
+                assert_eq!(c.cpu.get_r8::<$src>(), 0x7F);
+
+                assert!(c.cpu.flags.get_flag(Flag::Zero));
+                assert!(c.cpu.flags.get_flag(Flag::Subtract));
+                assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+                assert!(!c.cpu.flags.get_flag(Flag::Carry));
+            }
+        };
     }
     test_sbc_a_r8!(op_98_sbc_a_b, 0x98, B);
     test_sbc_a_r8!(op_99_sbc_a_c, 0x99, C);
@@ -1831,7 +1819,7 @@ mod tests {
         assert_eq!(c.bus.read_byte(0x8005), 0x69);
     }
 
-        #[test]
+    #[test]
     fn op_71_ld_hl_c() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x71);
         c.cpu.first_read(&mut c.bus);
@@ -1841,7 +1829,6 @@ mod tests {
         ticks(&mut c, 1);
         assert_eq!(c.bus.read_byte(0x8005), 0x69);
     }
-
 
     #[test]
     fn op_72_ld_hl_d() {
@@ -1853,7 +1840,6 @@ mod tests {
         ticks(&mut c, 2);
         assert_eq!(c.bus.read_byte(0x8005), 0x69);
     }
-
 
     #[test]
     fn op_73_ld_hl_e() {
@@ -1895,11 +1881,10 @@ mod tests {
         c.cpu.set_r16::<HL>(0x8005);
         c.cpu.set_r8::<A>(0x69);
 
-
         ticks(&mut c, 2);
         assert_eq!(c.bus.read_byte(0x8005), 0x69);
     }
-    
+
     #[test]
     fn op_86_add_a_hl() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x86);
@@ -1922,15 +1907,15 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, true);
         c.cpu.flags.set_flag(Flag::Subtract, true);
-        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
-        c.cpu.flags.set_flag(Flag::Carry, true); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, false);
+        c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<A>(), 0x10);
-        
+
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-        assert!(c.cpu.flags.get_flag(Flag::HalfCarry)); 
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
         assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
 
@@ -1944,15 +1929,15 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, false);
         c.cpu.flags.set_flag(Flag::Subtract, false);
-        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-        
+
         assert!(c.cpu.flags.get_flag(Flag::Zero));
-        assert!(c.cpu.flags.get_flag(Flag::Subtract)); 
+        assert!(c.cpu.flags.get_flag(Flag::Subtract));
         assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
         assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
@@ -1967,17 +1952,17 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, true);
         c.cpu.flags.set_flag(Flag::Subtract, false);
-        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, false);
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0xFF);
-        
+
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(c.cpu.flags.get_flag(Flag::Subtract));
         assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
-        assert!(c.cpu.flags.get_flag(Flag::Carry));    
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
@@ -1990,17 +1975,17 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, false);
         c.cpu.flags.set_flag(Flag::Subtract, true);
-        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-        
+
         assert!(c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
-        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry)); 
-        assert!(!c.cpu.flags.get_flag(Flag::Carry)); 
+        assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
@@ -2013,13 +1998,13 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, false);
         c.cpu.flags.set_flag(Flag::Subtract, true);
-        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
-        
+
         assert_eq!(c.cpu.get_r8::<A>(), 0x00);
-        
+
         assert!(c.cpu.flags.get_flag(Flag::Zero));
         assert!(!c.cpu.flags.get_flag(Flag::Subtract));
         assert!(!c.cpu.flags.get_flag(Flag::HalfCarry));
@@ -2036,19 +2021,18 @@ mod tests {
 
         c.cpu.flags.set_flag(Flag::Zero, true);
         c.cpu.flags.set_flag(Flag::Subtract, false);
-        c.cpu.flags.set_flag(Flag::HalfCarry, false); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, false);
         c.cpu.flags.set_flag(Flag::Carry, false);
 
         ticks(&mut c, 2);
-        
-        assert_eq!(c.cpu.get_r8::<A>(), 0x42); 
-        
+
+        assert_eq!(c.cpu.get_r8::<A>(), 0x42);
+
         assert!(!c.cpu.flags.get_flag(Flag::Zero));
         assert!(c.cpu.flags.get_flag(Flag::Subtract));
-        assert!(c.cpu.flags.get_flag(Flag::HalfCarry)); 
-        assert!(c.cpu.flags.get_flag(Flag::Carry));   
+        assert!(c.cpu.flags.get_flag(Flag::HalfCarry));
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
     }
-
 
     #[test]
     fn op_c9_ret() {
@@ -2056,15 +2040,15 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
-        c.bus.write_byte(0xFFFD, 0x34); 
-        c.bus.write_byte(0xFFFE, 0x12); 
+        c.bus.write_byte(0xFFFD, 0x34);
+        c.bus.write_byte(0xFFFE, 0x12);
 
         c.cpu.flags.set_flag(Flag::Zero, true);
         c.cpu.flags.set_flag(Flag::Subtract, false);
-        c.cpu.flags.set_flag(Flag::HalfCarry, true); 
+        c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, false);
 
-        ticks(&mut c, 3); 
+        ticks(&mut c, 3);
 
         assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
@@ -2102,7 +2086,7 @@ mod tests {
 
         let pc_before = c.cpu.get_r16::<PC>();
         ticks(&mut c, 2);
-        
+
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
     }
@@ -2208,7 +2192,7 @@ mod tests {
         c.bus.write_byte(0xFFFD, 0x34);
         c.bus.write_byte(0xFFFE, 0x12);
 
-        c.cpu.ime = false; 
+        c.cpu.ime = false;
 
         ticks(&mut c, 3);
 
@@ -2216,38 +2200,36 @@ mod tests {
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
 
         assert_eq!(c.cpu.ime, true);
-        
-        assert!(c.cpu.ime); 
-    }
 
+        assert!(c.cpu.ime);
+    }
 
     #[test]
     fn op_c3_jp() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xC3);
         c.cpu.first_read(&mut c.bus);
-        
-        let pc = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc, 0x34);     
-        c.bus.write_byte(pc + 1, 0x12); 
 
-        ticks(&mut c, 3); 
+        let pc = c.cpu.get_r16::<PC>();
+        c.bus.write_byte(pc, 0x34);
+        c.bus.write_byte(pc + 1, 0x12);
+
+        ticks(&mut c, 3);
 
         assert_eq!(c.cpu.get_r16::<PC>(), 0x1234);
     }
-
 
     #[test]
     fn op_c2_jp_nz_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xC2);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc, 0x34);
         c.bus.write_byte(pc + 1, 0x12);
 
         c.cpu.flags.set_flag(Flag::Zero, false);
 
-        ticks(&mut c, 4); 
+        ticks(&mut c, 4);
         assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
     }
 
@@ -2255,15 +2237,15 @@ mod tests {
     fn op_c2_jp_nz_not_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xC2);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc_before = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc_before, 0x34);
         c.bus.write_byte(pc_before + 1, 0x12);
 
-        c.cpu.flags.set_flag(Flag::Zero, true); 
+        c.cpu.flags.set_flag(Flag::Zero, true);
 
         ticks(&mut c, 3);
-        
+
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
     }
 
@@ -2271,7 +2253,7 @@ mod tests {
     fn op_ca_jp_z_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xCA);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc, 0x34);
         c.bus.write_byte(pc + 1, 0x12);
@@ -2286,7 +2268,7 @@ mod tests {
     fn op_ca_jp_z_not_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xCA);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc_before = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc_before, 0x34);
         c.bus.write_byte(pc_before + 1, 0x12);
@@ -2301,7 +2283,7 @@ mod tests {
     fn op_d2_jp_nc_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xD2);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc, 0x34);
         c.bus.write_byte(pc + 1, 0x12);
@@ -2316,7 +2298,7 @@ mod tests {
     fn op_d2_jp_nc_not_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xD2);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc_before = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc_before, 0x34);
         c.bus.write_byte(pc_before + 1, 0x12);
@@ -2331,7 +2313,7 @@ mod tests {
     fn op_da_jp_c_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xDA);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc, 0x34);
         c.bus.write_byte(pc + 1, 0x12);
@@ -2346,7 +2328,7 @@ mod tests {
     fn op_da_jp_c_not_taken() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xDA);
         c.cpu.first_read(&mut c.bus);
-        
+
         let pc_before = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc_before, 0x34);
         c.bus.write_byte(pc_before + 1, 0x12);
@@ -2359,7 +2341,7 @@ mod tests {
     #[test]
     fn op_c1_pop_bc() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xC1);
-        c.cpu.first_read(&mut c.bus);   
+        c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
         c.bus.write_byte(0xFFFD, 0x34);
@@ -2374,7 +2356,7 @@ mod tests {
     #[test]
     fn op_d1_pop_de() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xD1);
-        c.cpu.first_read(&mut c.bus);   
+        c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
         c.bus.write_byte(0xFFFD, 0x56);
@@ -2389,7 +2371,7 @@ mod tests {
     #[test]
     fn op_e1_pop_hl() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xE1);
-        c.cpu.first_read(&mut c.bus);   
+        c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
         c.bus.write_byte(0xFFFD, 0x78);
@@ -2404,7 +2386,7 @@ mod tests {
     #[test]
     fn op_f1_pop_af_flags_true() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xF1);
-        c.cpu.first_read(&mut c.bus);   
+        c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
         c.bus.write_byte(0xFFFD, 0xFF);
@@ -2413,9 +2395,9 @@ mod tests {
         ticks(&mut c, 3);
 
         assert_eq!(c.cpu.get_r8::<A>(), 0x12);
-        assert_eq!(c.cpu.get_r16::<AF>(), 0x12F0); 
+        assert_eq!(c.cpu.get_r16::<AF>(), 0x12F0);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
-        
+
         assert_eq!(c.cpu.flags.get_flag(Flag::Zero), true);
         assert_eq!(c.cpu.flags.get_flag(Flag::Carry), true);
     }
@@ -2423,7 +2405,7 @@ mod tests {
     #[test]
     fn op_f1_pop_af_flags_false() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xF1);
-        c.cpu.first_read(&mut c.bus);   
+        c.cpu.first_read(&mut c.bus);
 
         c.cpu.set_r16::<SP>(0xFFFD);
         c.bus.write_byte(0xFFFD, 0x00);
@@ -2432,9 +2414,9 @@ mod tests {
         ticks(&mut c, 3);
 
         assert_eq!(c.cpu.get_r8::<A>(), 0x12);
-        assert_eq!(c.cpu.get_r16::<AF>(), 0x1200); 
+        assert_eq!(c.cpu.get_r16::<AF>(), 0x1200);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFF);
-        
+
         assert_eq!(c.cpu.flags.get_flag(Flag::Zero), false);
         assert_eq!(c.cpu.flags.get_flag(Flag::Carry), false);
     }
@@ -2494,7 +2476,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::HalfCarry, true);
         c.cpu.flags.set_flag(Flag::Carry, true);
         c.cpu.set_r8::<A>(0x12);
-        
+
         c.cpu.set_r16::<SP>(0xFFFF);
 
         ticks(&mut c, 4);
@@ -2503,14 +2485,14 @@ mod tests {
         assert_eq!(c.bus.read_byte(0xFFFE), 0x12);
         assert_eq!(c.bus.read_byte(0xFFFD), 0xF0);
     }
- 
+
     #[test]
     fn op_cd_call() {
         let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0xCD);
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x34);  
+        c.bus.write_byte(pc_before, 0x34);
         c.bus.write_byte(pc_before + 1, 0x12);
 
         c.cpu.set_r16::<SP>(0xFFFF);
@@ -2521,7 +2503,7 @@ mod tests {
 
         assert_eq!(c.cpu.get_r16::<PC>(), 0x1235);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xFFFD);
-        
+
         assert_eq!(c.bus.read_byte(0xFFFE), (ret_addr >> 8) as u8);
         assert_eq!(c.bus.read_byte(0xFFFD), (ret_addr & 0xFF) as u8);
     }
@@ -2864,13 +2846,13 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x20); 
+        c.bus.write_byte(pc_before, 0x20);
 
-        c.cpu.set_r8::<A>(0x10); 
+        c.cpu.set_r8::<A>(0x10);
 
         ticks(&mut c, 2);
 
-        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2); 
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
         assert_eq!(c.cpu.get_r8::<A>(), 0x30);
     }
 
@@ -2880,9 +2862,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x10); 
+        c.bus.write_byte(pc_before, 0x10);
 
-        c.cpu.set_r8::<A>(0x50); 
+        c.cpu.set_r8::<A>(0x50);
         ticks(&mut c, 2);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
@@ -2895,10 +2877,10 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x20); 
+        c.bus.write_byte(pc_before, 0x20);
 
         c.cpu.set_r8::<A>(0x10);
-        c.cpu.flags.set_flag(Flag::Carry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
 
         ticks(&mut c, 2);
 
@@ -2912,9 +2894,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x10); 
+        c.bus.write_byte(pc_before, 0x10);
         c.cpu.set_r8::<A>(0x50);
-        c.cpu.flags.set_flag(Flag::Carry, true); 
+        c.cpu.flags.set_flag(Flag::Carry, true);
         ticks(&mut c, 2);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
@@ -2927,9 +2909,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0xAA); 
+        c.bus.write_byte(pc_before, 0xAA);
 
-        c.cpu.set_r8::<A>(0xFF); 
+        c.cpu.set_r8::<A>(0xFF);
 
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
@@ -2942,9 +2924,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0xAA); 
+        c.bus.write_byte(pc_before, 0xAA);
 
-        c.cpu.set_r8::<A>(0xFF); 
+        c.cpu.set_r8::<A>(0xFF);
 
         ticks(&mut c, 2);
 
@@ -2958,9 +2940,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x05); 
+        c.bus.write_byte(pc_before, 0x05);
 
-        c.cpu.set_r8::<A>(0x50); 
+        c.cpu.set_r8::<A>(0x50);
 
         ticks(&mut c, 2);
 
@@ -2974,15 +2956,15 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x50); 
+        c.bus.write_byte(pc_before, 0x50);
 
-        c.cpu.set_r8::<A>(0x50); 
+        c.cpu.set_r8::<A>(0x50);
 
         ticks(&mut c, 2);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
-        assert_eq!(c.cpu.get_r8::<A>(), 0x50); 
-        
+        assert_eq!(c.cpu.get_r8::<A>(), 0x50);
+
         assert!(c.cpu.flags.get_flag(Flag::Zero));
     }
 
@@ -2994,7 +2976,7 @@ mod tests {
         let pc_before = c.cpu.get_r16::<PC>();
         c.bus.write_byte(pc_before, 0x80);
 
-        c.cpu.set_r8::<A>(0x5A); 
+        c.cpu.set_r8::<A>(0x5A);
 
         ticks(&mut c, 3);
 
@@ -3025,11 +3007,11 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        
-        c.cpu.set_r8::<C>(0x80); 
-        c.cpu.set_r8::<A>(0x7E); 
 
-        ticks(&mut c, 2); 
+        c.cpu.set_r8::<C>(0x80);
+        c.cpu.set_r8::<A>(0x7E);
+
+        ticks(&mut c, 2);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
         assert_eq!(c.bus.read_byte(0xFF80), 0x7E);
@@ -3058,15 +3040,15 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x00);     
-        c.bus.write_byte(pc_before + 1, 0xC0); 
+        c.bus.write_byte(pc_before, 0x00);
+        c.bus.write_byte(pc_before + 1, 0xC0);
 
-        c.cpu.set_r8::<A>(0xABCDEF_u32 as u8); 
+        c.cpu.set_r8::<A>(0xABCDEF_u32 as u8);
         c.cpu.set_r8::<A>(0x42);
 
-        ticks(&mut c, 4); 
+        ticks(&mut c, 4);
 
-        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3); 
+        assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
         assert_eq!(c.bus.read_byte(0xC000), 0x42);
     }
 
@@ -3076,13 +3058,13 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x05);     
-        c.bus.write_byte(pc_before + 1, 0xC0); 
+        c.bus.write_byte(pc_before, 0x05);
+        c.bus.write_byte(pc_before + 1, 0xC0);
 
         c.bus.write_byte(0xC005, 0x77);
         c.cpu.set_r8::<A>(0x00);
 
-        ticks(&mut c, 4); 
+        ticks(&mut c, 4);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 3);
         assert_eq!(c.cpu.get_r8::<A>(), 0x77);
@@ -3094,11 +3076,11 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        
+
         c.cpu.set_r16::<HL>(0xABCD);
         c.cpu.set_r16::<SP>(0x1111);
 
-        ticks(&mut c, 2); 
+        ticks(&mut c, 2);
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 1);
         assert_eq!(c.cpu.get_r16::<SP>(), 0xABCD);
@@ -3119,8 +3101,6 @@ mod tests {
 
         assert_eq!(c.cpu.get_r16::<PC>(), pc_before + 2);
         assert_eq!(c.cpu.get_r16::<HL>(), 0x2005);
-        
-
     }
 
     #[test]
@@ -3129,7 +3109,7 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x02); 
+        c.bus.write_byte(pc_before, 0x02);
 
         c.cpu.set_r16::<SP>(0x2000);
         c.cpu.flags.set_flag(Flag::Zero, true);
@@ -3152,9 +3132,9 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0x01); 
+        c.bus.write_byte(pc_before, 0x01);
 
-        c.cpu.set_r16::<SP>(0x20FF); 
+        c.cpu.set_r16::<SP>(0x20FF);
 
         ticks(&mut c, 3);
 
@@ -3172,13 +3152,13 @@ mod tests {
         c.cpu.first_read(&mut c.bus);
 
         let pc_before = c.cpu.get_r16::<PC>();
-        c.bus.write_byte(pc_before, 0xFF); 
+        c.bus.write_byte(pc_before, 0xFF);
 
         c.cpu.set_r16::<SP>(0x2001);
 
         ticks(&mut c, 3);
 
-        assert_eq!(c.cpu.get_r16::<HL>(), 0x2000); 
+        assert_eq!(c.cpu.get_r16::<HL>(), 0x2000);
 
         assert_eq!(c.cpu.flags.get_flag(Flag::Zero), false);
         assert_eq!(c.cpu.flags.get_flag(Flag::Subtract), false);
@@ -3240,7 +3220,7 @@ mod tests {
 
         ticks(&mut c, 4);
 
-        assert_eq!(c.cpu.get_r16::<SP>(), 0x2000); 
+        assert_eq!(c.cpu.get_r16::<SP>(), 0x2000);
 
         assert_eq!(c.cpu.flags.get_flag(Flag::Zero), false);
         assert_eq!(c.cpu.flags.get_flag(Flag::Subtract), false);
@@ -3279,11 +3259,11 @@ mod tests {
 
     #[test]
     fn op_76_halt_execution() {
-        let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x76); 
+        let mut c = gb::<DmgMmu<RomOnly, DmgTimers, DmgPpu>>(0x76);
         c.cpu.first_read(&mut c.bus);
 
         c.cpu.halted = false;
-        
+
         let next_pc = c.cpu.get_r16::<PC>();
         c.bus.write_byte(next_pc, 0x00);
 
@@ -3313,7 +3293,7 @@ mod tests {
         c.bus.write_byte(0x8001, 0x05);
         c.cpu.set_r8::<H>(0xC0);
         c.cpu.set_r8::<L>(0b1000_0001);
-        c.bus.write_byte(0xC081, 0xAA); 
+        c.bus.write_byte(0xC081, 0xAA);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0011);
         assert_eq!(c.bus.read_byte(0xC081), 0xAA);
@@ -3327,7 +3307,7 @@ mod tests {
         c.bus.write_byte(0x8001, 0x06);
         c.cpu.set_r16::<HL>(0xC000);
         c.bus.write_byte(0xC000, 0b1000_0001);
-        c.cpu.set_r8::<B>(0x77); 
+        c.cpu.set_r8::<B>(0x77);
         ticks(&mut c, 4);
         assert_eq!(c.bus.read_byte(0xC000), 0b0000_0011);
         assert_eq!(c.cpu.get_r8::<B>(), 0x77);
@@ -3404,7 +3384,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Carry, true);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<B>(), 0b0000_0011);
-        assert!(!c.cpu.flags.get_flag(Flag::Carry)); 
+        assert!(!c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
@@ -3419,7 +3399,7 @@ mod tests {
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<L>(), 0b0000_0011);
         assert_eq!(c.bus.read_byte(0xC081), 0xAA);
-        assert!(c.cpu.flags.get_flag(Flag::Carry)); 
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
@@ -3446,7 +3426,7 @@ mod tests {
         c.cpu.flags.set_flag(Flag::Carry, true);
         ticks(&mut c, 2);
         assert_eq!(c.cpu.get_r8::<B>(), 0b1000_0000);
-        assert!(c.cpu.flags.get_flag(Flag::Carry)); 
+        assert!(c.cpu.flags.get_flag(Flag::Carry));
     }
 
     #[test]
@@ -3526,7 +3506,7 @@ mod tests {
         c.bus.write_byte(0x8001, 0x28);
         c.cpu.set_r8::<B>(0b1000_0001);
         ticks(&mut c, 2);
-        assert_eq!(c.cpu.get_r8::<B>(), 0b1100_0000); 
+        assert_eq!(c.cpu.get_r8::<B>(), 0b1100_0000);
         assert!(c.cpu.flags.get_flag(Flag::Carry));
     }
 
@@ -3729,7 +3709,4 @@ mod tests {
         ticks(&mut c, 4);
         assert_eq!(c.bus.read_byte(0xC000), 0b0000_0001);
     }
-
-
 }
-

@@ -1,5 +1,5 @@
-use cpal::{SizedSample, SampleFormat, FromSample};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{FromSample, SampleFormat, SizedSample};
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -12,9 +12,11 @@ pub fn start_audio(buffer: sample_buffer::SampleBuffer, audio_running: Arc<Atomi
     std::thread::spawn(move || {
         let host = cpal::default_host();
         let device = host.default_output_device().expect("no output device");
-        let mut supported_configs_range = device.supported_output_configs()
+        let mut supported_configs_range = device
+            .supported_output_configs()
             .expect("error while querying configs");
-        let first_supported_config = supported_configs_range.next()
+        let first_supported_config = supported_configs_range
+            .next()
             .expect("no supported config?!")
             .with_max_sample_rate();
 
@@ -22,15 +24,16 @@ pub fn start_audio(buffer: sample_buffer::SampleBuffer, audio_running: Arc<Atomi
         let config: cpal::StreamConfig = first_supported_config.into();
 
         let stream = match sample_format {
-            SampleFormat::U8 => { build_stream::<u8>(&device, &config, buffer.clone()) },
-            SampleFormat::I8 => { build_stream::<i8>(&device, &config, buffer.clone()) },
-            SampleFormat::U16 => { build_stream::<u16>(&device, &config, buffer.clone()) },
-            SampleFormat::I16 => { build_stream::<i16>(&device, &config, buffer.clone()) },
-            SampleFormat::U32 => { build_stream::<u32>(&device, &config, buffer.clone()) },
-            SampleFormat::I32 => { build_stream::<i32>(&device, &config, buffer.clone()) },
-            SampleFormat::F32 => { build_stream::<f32>(&device, &config, buffer.clone()) },
-            _ => panic!("Unsupported sample format '{sample_format}'")
-        }.unwrap();
+            SampleFormat::U8 => build_stream::<u8>(&device, &config, buffer.clone()),
+            SampleFormat::I8 => build_stream::<i8>(&device, &config, buffer.clone()),
+            SampleFormat::U16 => build_stream::<u16>(&device, &config, buffer.clone()),
+            SampleFormat::I16 => build_stream::<i16>(&device, &config, buffer.clone()),
+            SampleFormat::U32 => build_stream::<u32>(&device, &config, buffer.clone()),
+            SampleFormat::I32 => build_stream::<i32>(&device, &config, buffer.clone()),
+            SampleFormat::F32 => build_stream::<f32>(&device, &config, buffer.clone()),
+            _ => panic!("Unsupported sample format '{sample_format}'"),
+        }
+        .unwrap();
 
         stream.play().unwrap();
 

@@ -1,8 +1,8 @@
 use std::marker::PhantomData;
 
+use crate::ppu::colors_palette::Color;
 use crate::ppu::lcd_control::LcdControl;
 use crate::ppu::pixel::Pixel;
-use crate::ppu::colors_palette::Color;
 use crate::ppu::pixel_fifo::PixelFifo;
 
 const TILE_DATA_1_START: u16 = 0x8000;
@@ -22,18 +22,30 @@ use super::Vram;
 
 pub trait PFetcher<V> {
     #[allow(clippy::too_many_arguments)]
-    fn tick(&mut self, fifo: &PixelFifo, vram: &V, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool, bgp: u8) -> Option<[Pixel; 8]>;
+    fn tick(
+        &mut self,
+        fifo: &PixelFifo,
+        vram: &V,
+        ly: u8,
+        scx: u8,
+        scy: u8,
+        wly: u8,
+        lcd_control: &LcdControl,
+        use_window: bool,
+        bgp: u8,
+    ) -> Option<[Pixel; 8]>;
     fn reset_for_window(&mut self);
 
     fn reset_to_state_1(&mut self);
     fn reset_for_scanline(&mut self);
 
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
 }
 
-
 #[derive(Default, Copy, Clone)]
-pub struct PixelFetcher<V: Vram>{
+pub struct PixelFetcher<V: Vram> {
     phantom: PhantomData<V>,
 
     fetcher_state: FetcherState,
@@ -45,12 +57,23 @@ pub struct PixelFetcher<V: Vram>{
     first_fetch_done: bool,
 }
 
-impl <V: Vram + Default>PFetcher<V> for PixelFetcher<V> {
+impl<V: Vram + Default> PFetcher<V> for PixelFetcher<V> {
     fn new() -> Self {
-        PixelFetcher::default() 
+        PixelFetcher::default()
     }
     #[allow(clippy::too_many_arguments)]
-    fn tick(&mut self, fifo: &PixelFifo, vram: &V, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool, bgp: u8) -> Option<[Pixel; 8]> {
+    fn tick(
+        &mut self,
+        fifo: &PixelFifo,
+        vram: &V,
+        ly: u8,
+        scx: u8,
+        scy: u8,
+        wly: u8,
+        lcd_control: &LcdControl,
+        use_window: bool,
+        bgp: u8,
+    ) -> Option<[Pixel; 8]> {
         self.dot_counter = self.dot_counter.wrapping_add(1);
 
         if self.fetcher_state == FetcherState::PushPixel && fifo.is_empty() {
@@ -63,17 +86,20 @@ impl <V: Vram + Default>PFetcher<V> for PixelFetcher<V> {
         } else if self.dot_counter.is_multiple_of(2) {
             match self.fetcher_state {
                 FetcherState::GetTileId => {
-                    self.tile_id = self.get_tile_id(vram, ly, scx, scy, wly, lcd_control, use_window);
+                    self.tile_id =
+                        self.get_tile_id(vram, ly, scx, scy, wly, lcd_control, use_window);
                     self.fetcher_state = FetcherState::GetLowData;
                     None
-                },
+                }
                 FetcherState::GetLowData => {
-                    self.tile_data_low = self.get_tile_data_low(vram, ly, scy, wly, lcd_control, use_window);
+                    self.tile_data_low =
+                        self.get_tile_data_low(vram, ly, scy, wly, lcd_control, use_window);
                     self.fetcher_state = FetcherState::GetHighData;
                     None
-                },
+                }
                 FetcherState::GetHighData => {
-                    self.tile_data_high = self.get_tile_data_high(vram, ly, scy, wly, lcd_control, use_window);
+                    self.tile_data_high =
+                        self.get_tile_data_high(vram, ly, scy, wly, lcd_control, use_window);
                     if self.first_fetch_done {
                         if fifo.is_empty() {
                             let tile: Option<[Pixel; 8]> = self.push_pixel(bgp);
@@ -89,11 +115,11 @@ impl <V: Vram + Default>PFetcher<V> for PixelFetcher<V> {
                         self.reset_internal(true);
                     }
                     None
-                },
+                }
                 FetcherState::Sleep => {
                     self.fetcher_state = FetcherState::PushPixel;
                     None
-                },
+                }
                 FetcherState::PushPixel => None,
             }
         } else {
@@ -114,18 +140,24 @@ impl <V: Vram + Default>PFetcher<V> for PixelFetcher<V> {
     }
 }
 
-impl <V: Vram>PixelFetcher<V> {
+impl<V: Vram> PixelFetcher<V> {
     fn reset_internal(&mut self, first_fetch_done: bool) {
         self.fetcher_state = FetcherState::GetTileId;
         self.fetcher_x = 0;
         self.first_fetch_done = first_fetch_done;
     }
 
-
-
-
     #[allow(clippy::too_many_arguments)]
-    fn get_tile_id(&self, vram: &V, ly: u8, scx: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_id(
+        &self,
+        vram: &V,
+        ly: u8,
+        scx: u8,
+        scy: u8,
+        wly: u8,
+        lcd_control: &LcdControl,
+        use_window: bool,
+    ) -> u8 {
         let tilemap_base: std::ops::Range<u16> = if use_window {
             lcd_control.window_tile_map_area()
         } else {
@@ -133,10 +165,7 @@ impl <V: Vram>PixelFetcher<V> {
         };
 
         let (x, y) = if use_window {
-            (
-                self.fetcher_x as usize,
-                wly as usize / 8,
-            )
+            (self.fetcher_x as usize, wly as usize / 8)
         } else {
             (
                 ((scx / 8) as usize + self.fetcher_x as usize) & 0x1F,
@@ -149,8 +178,15 @@ impl <V: Vram>PixelFetcher<V> {
         vram.read(tilemap_base.start + offset)
     }
 
-
-    fn get_tile_data_low(&self, vram: &V, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_data_low(
+        &self,
+        vram: &V,
+        ly: u8,
+        scy: u8,
+        wly: u8,
+        lcd_control: &LcdControl,
+        use_window: bool,
+    ) -> u8 {
         let y = if use_window {
             wly as usize
         } else {
@@ -172,7 +208,15 @@ impl <V: Vram>PixelFetcher<V> {
         }
     }
 
-    fn get_tile_data_high(&self, vram: &V, ly: u8, scy: u8, wly: u8, lcd_control: &LcdControl, use_window: bool) -> u8 {
+    fn get_tile_data_high(
+        &self,
+        vram: &V,
+        ly: u8,
+        scy: u8,
+        wly: u8,
+        lcd_control: &LcdControl,
+        use_window: bool,
+    ) -> u8 {
         let y = if use_window {
             wly as usize
         } else {

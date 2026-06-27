@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-use std::{fs, fs::File};
-use std::io::ErrorKind;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::io::ErrorKind;
+use std::path::PathBuf;
+use std::{fs, fs::File};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PlayedRom {
@@ -30,11 +30,10 @@ impl GbmuFile {
         match File::open(&path) {
             Ok(file) => {
                 println!("Reading existing file!");
-                let mut gbmu: GbmuFile = serde_json::from_reader(file)
-                    .unwrap_or_else(|e| {
-                        eprintln!("Warning: Could not parse config, starting fresh: {e}");
-                        GbmuFile::default()
-                    });
+                let mut gbmu: GbmuFile = serde_json::from_reader(file).unwrap_or_else(|e| {
+                    eprintln!("Warning: Could not parse config, starting fresh: {e}");
+                    GbmuFile::default()
+                });
                 gbmu.path = path;
                 gbmu
             }

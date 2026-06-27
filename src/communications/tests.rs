@@ -33,7 +33,9 @@ mod update_input {
     fn without_prior_send_input_is_unchanged() {
         let (mut gct, _ict) = setup();
         let mut input = KeyInput::default();
-        if let Err(_) = gct.update_input(&mut input) { panic!("update in error") }
+        if let Err(_) = gct.update_input(&mut input) {
+            panic!("update in error")
+        }
         assert_eq!(input, KeyInput::default());
     }
 
@@ -42,9 +44,13 @@ mod update_input {
         let (mut gct, ict) = setup();
         let mut input = KeyInput::default();
         input.a_pushed = true;
-        if let Err(_) = ict.send_input(input) { panic!("update in error") }
+        if let Err(_) = ict.send_input(input) {
+            panic!("update in error")
+        }
         let mut received = KeyInput::default();
-        if let Err(_) = gct.update_input(&mut received) { panic!("update in error") }
+        if let Err(_) = gct.update_input(&mut received) {
+            panic!("update in error")
+        }
         assert_eq!(input, received);
     }
 
@@ -176,25 +182,50 @@ mod instructions {
     #[test]
     fn without_send_the_list_is_unchanged() {
         let (_gct, mut ict) = setup();
-        let mut list = InstructionList(vec![(0xAF, "instruction_name".to_string()), (0x01, "instruction_name".to_string())]);
+        let mut list = InstructionList(vec![
+            (0xAF, "instruction_name".to_string()),
+            (0x01, "instruction_name".to_string()),
+        ]);
         ict.get_next_instructions(&mut list).unwrap();
-        assert_eq!(&*list, &[(0xAF, "instruction_name".to_string()), (0x01, "instruction_name".to_string())]);
+        assert_eq!(
+            &*list,
+            &[
+                (0xAF, "instruction_name".to_string()),
+                (0x01, "instruction_name".to_string())
+            ]
+        );
     }
 
     #[test]
     fn after_send_the_list_contains_the_sent_opcodes() {
         let (mut gct, mut ict) = setup();
-        gct.send_next_instructions(InstructionList(vec![(0xAF, "instruction_name".to_string()), (0x01, "instruction_name".to_string())]));
+        gct.send_next_instructions(InstructionList(vec![
+            (0xAF, "instruction_name".to_string()),
+            (0x01, "instruction_name".to_string()),
+        ]));
         let mut list = InstructionList::default();
         ict.get_next_instructions(&mut list).unwrap();
-        assert_eq!(&*list, &[(0xAF, "instruction_name".to_string()), (0x01, "instruction_name".to_string())]);
+        assert_eq!(
+            &*list,
+            &[
+                (0xAF, "instruction_name".to_string()),
+                (0x01, "instruction_name".to_string())
+            ]
+        );
     }
 
     #[test]
     fn get_next_instructions_clears_the_list_before_filling_it() {
         let (mut gct, mut ict) = setup();
-        gct.send_next_instructions(InstructionList(vec![(0xAF, "instruction_name".to_string())]));
-        let mut list = InstructionList(vec![(0x00, "instruction_name".to_string()), (0x00, "instruction_name".to_string()), (0x00, "instruction_name".to_string())]);
+        gct.send_next_instructions(InstructionList(vec![(
+            0xAF,
+            "instruction_name".to_string(),
+        )]));
+        let mut list = InstructionList(vec![
+            (0x00, "instruction_name".to_string()),
+            (0x00, "instruction_name".to_string()),
+            (0x00, "instruction_name".to_string()),
+        ]);
         ict.get_next_instructions(&mut list).unwrap();
         assert_eq!(&*list, &[(0xAF, "instruction_name".to_string())]);
     }

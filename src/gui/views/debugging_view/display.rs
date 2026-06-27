@@ -1,8 +1,7 @@
 use crate::gui::common::display_game;
 
 use eframe::egui::{
-    Align, Button, Color32, DragValue, Grid, Layout, RichText, ScrollArea, Panel,
-    TextEdit, Ui,
+    Align, Button, Color32, DragValue, Grid, Layout, Panel, RichText, ScrollArea, TextEdit, Ui,
 };
 
 use super::{DebuggingDataIn, DebuggingDataOut};
@@ -65,7 +64,6 @@ pub fn display_interface(
                                                 .weak() );
                             execute_custom_instruction(inner_ui, &data)
                         }).inner;
-                    
                     let refresh_register_clicked: bool = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Registers").strong());
@@ -118,7 +116,7 @@ pub fn display_interface(
         nb_instruction_requested,
         hex_string,
         register_new_addr,
-        instruction_to_exec
+        instruction_to_exec,
     }
 }
 
@@ -135,25 +133,32 @@ fn step_button(ui: &mut Ui) -> bool {
     ui.button("Next Step").clicked()
 }
 
-fn execute_custom_instruction(ui: &mut egui::Ui, debugging_data: &DebuggingDataIn) -> Option<String> {
+fn execute_custom_instruction(
+    ui: &mut egui::Ui,
+    debugging_data: &DebuggingDataIn,
+) -> Option<String> {
     let id = ui.id().with("custom_instruction_input");
-    
+
     let mut input = ui.data_mut(|d| {
-        d.get_temp::<String>(id)
-            .unwrap_or_else(|| debugging_data.instruction_to_exec.clone().unwrap_or_default())
+        d.get_temp::<String>(id).unwrap_or_else(|| {
+            debugging_data
+                .instruction_to_exec
+                .clone()
+                .unwrap_or_default()
+        })
     });
-    
+
     let response = ui.text_edit_singleline(&mut input);
-    
+
     let mut result = None;
-    
+
     if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
         result = Some(input.clone());
         input.clear();
     }
-    
+
     ui.data_mut(|d| d.insert_temp(id, input));
-    
+
     result
 }
 
@@ -178,7 +183,6 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
             ui.label(RichText::new("Binary").strong());
             ui.end_row();
 
-
             let registers_8bit = [
                 ("A", debugging_data.registers.a),
                 ("B", debugging_data.registers.b),
@@ -186,7 +190,7 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
                 ("D", debugging_data.registers.d),
                 ("E", debugging_data.registers.e),
                 ("H", debugging_data.registers.h),
-                ("L", debugging_data.registers.l)
+                ("L", debugging_data.registers.l),
             ];
 
             for (name, value) in registers_8bit.iter() {
@@ -403,10 +407,7 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
         ui.heading("Watched Addresses");
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if !data.watched_address.is_empty() {
-                ui.label(format!(
-                    "({})",
-                    data.watched_address.len()
-                ));
+                ui.label(format!("({})", data.watched_address.len()));
             }
         });
     });
@@ -414,7 +415,7 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
     ui.add_space(4.0);
 
     // Display watched addresses with better formatting
-    
+
     let remove_addr = if data.watched_address.is_empty() {
         ui.label(
             RichText::new("No addresses being watched")
@@ -440,9 +441,7 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
 
                     ui.separator();
 
-                    for (i, (address, value)) in
-                        data.watched_address.iter().enumerate()
-                    {
+                    for (i, (address, value)) in data.watched_address.iter().enumerate() {
                         ui.horizontal(|ui| {
                             // Index
                             ui.label(format!("  {}", i + 1));
@@ -486,18 +485,19 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
                         }
                     }
                 });
-                
-                let mut remove_addr: Option<u16> = None;
-                if let Some(addr) = address_to_remove
-                    && let Some(index) = data
-                            .watched_address
-                            .iter()
-                            .position(|(address, _)| *address == addr)
-                        {
-                            remove_addr = Some(addr);
-                        }
-                        remove_addr
-        }).inner
+
+            let mut remove_addr: Option<u16> = None;
+            if let Some(addr) = address_to_remove
+                && let Some(index) = data
+                    .watched_address
+                    .iter()
+                    .position(|(address, _)| *address == addr)
+            {
+                remove_addr = Some(addr);
+            }
+            remove_addr
+        })
+        .inner
     };
     ui.add_space(4.0);
 
@@ -526,10 +526,10 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u
                         .watched_address
                         .iter()
                         .any(|(address, _)| *address == *addr)
-                    {
-                        hex_string = format!("{:x}", *addr);
-                    }
-                }   
+                {
+                    hex_string = format!("{:x}", *addr);
+                }
+            }
         });
     });
     (hex_string, register_new_addr, remove_addr)

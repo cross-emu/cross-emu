@@ -2,7 +2,7 @@ use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
 use crate::cpu::*;
 use crate::mmu::MemoryMapper;
-use crate::{cpu::defines::Cpu, cpu::Reg8};
+use crate::{cpu::Reg8, cpu::defines::Cpu};
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn add_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {
@@ -34,7 +34,8 @@ impl<M: MemoryMapper> Cpu<M> {
         self.flags.set_flag(Flag::Subtract, false);
 
         let half_carry_check = (dest & 0x0F) + (src & 0x0F) + carry;
-        self.flags.set_flag(Flag::HalfCarry, half_carry_check > 0x0F);
+        self.flags
+            .set_flag(Flag::HalfCarry, half_carry_check > 0x0F);
 
         let carry_check = (dest as u16) + (src as u16) + (carry as u16);
         self.flags.set_flag(Flag::Carry, carry_check > 0xFF);
@@ -60,11 +61,14 @@ impl<M: MemoryMapper> Cpu<M> {
         let src = Self::get_r8::<Src>(self);
         let dest = Self::get_r8::<Dest>(self);
 
-        let result = dest.wrapping_add(src).wrapping_add(self.flags.get_flag(Flag::Carry) as u8);
+        let result = dest
+            .wrapping_add(src)
+            .wrapping_add(self.flags.get_flag(Flag::Carry) as u8);
         self.set_r8::<Dest>(result);
 
         let carry = (src as u16) + (dest as u16) + (self.flags.get_flag(Flag::Carry) as u16) > 0xFF;
-        let half_carry = (src & 0x0F) + (dest & 0x0F) + (self.flags.get_flag(Flag::Carry) as u8) > 0x0F;
+        let half_carry =
+            (src & 0x0F) + (dest & 0x0F) + (self.flags.get_flag(Flag::Carry) as u8) > 0x0F;
         self.flags.set_flag(Flag::Subtract, false);
         self.flags.set_flag(Flag::HalfCarry, half_carry);
         self.flags.set_flag(Flag::Carry, carry);
@@ -86,15 +90,15 @@ impl<M: MemoryMapper> Cpu<M> {
     }
 
     pub fn add_hl_sp_e_high(&mut self, _bus: &mut M) {
-            let sp_high = Self::get_r8::<S>(self);
-            let result_low = Self::get_r8::<Z>(self); 
-            let sp_low = Self::get_r8::<P>(self);
-            
-            let e = result_low.wrapping_sub(sp_low);
+        let sp_high = Self::get_r8::<S>(self);
+        let result_low = Self::get_r8::<Z>(self);
+        let sp_low = Self::get_r8::<P>(self);
 
-            let adj: u8 = if e & 0x80 != 0 { 0xFF } else { 0x00 };
-            let carry: u8 = self.flags.get_flag(Flag::Carry) as u8;
+        let e = result_low.wrapping_sub(sp_low);
 
-            self.set_r8::<W>(sp_high.wrapping_add(adj).wrapping_add(carry));
-        }
+        let adj: u8 = if e & 0x80 != 0 { 0xFF } else { 0x00 };
+        let carry: u8 = self.flags.get_flag(Flag::Carry) as u8;
+
+        self.set_r8::<W>(sp_high.wrapping_add(adj).wrapping_add(carry));
+    }
 }

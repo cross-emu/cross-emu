@@ -17,7 +17,7 @@ struct DebuggingDataIn<'a> {
     hex_string: &'a String,
     error_message: Option<&'a String>,
     sized_texture: Option<SizedTexture>,
-    instruction_to_exec: Option<String>
+    instruction_to_exec: Option<String>,
 }
 
 #[derive(Debug)]
@@ -30,7 +30,7 @@ struct DebuggingDataOut {
     nb_instruction_requested: u8,
     hex_string: String,
     register_new_addr: bool,
-    delete_new_addr: Option<u16>
+    delete_new_addr: Option<u16>,
 }
 
 enum OutState {
@@ -40,10 +40,16 @@ enum OutState {
 }
 
 impl DebuggingDevice {
-    pub fn update_info_struct(&mut self) -> Result<(), String>{
-        self.core_game.interface_ct.get_next_instructions(&mut self.next_instructions)?;
-        self.core_game.interface_ct.get_watched_adresses(&mut self.watched_adress)?;
-        self.core_game.interface_ct.get_cpu_state(&mut self.registers)
+    pub fn update_info_struct(&mut self) -> Result<(), String> {
+        self.core_game
+            .interface_ct
+            .get_next_instructions(&mut self.next_instructions)?;
+        self.core_game
+            .interface_ct
+            .get_watched_adresses(&mut self.watched_adress)?;
+        self.core_game
+            .interface_ct
+            .get_cpu_state(&mut self.registers)
     }
 
     fn execute_changes(&mut self, data: DebuggingDataOut) -> Result<OutState, String> {
@@ -51,9 +57,9 @@ impl DebuggingDevice {
             if self.ui_state.is_paused {
                 self.core_game.interface_ct.set_mode(Mode::Stop)?;
                 return Ok(OutState::Emulating);
-            } else { 
-            self.core_game.interface_ct.set_mode(Mode::Game)?;
-            return Ok(OutState::Emulating);
+            } else {
+                self.core_game.interface_ct.set_mode(Mode::Game)?;
+                return Ok(OutState::Emulating);
             }
         }
 
@@ -67,24 +73,30 @@ impl DebuggingDevice {
         }
 
         if data.refresh_register_clicked {
-            self.core_game.interface_ct.get_cpu_state(&mut self.registers)?; 
+            self.core_game
+                .interface_ct
+                .get_cpu_state(&mut self.registers)?;
         }
 
         if data.step_clicked {
             self.core_game.interface_ct.execute_next_instructions(4)?;
         }
 
-        if self.nb_instruction != data.nb_instruction_requested as usize{
-            self.core_game.interface_ct.set_instruction_list_len(data.nb_instruction_requested)?;
+        if self.nb_instruction != data.nb_instruction_requested as usize {
+            self.core_game
+                .interface_ct
+                .set_instruction_list_len(data.nb_instruction_requested)?;
             self.nb_instruction = data.nb_instruction_requested as usize;
         }
-
 
         self.hex_string = data.hex_string;
         if data.register_new_addr {
             self.error_message = match u16::from_str_radix(self.hex_string.as_ref(), 16) {
-                Ok(value) => {self.core_game.interface_ct.watch_adress(value)?; None}
-                Err(err) => {Some(format!("{} is not a valid hex addr", self.hex_string))}
+                Ok(value) => {
+                    self.core_game.interface_ct.watch_adress(value)?;
+                    None
+                }
+                Err(err) => Some(format!("{} is not a valid hex addr", self.hex_string)),
             }
         }
 
@@ -99,7 +111,7 @@ impl DebuggingDevice {
         if self.is_paused {
             self.core_game.interface_ct.set_mode(Mode::Stop)?;
         }
-        
+
         Ok(OutState::Debugging)
     }
 
@@ -108,7 +120,7 @@ impl DebuggingDevice {
         let debugging_data_in = self.update_and_get_debugging_data(ui);
         let Ok(debugging_data_in) = debugging_data_in else {
             eprintln!("Unexpected issue : Communication between threads were cut");
-            return AppState::SelectionHub(self.into())
+            return AppState::SelectionHub(self.into());
         };
         let actions_to_perform = display_interface(ui, _frame, debugging_data_in);
         let state = match self.execute_changes(actions_to_perform) {
@@ -118,12 +130,13 @@ impl DebuggingDevice {
                 OutState::Selection
             }
         };
-        self.switch_state(
-            state
-        )
+        self.switch_state(state)
     }
 
-    fn update_and_get_debugging_data(&mut self, ui: &mut egui::Ui) -> Result<DebuggingDataIn<'_>, String>  {
+    fn update_and_get_debugging_data(
+        &mut self,
+        ui: &mut egui::Ui,
+    ) -> Result<DebuggingDataIn<'_>, String> {
         self.core_game.update_and_size_image(ui)?;
         self.update_info_struct()?;
 
@@ -142,7 +155,7 @@ impl DebuggingDevice {
             next_instructions: &self.next_instructions,
             error_message,
             hex_string: &self.hex_string,
-            instruction_to_exec: self.instruction_to_exec.clone()
+            instruction_to_exec: self.instruction_to_exec.clone(),
         })
     }
 

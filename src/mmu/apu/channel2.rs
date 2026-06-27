@@ -28,19 +28,20 @@ impl ChannelTwo {
     }
 
     pub fn tick_length(&mut self) {
-        if self.nr24_period_high_ctrl.raw() & 0b0100_0000 != 0
-            && self.length_counter > 0 {
-                self.length_counter -= 1;
-                if self.length_counter == 0 {
-                    self.enabled = false;
-                }
+        if self.nr24_period_high_ctrl.raw() & 0b0100_0000 != 0 && self.length_counter > 0 {
+            self.length_counter -= 1;
+            if self.length_counter == 0 {
+                self.enabled = false;
             }
+        }
     }
 
     pub fn tick_envelope(&mut self) {
         let period = self.nr22_volume_envelope.raw() & 0b0000_0111;
-        
-        if period == 0 { return ; }
+
+        if period == 0 {
+            return;
+        }
 
         if self.envelope_timer > 0 {
             self.envelope_timer -= 1;
@@ -49,11 +50,9 @@ impl ChannelTwo {
         if self.envelope_timer == 0 {
             self.envelope_timer = period;
 
-            if (self.nr22_volume_envelope.raw() & 0b0000_1000) != 0
-                && self.volume < 15 {
+            if (self.nr22_volume_envelope.raw() & 0b0000_1000) != 0 && self.volume < 15 {
                 self.volume += 1;
-            } else if (self.nr22_volume_envelope.raw() & 0b0000_1000) == 0
-                && self.volume > 0 {
+            } else if (self.nr22_volume_envelope.raw() & 0b0000_1000) == 0 && self.volume > 0 {
                 self.volume -= 1;
             }
         }
@@ -65,7 +64,9 @@ impl ChannelTwo {
 
         let length_load = self.nr21_ln_timer_duty_cycle.raw() & 0b0011_1111;
         self.length_counter = 64 - length_load;
-        if self.length_counter == 0 { self.length_counter = 64; }
+        if self.length_counter == 0 {
+            self.length_counter = 64;
+        }
 
         self.volume = (self.nr22_volume_envelope.raw() & 0b1111_0000) >> 4;
         self.envelope_timer = self.nr22_volume_envelope.raw() & 0b0000_0111;
@@ -99,6 +100,10 @@ impl ChannelTwo {
         }
 
         let amplitude = self.volume as f32 / 15.0;
-        if self.duty_output() == 1 { amplitude } else { -amplitude }
+        if self.duty_output() == 1 {
+            amplitude
+        } else {
+            -amplitude
+        }
     }
 }
