@@ -1,35 +1,32 @@
-use clap::{Arg, ArgAction, command, value_parser};
-use std::io::ErrorKind;
-use std::fs::metadata;
 use crate::gui::GbType;
+use clap::{Arg, ArgAction, command, value_parser};
+use std::fs::metadata;
+use std::io::ErrorKind;
 
 pub struct EmulatorArguments {
     pub rom_path: Option<String>,
     pub boot_rom: bool,
     pub sound: bool,
-    pub gb_type: GbType
+    pub gb_type: GbType,
 }
 
 impl EmulatorArguments {
     pub fn get() -> Result<Self, String> {
         let matches = command!()
-            .arg(
-                Arg::new( "rom_path")
-                    .help("The path of the rom you want to launch.")
-            )
+            .arg(Arg::new("rom_path").help("The path of the rom you want to launch."))
             .arg(
                 Arg::new("boot_rom")
                     .short('b')
                     .long("boot_rom")
                     .action(ArgAction::SetTrue)
-                    .help("If set, nintendo basic boot rom will boot first.")
+                    .help("If set, nintendo basic boot rom will boot first."),
             )
             .arg(
                 Arg::new("sound")
                     .short('s')
                     .long("sound")
                     .action(ArgAction::SetTrue)
-                    .help("Activate sound if set.")
+                    .help("Activate sound if set."),
             )
             .arg(
                 Arg::new("type")
@@ -37,10 +34,9 @@ impl EmulatorArguments {
                     .long("type")
                     .value_parser(value_parser!(GbType))
                     .default_value("dmg")
-                    .help("Set the type of gameboy to emulate. (Cgb or Dmg)")
+                    .help("Set the type of gameboy to emulate. (Cgb or Dmg)"),
             )
             .get_matches();
-
 
         // path is specified in cli command
         let rom_path = matches.get_one::<String>("rom_path").map(String::from);
@@ -54,20 +50,19 @@ impl EmulatorArguments {
             rom_path,
             boot_rom,
             sound,
-            gb_type: gb_type.clone()
+            gb_type: gb_type.clone(),
         };
 
         unchecked.check_fields()
     }
 
     pub fn check_fields(self) -> Result<Self, String> {
-        let mut errors: Vec<String> = vec!();
+        let mut errors: Vec<String> = vec![];
 
         // Put checks here
-        if let Err(error) =  self.check_rom_path() {
+        if let Err(error) = self.check_rom_path() {
             errors.push(String::from("rom_path : ") + error.as_str());
         }
-
 
         if errors.is_empty() {
             Ok(self)
@@ -93,20 +88,14 @@ impl EmulatorArguments {
                 }
             }
             Err(e) => match e.kind() {
-                ErrorKind::NotFound => { Err(String::from(path) + " : File not found")}
-                ErrorKind::PermissionDenied => {
-                    Err(String::from(path) + " : Not allowed")
-                }
+                ErrorKind::NotFound => Err(String::from(path) + " : File not found"),
+                ErrorKind::PermissionDenied => Err(String::from(path) + " : Not allowed"),
                 ErrorKind::NotADirectory | ErrorKind::InvalidInput => {
                     Err(String::from(path) + " : Invalid path")
                 }
-                ErrorKind::Unsupported => {
-                    Err(String::from(path) + " : Unsuported stats read")
-                }
-                other => {
-                    Err(format!("Unexpected error: {:?} — {}", other, e))
-                }
-            }
+                ErrorKind::Unsupported => Err(String::from(path) + " : Unsuported stats read"),
+                other => Err(format!("Unexpected error: {:?} — {}", other, e)),
+            },
         }
     }
 }

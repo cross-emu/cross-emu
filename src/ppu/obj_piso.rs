@@ -1,8 +1,8 @@
 // PISO stands for "Parallel In Serial Out"
 // Since it's not a real FIFO in its behavior
 
-use crate::ppu::pixel::Pixel;
 use crate::ppu::colors_palette::Color;
+use crate::ppu::pixel::Pixel;
 
 #[derive(Default, Clone)]
 pub struct ObjPiso {
@@ -54,11 +54,8 @@ impl ObjPiso {
             if current_pixel_color_index == 0 {
                 let color_pixel = (palette >> (color_index * 2)) & 0b11;
 
-                self.pixels[pos as usize] = Pixel::new_obj(
-                    Color::from_index(color_pixel),
-                    color_index,
-                    priority,
-                );
+                self.pixels[pos as usize] =
+                    Pixel::new_obj(Color::from_index(color_pixel), color_index, priority);
             }
         }
     }
@@ -71,7 +68,7 @@ impl ObjPiso {
         }
 
         self.pixels[7] = Pixel::default();
-        
+
         out
     }
 
@@ -87,11 +84,7 @@ mod tests {
 
     // helper
     fn make_pixel(color_index: u8) -> Pixel {
-        Pixel::new_obj(
-            Color::from_index(color_index),
-            color_index,
-            false,
-        )
+        Pixel::new_obj(Color::from_index(color_index), color_index, false)
     }
 
     #[test]
@@ -109,7 +102,11 @@ mod tests {
             0,
         );
 
-        assert_ne!(piso.pixels[0].get_color_index(), 0, "The pixel should not be transparent anymore");
+        assert_ne!(
+            piso.pixels[0].get_color_index(),
+            0,
+            "The pixel should not be transparent anymore"
+        );
     }
 
     #[test]
@@ -119,17 +116,13 @@ mod tests {
         piso.pixels[0] = make_pixel(2);
 
         // Try to put a pixel at the same place
-        piso.merge(
-            0b1000_0000,
-            0,
-            8,
-            false,
-            0b1110_0100,
-            false,
-            0,
-        );
+        piso.merge(0b1000_0000, 0, 8, false, 0b1110_0100, false, 0);
 
-        assert_eq!(piso.pixels[0].get_color_index(), 2, "The pixel should not change.");
+        assert_eq!(
+            piso.pixels[0].get_color_index(),
+            2,
+            "The pixel should not change."
+        );
     }
 
     #[test]
@@ -146,15 +139,47 @@ mod tests {
             false,
             0,
         );
-        assert_ne!(piso.pixels[0].get_color_index(), 0, "The last slots should not be transparents");
-        assert_ne!(piso.pixels[1].get_color_index(), 0, "The last slots should not be transparents");
-        assert_ne!(piso.pixels[2].get_color_index(), 0, "The last slots should not be transparents");
-        assert_ne!(piso.pixels[3].get_color_index(), 0, "The last slots should not be transparents");
-        assert_ne!(piso.pixels[4].get_color_index(), 0, "The last slots should not be transparents");
+        assert_ne!(
+            piso.pixels[0].get_color_index(),
+            0,
+            "The last slots should not be transparents"
+        );
+        assert_ne!(
+            piso.pixels[1].get_color_index(),
+            0,
+            "The last slots should not be transparents"
+        );
+        assert_ne!(
+            piso.pixels[2].get_color_index(),
+            0,
+            "The last slots should not be transparents"
+        );
+        assert_ne!(
+            piso.pixels[3].get_color_index(),
+            0,
+            "The last slots should not be transparents"
+        );
+        assert_ne!(
+            piso.pixels[4].get_color_index(),
+            0,
+            "The last slots should not be transparents"
+        );
 
-        assert_eq!(piso.pixels[5].get_color_index(), 0, "The first slots have to stay transparents");
-        assert_eq!(piso.pixels[6].get_color_index(), 0, "The first slots have to stay transparents");
-        assert_eq!(piso.pixels[7].get_color_index(), 0, "The first slots have to stay transparents");
+        assert_eq!(
+            piso.pixels[5].get_color_index(),
+            0,
+            "The first slots have to stay transparents"
+        );
+        assert_eq!(
+            piso.pixels[6].get_color_index(),
+            0,
+            "The first slots have to stay transparents"
+        );
+        assert_eq!(
+            piso.pixels[7].get_color_index(),
+            0,
+            "The first slots have to stay transparents"
+        );
     }
 
     #[test]
@@ -162,18 +187,14 @@ mod tests {
         let mut piso = ObjPiso::default();
 
         // tile data = 0 -> all pixels transparents
-        piso.merge(
-            0,
-            0,
-            8,
-            false,
-            0b1110_0100,
-            false,
-            0,
-        );
+        piso.merge(0, 0, 8, false, 0b1110_0100, false, 0);
 
         for i in 0..8 {
-            assert_eq!(piso.pixels[i].get_color_index(), 0, "The pixel is not transparent.");
+            assert_eq!(
+                piso.pixels[i].get_color_index(),
+                0,
+                "The pixel is not transparent."
+            );
         }
     }
 
@@ -187,14 +208,26 @@ mod tests {
 
         let out = piso.shift_out();
 
-        assert_eq!(out.get_color_index(), 0, "The first pixel should shift out of the piso");
+        assert_eq!(
+            out.get_color_index(),
+            0,
+            "The first pixel should shift out of the piso"
+        );
 
         // shift
         for i in 0..7 {
-            assert_eq!(piso.pixels[i].get_color_index(), ((i + 1) % 4) as u8, "A pixel didn't shift.");
+            assert_eq!(
+                piso.pixels[i].get_color_index(),
+                ((i + 1) % 4) as u8,
+                "A pixel didn't shift."
+            );
         }
 
-        assert_eq!(piso.pixels[7].get_color_index(), 0, "The last pixel should be transparent");
+        assert_eq!(
+            piso.pixels[7].get_color_index(),
+            0,
+            "The last pixel should be transparent"
+        );
     }
 
     #[test]
@@ -206,9 +239,11 @@ mod tests {
         piso.reset();
 
         for i in 0..8 {
-            assert_eq!(piso.pixels[i].get_color_index(), 0, "The reset function hasn't erased all pixels.");
+            assert_eq!(
+                piso.pixels[i].get_color_index(),
+                0,
+                "The reset function hasn't erased all pixels."
+            );
         }
     }
-
-
 }

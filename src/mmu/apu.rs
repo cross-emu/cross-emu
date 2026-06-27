@@ -1,23 +1,23 @@
 #![allow(unused_variables, dead_code)]
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::sound::start_audio;
 
-pub mod sample_buffer;
-pub mod registers;
 pub mod channel1;
 pub mod channel2;
 pub mod channel3;
 pub mod channel4;
+pub mod registers;
+pub mod sample_buffer;
 
-use sample_buffer::SampleBuffer;
 use crate::mmu::apu::registers::*;
 use channel1::ChannelOne;
 use channel2::ChannelTwo;
 use channel3::ChannelThree;
 use channel4::ChannelFour;
+use sample_buffer::SampleBuffer;
 
 const T_CYCLES_PER_SEC: f64 = 4_194_304.0;
 const SAMPLE_RATE: f64 = 48_000.0;
@@ -115,7 +115,7 @@ impl Apu {
             0xFF30..=0xFF3F => {
                 let index = (addr - 0xFF30) as usize;
                 self.wave_ram[index]
-            },
+            }
             _ => 0xFF,
         }
     }
@@ -134,7 +134,7 @@ impl Apu {
                 if value & 0b1000_0000 != 0 {
                     self.channel_two.trigger();
                 }
-            },
+            }
             0xFF1A => self.channel_three.nr30_dac_enable.write(value),
             0xFF1B => self.channel_three.nr31_ln_timer.write(value),
             0xFF1C => self.channel_three.nr32_output_level.write(value),
@@ -150,8 +150,8 @@ impl Apu {
             0xFF30..=0xFF3F => {
                 let index = (addr - 0xFF30) as usize;
                 self.wave_ram[index] = value;
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
@@ -163,6 +163,3 @@ impl Drop for Apu {
 }
 
 trait Channel {}
-
-
-

@@ -11,14 +11,14 @@ pub enum Color {
 const WHITE: &[u8; 3] = &[255, 255, 255];
 const LIGHTGRAY: &[u8; 3] = &[192, 192, 192];
 const DARKGRAY: &[u8; 3] = &[96, 96, 96];
-const BLACK:   &[u8; 3] = &[0, 0, 0];
+const BLACK: &[u8; 3] = &[0, 0, 0];
 
 impl Color {
     pub fn to_rgb(self) -> &'static [u8; 3] {
         match self {
             Color::White => WHITE,
             Color::LightGray => LIGHTGRAY,
-            Color::DarkGray => DARKGRAY ,
+            Color::DarkGray => DARKGRAY,
             Color::Black => BLACK,
         }
     }

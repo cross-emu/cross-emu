@@ -30,7 +30,6 @@ impl Pixel {
         &self.color
     }
 
-
     pub fn get_color_index(&self) -> u8 {
         self.color_index
     }
@@ -38,7 +37,6 @@ impl Pixel {
     pub fn get_priority(&self) -> bool {
         self.priority
     }
-
 }
 
 impl Default for Pixel {

@@ -1,11 +1,11 @@
 #[cfg(test)]
 mod tests {
     use crate::cpu::cb_instructions::build_cb_instructions;
+    use crate::mmu::DmgMmu;
     use crate::mmu::mbc::*;
-    use crate::{cpu::instructions::build_instructions, gameboy::GameBoy};
     use crate::mmu::timers::DmgTimers;
     use crate::ppu::DmgPpu;
-    use crate::mmu::DmgMmu;
+    use crate::{cpu::instructions::build_instructions, gameboy::GameBoy};
 
     pub fn get_new_gb() -> GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> {
         let gb: GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> =

@@ -36,20 +36,20 @@ impl<M: MemoryMapper> Cpu<M> {
         self.ime = true;
     }
 
-pub fn load_r16_r16_af_flags<Dest: Reg16, Src: Reg16>(&mut self, _bus: &mut M) {
-    let mut val = Self::get_r16::<Src>(self);
-    
-    val &= 0xFFF0;
+    pub fn load_r16_r16_af_flags<Dest: Reg16, Src: Reg16>(&mut self, _bus: &mut M) {
+        let mut val = Self::get_r16::<Src>(self);
 
-    Self::set_r16::<Dest>(self, val);
+        val &= 0xFFF0;
 
-    let f_byte = (val & 0xFF) as u8;
+        Self::set_r16::<Dest>(self, val);
 
-    self.flags.set_flag(Flag::Zero,      (f_byte & 0x80) != 0);
-    self.flags.set_flag(Flag::Subtract,       (f_byte & 0x40) != 0);
-    self.flags.set_flag(Flag::HalfCarry, (f_byte & 0x20) != 0);
-    self.flags.set_flag(Flag::Carry,     (f_byte & 0x10) != 0);
-}
+        let f_byte = (val & 0xFF) as u8;
+
+        self.flags.set_flag(Flag::Zero, (f_byte & 0x80) != 0);
+        self.flags.set_flag(Flag::Subtract, (f_byte & 0x40) != 0);
+        self.flags.set_flag(Flag::HalfCarry, (f_byte & 0x20) != 0);
+        self.flags.set_flag(Flag::Carry, (f_byte & 0x10) != 0);
+    }
 
     pub fn read_memory_decr<Addr: Reg16, Dest: Reg8>(&mut self, bus: &mut M) {
         Self::read_memory::<Addr, Dest>(self, bus);

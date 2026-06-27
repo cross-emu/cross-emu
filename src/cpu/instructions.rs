@@ -148,8 +148,8 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr::<PC, Z>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>
-                ],
+                Cpu::load_r16_r16::<PC, WZ>,
+            ],
         },
         Instruction {
             name: "ADD HL,DE".to_string(),
@@ -242,7 +242,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondZ>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>
+                Cpu::load_r16_r16::<PC, WZ>,
             ],
         },
         Instruction {
@@ -340,7 +340,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
             micro_ops: vec![
                 Cpu::read_memory_incr_check::<PC, Z, CondC>,
                 Cpu::relative_jump,
-                Cpu::load_r16_r16::<PC, WZ>
+                Cpu::load_r16_r16::<PC, WZ>,
             ],
         },
         Instruction {
@@ -974,7 +974,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
         Instruction {
             name: "OR (HL)".to_string(),
             opcode: 0xB6,
-            micro_ops: vec![Cpu::read_memory::<HL, Z>, Cpu::or_r8_r8::<A,Z>],
+            micro_ops: vec![Cpu::read_memory::<HL, Z>, Cpu::or_r8_r8::<A, Z>],
         },
         Instruction {
             name: "OR A".to_string(),
@@ -1315,7 +1315,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
                 Cpu::dec_r16::<SP>,
                 Cpu::write_memory_decr::<SP, PcP>,
                 Cpu::write_memory_rst::<0x0018, SP, PcC>,
-                Cpu::noop                
+                Cpu::noop,
             ],
         },
         Instruction {
@@ -1434,7 +1434,11 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
         Instruction {
             name: "LDH A,(a8)".to_string(),
             opcode: 0xF0,
-            micro_ops: vec![Cpu::read_memory_incr::<PC, Z>,  Cpu::read_memory_0xff::<Z, Z>, Cpu::load_r8_r8::<A, Z>],
+            micro_ops: vec![
+                Cpu::read_memory_incr::<PC, Z>,
+                Cpu::read_memory_0xff::<Z, Z>,
+                Cpu::load_r8_r8::<A, Z>,
+            ],
         },
         Instruction {
             name: "POP AF".to_string(),
@@ -1444,7 +1448,7 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
                 Cpu::read_memory_incr::<SP, W>,
                 Cpu::load_r16_r16_af_flags::<AF, WZ>,
             ],
-        },  
+        },
         Instruction {
             name: "LD A,(C)".to_string(),
             opcode: 0xF2,
@@ -1542,19 +1546,14 @@ pub fn build_instructions<M: MemoryMapper>() -> Vec<Instruction<M>> {
     ]
 }
 
-
 pub fn get_instruction_length(opcode: u8) -> u16 {
     match opcode {
-        0x01 | 0x11 | 0x21 | 0x31 |
-        0xC3 | 0xC4 | 0xCA | 0xCC | 0xCD | 0xD4 | 0xD2 | 0xDA | 0xDC |
-        0xEA | 0xFA => 3,
+        0x01 | 0x11 | 0x21 | 0x31 | 0xC3 | 0xC4 | 0xCA | 0xCC | 0xCD | 0xD4 | 0xD2 | 0xDA
+        | 0xDC | 0xEA | 0xFA => 3,
 
-        0x06 | 0x0E | 0x16 | 0x1E | 0x26 | 0x2E | 0x36 | 0x3E |
-        0x10 | 0x18 |
-        0x20 | 0x28 | 0x30 | 0x38 |
-        0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE |
-        0xE0 | 0xF0 |
-        0xE8 | 0xF8 => 2,
+        0x06 | 0x0E | 0x16 | 0x1E | 0x26 | 0x2E | 0x36 | 0x3E | 0x10 | 0x18 | 0x20 | 0x28
+        | 0x30 | 0x38 | 0xC6 | 0xCE | 0xD6 | 0xDE | 0xE6 | 0xEE | 0xF6 | 0xFE | 0xE0 | 0xF0
+        | 0xE8 | 0xF8 => 2,
 
         _ => 1,
     }

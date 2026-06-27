@@ -6,16 +6,13 @@ pub mod ops;
 pub mod tests;
 
 use crate::communications::CpuState;
-use crate::cpu::defines::Instruction;
 use crate::cpu::cb_instructions::build_cb_instructions;
 use crate::cpu::defines::Cpu;
+use crate::cpu::defines::Instruction;
 use crate::cpu::defines::{r8, r16};
 use crate::cpu::instructions::build_instructions;
 use crate::mmu::MemoryMapper;
 use std::fmt;
-
-
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StepStatus {
@@ -58,7 +55,6 @@ impl<M: MemoryMapper> Cpu<M> {
         let instruction_byte: u8 = bus.read_byte(pc);
         self.inc_r16::<PC>(bus);
 
-            
         self.handle_halt_state(bus);
         self.handle_halt_bug(bus);
         self.handle_ime_delay();
@@ -87,12 +83,12 @@ impl<M: MemoryMapper> Cpu<M> {
                 } else {
                     self.set_r16::<PC>(pc.wrapping_add(1));
                 }
-                
+
                 self.load_instruction(instruction_byte);
             }
-                self.handle_ime_delay();
-            }
-    }   
+            self.handle_ime_delay();
+        }
+    }
 
     pub fn dump_state(&self) -> CpuState {
         CpuState {
@@ -176,7 +172,9 @@ impl<M: MemoryMapper> Cpu<M> {
             None => (false, trimmed),
         };
 
-        if let Some(instr) = Self::find_by_mnemonic(body, is_cb, &self.instructions, &self.cb_instructions) {
+        if let Some(instr) =
+            Self::find_by_mnemonic(body, is_cb, &self.instructions, &self.cb_instructions)
+        {
             return Some(instr);
         }
 
@@ -185,7 +183,8 @@ impl<M: MemoryMapper> Cpu<M> {
         if is_cb {
             self.cb_instructions.iter().find(|i| i.opcode == opcode)
         } else {
-            self.instructions.iter()
+            self.instructions
+                .iter()
                 .find(|i| i.opcode == opcode)
                 .or_else(|| self.cb_instructions.iter().find(|i| i.opcode == opcode))
         }
@@ -198,11 +197,18 @@ impl<M: MemoryMapper> Cpu<M> {
         cb_instructions: &'a [Instruction<M>],
     ) -> Option<&'a Instruction<M>> {
         if is_cb {
-            return cb_instructions.iter().find(|i| i.name.eq_ignore_ascii_case(body));
+            return cb_instructions
+                .iter()
+                .find(|i| i.name.eq_ignore_ascii_case(body));
         }
-        instructions.iter()
+        instructions
+            .iter()
             .find(|i| i.name.eq_ignore_ascii_case(body))
-            .or_else(|| cb_instructions.iter().find(|i| i.name.eq_ignore_ascii_case(body)))
+            .or_else(|| {
+                cb_instructions
+                    .iter()
+                    .find(|i| i.name.eq_ignore_ascii_case(body))
+            })
     }
 
     fn parse_opcode_value(s: &str) -> Option<u8> {
@@ -290,7 +296,6 @@ implreg16!(PC);
 implreg16!(WZ);
 
 impl<M: MemoryMapper> Cpu<M> {
-    
     fn read_r8_idx(&self, idx: usize) -> u8 {
         if idx == r8::F {
             self.flags

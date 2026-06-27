@@ -25,7 +25,7 @@ use std::ops::{Deref, DerefMut};
 
 impl DerefMut for InstructionList {
     fn deref_mut(&mut self) -> &mut Vec<(u16, String)> {
-       &mut self.0
+        &mut self.0
     }
 }
 
@@ -89,7 +89,7 @@ pub enum Request {
     StopWatch(u16),
     Step(usize),
     SetInstructionListLength(u8),
-    SetSpeed(u8)
+    SetSpeed(u8),
 }
 
 pub const FRAME_SIZE: usize = 160 * 144;

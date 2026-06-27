@@ -1,36 +1,36 @@
 use std::sync::RwLock;
 
+pub mod apu;
 pub mod interrupt;
 pub mod mbc;
-pub mod timers;
 pub mod oam;
-pub mod apu;
+pub mod timers;
 
+use crate::communications::GameCT;
+use crate::mmu::apu::Apu;
 use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
 use crate::mmu::mbc::Mbc;
 use crate::mmu::oam::Oam;
-use crate::mmu::apu::Apu;
-use crate::communications::GameCT;
-use crate::ppu::PixelProcessor;
 use crate::mmu::timers::TimingComponent;
+use crate::ppu::PixelProcessor;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum MemoryRegion {
-    Mbc,                // 0x000-0x7FFF: read-only
-    Vram,               // 0x8000-0x9FFF
-    ERam,               // 0xA000-0xBFFF
-    Wram,               // 0xC000-0xDFFF
-    Mram,               // 0xE000-0xFDFF: mirror of C000-DDFF
-    Oam,                // 0xFE00-0xFE9F: Sprite Attribute Table
-    Unusable,           // 0xFEA0-0xFEFF
-    InterruptFlag,      // 0xFF0F: Interruption Flag: Inside IO
-    Timers,             // 0xFF04-0xFF07
-    Audio,              // 0xFF10-0xFF26
-    WaveRam,            // 0xFF30-0xFF3F
-    Io,                 // 0xFF00-0xFF7F
-    HRam,               // 0xFF80-0xFFFE
-    InterruptEnable,    // 0xFFFF: Interruption Enable
+    Mbc,             // 0x000-0x7FFF: read-only
+    Vram,            // 0x8000-0x9FFF
+    ERam,            // 0xA000-0xBFFF
+    Wram,            // 0xC000-0xDFFF
+    Mram,            // 0xE000-0xFDFF: mirror of C000-DDFF
+    Oam,             // 0xFE00-0xFE9F: Sprite Attribute Table
+    Unusable,        // 0xFEA0-0xFEFF
+    InterruptFlag,   // 0xFF0F: Interruption Flag: Inside IO
+    Timers,          // 0xFF04-0xFF07
+    Audio,           // 0xFF10-0xFF26
+    WaveRam,         // 0xFF30-0xFF3F
+    Io,              // 0xFF00-0xFF7F
+    HRam,            // 0xFF80-0xFFFE
+    InterruptEnable, // 0xFFFF: Interruption Enable
 }
 
 impl MemoryRegion {
@@ -79,7 +79,9 @@ pub trait MemoryMapper {
         wrapped_boot_rom: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<Self, String> where Self: Sized;
+    ) -> Result<Self, String>
+    where
+        Self: Sized;
     fn get_boot_enable(&self) -> bool;
     fn get_boot_rom(&self) -> &[u8; 0x0100];
     fn get_button_state(&self) -> &u8;
@@ -101,22 +103,21 @@ pub trait MemoryMapper {
 
     fn read_timers(&mut self, addr: u16) -> u8;
 
-
-    fn ram_dump(&mut self) ->  Option<Vec<u8>> {
+    fn ram_dump(&mut self) -> Option<Vec<u8>> {
         self.get_cart().dump()
     }
-    
 
-    fn read_byte(&mut self, addr: u16) -> u8 where Self: Sized {
+    fn read_byte(&mut self, addr: u16) -> u8
+    where
+        Self: Sized,
+    {
         if self.get_boot_enable() && addr <= 0x00FF {
             return self.get_boot_rom()[addr as usize];
         }
 
         match MemoryRegion::from(addr) {
             MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().read(addr),
-            MemoryRegion::Vram => {
-                self.get_ppu().read_vram(addr)
-            }
+            MemoryRegion::Vram => self.get_ppu().read_vram(addr),
             MemoryRegion::Mram => {
                 let mirror = addr - 0x2000;
                 self.get_data()[mirror as usize]
@@ -146,11 +147,14 @@ pub trait MemoryMapper {
             MemoryRegion::Unusable => 0xFF,
             MemoryRegion::InterruptFlag => self.get_interrupts().read_interrupt_flag(),
             MemoryRegion::InterruptEnable => self.get_interrupts().read_interrupt_enable(),
-            _ => self.get_data()[addr as usize]
+            _ => self.get_data()[addr as usize],
         }
     }
 
-    fn write_byte(&mut self, addr: u16, val: u8) where Self: Sized {
+    fn write_byte(&mut self, addr: u16, val: u8)
+    where
+        Self: Sized,
+    {
         if val != 0 && addr == 0xFF50 {
             self.update_data(addr as usize, val);
             self.set_boot_enable(false);
@@ -185,22 +189,32 @@ pub trait MemoryMapper {
                 } else {
                     self.update_data(addr as usize, val);
                 }
-            },
+            }
             MemoryRegion::Oam => {
                 self.get_ppu().write_oam(addr, val);
-            },
+            }
             MemoryRegion::Unusable => {}
             MemoryRegion::InterruptFlag => self.get_interrupts().write_interrupt_flag(val),
             MemoryRegion::InterruptEnable => self.get_interrupts().write_interrupt_enable(val),
-            _ => self.update_data(addr as usize, val)
+            _ => self.update_data(addr as usize, val),
         }
     }
 
-    fn read_interrupt_enable(&mut self) -> u8 { self.get_interrupts().read_interrupt_enable() }
-    fn read_interrupt_flag(&mut self) -> u8 { self.get_interrupts().read_interrupt_flag() }
-    fn interrupts_next_request(&mut self) -> Option<Interrupt> { self.get_interrupts().next_request() }
-    fn interrupts_clear_request(&mut self, interrupt: Interrupt) { self.get_interrupts().clear_request(interrupt); }
-    fn interrupts_request(&mut self, interrupt: Interrupt) { self.get_interrupts().request(interrupt); }
+    fn read_interrupt_enable(&mut self) -> u8 {
+        self.get_interrupts().read_interrupt_enable()
+    }
+    fn read_interrupt_flag(&mut self) -> u8 {
+        self.get_interrupts().read_interrupt_flag()
+    }
+    fn interrupts_next_request(&mut self) -> Option<Interrupt> {
+        self.get_interrupts().next_request()
+    }
+    fn interrupts_clear_request(&mut self, interrupt: Interrupt) {
+        self.get_interrupts().clear_request(interrupt);
+    }
+    fn interrupts_request(&mut self, interrupt: Interrupt) {
+        self.get_interrupts().request(interrupt);
+    }
 
     fn update_joypad_register(&mut self) {
         let mut new_inputs = 0x0F;
@@ -222,7 +236,10 @@ pub trait MemoryMapper {
         self.update_data(0xFF00, val);
     }
 
-    fn tick_timers(&mut self) where Self: Sized {
+    fn tick_timers(&mut self)
+    where
+        Self: Sized,
+    {
         if self.get_timer().tick() {
             let interrupt_flags_addr = MemoryRegion::InterruptFlag.to_address();
             let mut interrupt_flags = self.read_byte(interrupt_flags_addr);
@@ -237,22 +254,33 @@ pub trait MemoryMapper {
         self.update_joypad_register();
     }
 
-    fn tick_apu(&mut self) { self.get_apu().step(); }
+    fn tick_apu(&mut self) {
+        self.get_apu().step();
+    }
 
-    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) where Self: Sized;
-
+    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>)
+    where
+        Self: Sized;
 
     fn tick_dma(&mut self);
-
-
 }
 
 impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T, P> {
-    fn get_timer(&mut self) -> &mut dyn TimingComponent { &mut self.timers }
-    fn get_dma_index(&mut self) -> u8 { self.dma_index }
-    fn set_dma_index(&mut self, val: u8) { self.dma_index = val }
-    fn write_timers(&mut self, addr: u16, value: u8) { self.timers.write(addr, value) }
-    fn read_timers(&mut self, addr: u16) -> u8 { self.timers.read(addr) }
+    fn get_timer(&mut self) -> &mut dyn TimingComponent {
+        &mut self.timers
+    }
+    fn get_dma_index(&mut self) -> u8 {
+        self.dma_index
+    }
+    fn set_dma_index(&mut self, val: u8) {
+        self.dma_index = val
+    }
+    fn write_timers(&mut self, addr: u16, value: u8) {
+        self.timers.write(addr, value)
+    }
+    fn read_timers(&mut self, addr: u16) -> u8 {
+        self.timers.read(addr)
+    }
     fn tick_dma(&mut self) {
         let byte = self.read_byte(self.dma_source + self.dma_index as u16);
 
@@ -260,16 +288,21 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
 
         self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
 
-        self.dma_index+= 1;
+        self.dma_index += 1;
 
-        if self.dma_index == 160 { self.dma_index=0xFF; }
+        if self.dma_index == 160 {
+            self.dma_index = 0xFF;
+        }
     }
 
     fn new(
         wrapped_boot_rom: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<Self, String> where Self: Sized {
+    ) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
         let boot_enable = wrapped_boot_rom.is_some();
         let boot_rom = wrapped_boot_rom.unwrap_or([0xFF; 0x0100]);
         Ok(Self {
@@ -289,11 +322,12 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
         })
     }
 
-    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) 
-    where Self: Sized
+    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>)
+    where
+        Self: Sized,
     {
         self.ppu.tick(ct);
-        if self.ppu.pending_vblank(){
+        if self.ppu.pending_vblank() {
             self.interrupts_request(Interrupt::VBlank);
             self.ppu.set_pending_vblank(false);
         }
@@ -327,7 +361,7 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
     }
 
     fn get_boot_enable(&self) -> bool {
-        self.boot_enable 
+        self.boot_enable
     }
 
     fn get_dma_source(&self) -> u16 {
@@ -350,15 +384,17 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
         self.button_state = buttons;
     }
 
-    
     fn update_data(&mut self, index: usize, val: u8) {
         self.data[index] = val;
     }
 
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor {
+        &mut self.ppu
+    }
 
-    fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
-
-    fn get_apu(&mut self) -> &mut Apu { &mut self.apu }
+    fn get_apu(&mut self) -> &mut Apu {
+        &mut self.apu
+    }
 }
 
 pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
@@ -371,13 +407,11 @@ pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
     pub ppu: P,
     boot_enable: bool,
     boot_rom: [u8; 0x0100],
-    dpad_state: u8, // for joypad
+    dpad_state: u8,   // for joypad
     button_state: u8, // for joypad
     dma_source: u16,
     pub dma_index: u8,
 }
-
-
 
 impl<C: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<C, T, P> {
     fn default() -> Self {
@@ -385,11 +419,19 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<C, T, P> 
     }
 }
 
-impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T, P>{
-    fn get_timer(&mut self) -> &mut dyn TimingComponent { &mut self.timers }
-    fn get_dma_index(&mut self) -> u8 { self.dma_index }
-    fn set_dma_index(&mut self, val: u8) { self.dma_index = val }
-    fn write_timers(&mut self, addr: u16, value: u8) { self.timers.write(addr, value) }
+impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T, P> {
+    fn get_timer(&mut self) -> &mut dyn TimingComponent {
+        &mut self.timers
+    }
+    fn get_dma_index(&mut self) -> u8 {
+        self.dma_index
+    }
+    fn set_dma_index(&mut self, val: u8) {
+        self.dma_index = val
+    }
+    fn write_timers(&mut self, addr: u16, value: u8) {
+        self.timers.write(addr, value)
+    }
     fn read_timers(&mut self, addr: u16) -> u8 {
         self.timers.read(addr)
     }
@@ -400,16 +442,21 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
 
         self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
 
-        self.dma_index+= 1;
+        self.dma_index += 1;
 
-        if self.dma_index == 160 { self.dma_index=0xFF; }
+        if self.dma_index == 160 {
+            self.dma_index = 0xFF;
+        }
     }
 
     fn new(
         wrapped_boot_rom: Option<[u8; 0x100]>,
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
-    ) -> Result<Self, String> where Self: Sized {
+    ) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
         let boot_enable = wrapped_boot_rom.is_some();
         let boot_rom = wrapped_boot_rom.unwrap_or([0xFF; 0x0100]);
         Ok(CgbMmu {
@@ -429,7 +476,8 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
     }
 
     fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>)
-    where Self: Sized
+    where
+        Self: Sized,
     {
         self.ppu.tick(ct);
         if self.ppu.pending_vblank() {
@@ -501,9 +549,13 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
         }
     }
 
-    fn get_ppu(&mut self) -> &mut dyn PixelProcessor { &mut self.ppu }
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor {
+        &mut self.ppu
+    }
 
-    fn get_apu(&mut self) -> &mut Apu { &mut self.apu }
+    fn get_apu(&mut self) -> &mut Apu {
+        &mut self.apu
+    }
 }
 
 pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
@@ -515,7 +567,7 @@ pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
     pub ppu: P,
     boot_enable: bool,
     boot_rom: [u8; 0x0100],
-    dpad_state: u8, // for joypad
+    dpad_state: u8,   // for joypad
     button_state: u8, // for joypad
     dma_source: u16,
     pub dma_index: u8,
@@ -523,25 +575,25 @@ pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::mmu::mbc::RomOnly;
     use crate::mmu::timers::DmgTimers;
     use crate::ppu::DmgPpu;
-    use super::*;
 
-    use super::{MemoryRegion, DmgMmu};
+    use super::{DmgMmu, MemoryRegion};
 
-    fn default_dmg_mmu_from(rom: Vec<u8>) -> DmgMmu<RomOnly, DmgTimers, DmgPpu>{
+    fn default_dmg_mmu_from(rom: Vec<u8>) -> DmgMmu<RomOnly, DmgTimers, DmgPpu> {
         DmgMmu::<RomOnly, DmgTimers, DmgPpu>::new(None, rom, None).unwrap()
     }
 
-    fn default_dmg_mmu() -> DmgMmu<RomOnly, DmgTimers, DmgPpu>{
+    fn default_dmg_mmu() -> DmgMmu<RomOnly, DmgTimers, DmgPpu> {
         DmgMmu::<RomOnly, DmgTimers, DmgPpu>::default()
     }
 
     #[test]
     fn mmu_routes_reads_and_writes() {
         let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu =  default_dmg_mmu_from(rom);
+        let mut mmu = default_dmg_mmu_from(rom);
         // Reading from ROM region gives you the first bank data
         assert_eq!(mmu.read_byte(0x0000), 0x12);
         assert_eq!(mmu.read_byte(0x0001), 0x34);

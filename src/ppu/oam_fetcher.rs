@@ -25,7 +25,7 @@ pub struct OamFetcher<V: Vram> {
     actual_sprite_line: usize,
 }
 
-impl <V: Vram> Default for OamFetcher<V> {
+impl<V: Vram> Default for OamFetcher<V> {
     fn default() -> Self {
         Self {
             phantom: PhantomData,
@@ -39,9 +39,19 @@ impl <V: Vram> Default for OamFetcher<V> {
     }
 }
 
-impl <V: Vram>OamFetcher<V> {
+impl<V: Vram> OamFetcher<V> {
     #[allow(clippy::too_many_arguments)]
-    pub fn tick(&mut self, vram: &V, sprite: &Sprite, piso: &mut ObjPiso, ly: u8, height: u8, scanline_x: usize, obp0: u8, obp1: u8) -> bool {
+    pub fn tick(
+        &mut self,
+        vram: &V,
+        sprite: &Sprite,
+        piso: &mut ObjPiso,
+        ly: u8,
+        height: u8,
+        scanline_x: usize,
+        obp0: u8,
+        obp1: u8,
+    ) -> bool {
         self.dot_counter = self.dot_counter.wrapping_add(1);
 
         if self.dot_counter.is_multiple_of(2) {
@@ -51,19 +61,19 @@ impl <V: Vram>OamFetcher<V> {
                     self.fetcher_state = FetcherState::GetLowData;
 
                     return false;
-                },
+                }
                 FetcherState::GetLowData => {
                     self.tile_data_low = self.get_tile_data_low(vram);
                     self.fetcher_state = FetcherState::GetHighData;
 
                     return false;
-                },
+                }
                 FetcherState::GetHighData => {
                     self.tile_data_high = self.get_tile_data_high(vram);
                     self.fetcher_state = FetcherState::PushPixel;
 
                     return false;
-                },
+                }
                 FetcherState::PushPixel => {
                     self.push_pixel(piso, sprite, scanline_x, obp0, obp1);
                     self.fetcher_state = FetcherState::GetTileId;
@@ -81,26 +91,36 @@ impl <V: Vram>OamFetcher<V> {
         let sprite_line = (ly as i16 - sprite_top) as usize;
 
         let y_flip = ((sprite.attributes >> 6) & 1) != 0;
-        let actual_sprite_line = if y_flip { (height as usize - 1) - sprite_line } else { sprite_line };
+        let actual_sprite_line = if y_flip {
+            (height as usize - 1) - sprite_line
+        } else {
+            sprite_line
+        };
 
-        let tile_always_pair = if height == 16 { sprite.tile & 0xFE } else { sprite.tile };
-        let tile_index = if height == 16 && actual_sprite_line >= 8 { tile_always_pair + 1 } else { tile_always_pair };
+        let tile_always_pair = if height == 16 {
+            sprite.tile & 0xFE
+        } else {
+            sprite.tile
+        };
+        let tile_index = if height == 16 && actual_sprite_line >= 8 {
+            tile_always_pair + 1
+        } else {
+            tile_always_pair
+        };
 
         self.actual_sprite_line = actual_sprite_line;
         tile_index
     }
 
     fn get_tile_data_low(&mut self, vram: &V) -> u8 {
-        let tile_address = VRAM_START
-            + (self.tile_id as u16 * 16)
-            + (self.actual_sprite_line % 8 * 2) as u16;
+        let tile_address =
+            VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read(tile_address)
     }
 
     fn get_tile_data_high(&mut self, vram: &V) -> u8 {
-        let tile_address = VRAM_START
-            + (self.tile_id as u16 * 16)
-            + (self.actual_sprite_line % 8 * 2) as u16;
+        let tile_address =
+            VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read(tile_address + 1)
     }
 
@@ -113,12 +133,27 @@ impl <V: Vram>OamFetcher<V> {
         )
     }
 
-    fn push_pixel(&mut self, piso: &mut ObjPiso, sprite: &Sprite, scanline_x: usize, obp0: u8, obp1: u8) {
+    fn push_pixel(
+        &mut self,
+        piso: &mut ObjPiso,
+        sprite: &Sprite,
+        scanline_x: usize,
+        obp0: u8,
+        obp1: u8,
+    ) {
         let (priority, _, x_flip, palette_attribute) = self.extract_attributes(sprite.attributes);
 
         let palette = if palette_attribute { obp1 } else { obp0 };
 
-        piso.merge(self.tile_data_low, self.tile_data_high, sprite.x, x_flip, palette, priority, scanline_x);
+        piso.merge(
+            self.tile_data_low,
+            self.tile_data_high,
+            sprite.x,
+            x_flip,
+            palette,
+            priority,
+            scanline_x,
+        );
     }
 }
 

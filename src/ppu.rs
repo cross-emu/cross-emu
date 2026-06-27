@@ -1,28 +1,27 @@
 pub mod colors_palette;
 mod lcd_control;
 mod lcd_status;
-mod pixel;
-mod pixel_fifo;
-mod obj_piso;
-mod pixel_fetcher;
 mod oam_fetcher;
+mod obj_piso;
+mod pixel;
+mod pixel_fetcher;
+mod pixel_fifo;
 pub mod vram;
 
 pub type DmgPpu = Ppu<DmgVram, PixelFetcher<DmgVram>, Oam>;
 pub type CgbPpu = Ppu<CgbVram, PixelFetcher<CgbVram>, Oam>;
 use crate::ppu::lcd_control::LcdControl;
 
-
-use crate::ppu::lcd_status::PpuMode;
 use crate::communications::GameCT;
 use crate::mmu::oam::{Oam, Sprite};
 use crate::ppu::colors_palette::Color;
 use crate::ppu::lcd_status::LcdStatus;
-use crate::ppu::pixel::Pixel;
-use crate::ppu::pixel_fifo::PixelFifo;
-use crate::ppu::obj_piso::ObjPiso;
-use crate::ppu::pixel_fetcher::{PFetcher, PixelFetcher};
+use crate::ppu::lcd_status::PpuMode;
 use crate::ppu::oam_fetcher::OamFetcher;
+use crate::ppu::obj_piso::ObjPiso;
+use crate::ppu::pixel::Pixel;
+use crate::ppu::pixel_fetcher::{PFetcher, PixelFetcher};
+use crate::ppu::pixel_fifo::PixelFifo;
 use crate::ppu::vram::{CgbVram, DmgVram, Vram};
 
 pub const WIN_SIZE_X: usize = 160;
@@ -32,7 +31,9 @@ const OAM_DOTS: u32 = 80;
 const SCANLINE_DOTS: u32 = 456;
 
 pub trait PixelProcessor {
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
     fn read_vram(&self, addr: u16) -> u8;
     fn read_register(&self, addr: u16) -> u8;
     fn write_vram(&mut self, addr: u16, val: u8);
@@ -42,7 +43,6 @@ pub trait PixelProcessor {
     fn read_oam(&mut self, addr: u16) -> u8; // mut read for bug on read
     fn write_oam(&mut self, addr: u16, value: u8);
 
-    
     fn pending_vblank(&self) -> bool;
     fn set_pending_vblank(&mut self, value: bool);
     fn pending_stat(&self) -> bool;
@@ -50,10 +50,12 @@ pub trait PixelProcessor {
 }
 
 pub trait ObjectManager {
-    fn new() -> Self where Self: Sized;
+    fn new() -> Self
+    where
+        Self: Sized;
 
     fn read(&mut self, addr: u16) -> u8; // mut read for bug
-    fn write(&mut self, addr: u16, value:  u8);
+    fn write(&mut self, addr: u16, value: u8);
 
     fn set_accessed_oam_row(&mut self, value: u8);
     fn update_accessed_oam_row(&mut self, value: u8);
@@ -88,15 +90,15 @@ pub struct Ppu<V: Vram, P: PFetcher<V>, O: ObjectManager> {
     stat_interrupt_line: bool,
     stall_dots: u8,
     // Memory-mapped registers owned by PPU
-    lcdc_byte: u8,  // 0xFF40
-    scy: u8,        // 0xFF42
-    scx: u8,        // 0xFF43
-    lyc: u8,        // 0xFF45
-    bgp: u8,        // 0xFF47
-    obp0: u8,       // 0xFF48
-    obp1: u8,       // 0xFF49
-    wy: u8,         // 0xFF4A
-    wx: u8,         // 0xFF4B
+    lcdc_byte: u8, // 0xFF40
+    scy: u8,       // 0xFF42
+    scx: u8,       // 0xFF43
+    lyc: u8,       // 0xFF45
+    bgp: u8,       // 0xFF47
+    obp0: u8,      // 0xFF48
+    obp1: u8,      // 0xFF49
+    wy: u8,        // 0xFF4A
+    wx: u8,        // 0xFF4B
     // Pending interrupts to be drained by MMU after tick
     pub pending_vblank: bool,
     pub pending_stat: bool,
@@ -104,11 +106,19 @@ pub struct Ppu<V: Vram, P: PFetcher<V>, O: ObjectManager> {
     oam: O,
 }
 
-impl <V: Vram, P: PFetcher<V>, O: ObjectManager> PixelProcessor for Ppu<V, P, O> {
-    fn pending_vblank(&self) -> bool {self.pending_vblank}
-    fn set_pending_vblank(&mut self, value: bool) { self.pending_vblank = value}
-    fn pending_stat(&self) -> bool {self.pending_stat}
-    fn set_pending_stat(&mut self, value: bool) {self.pending_stat = value}
+impl<V: Vram, P: PFetcher<V>, O: ObjectManager> PixelProcessor for Ppu<V, P, O> {
+    fn pending_vblank(&self) -> bool {
+        self.pending_vblank
+    }
+    fn set_pending_vblank(&mut self, value: bool) {
+        self.pending_vblank = value
+    }
+    fn pending_stat(&self) -> bool {
+        self.pending_stat
+    }
+    fn set_pending_stat(&mut self, value: bool) {
+        self.pending_stat = value
+    }
 
     fn new() -> Self {
         Self {
@@ -192,7 +202,8 @@ impl <V: Vram, P: PFetcher<V>, O: ObjectManager> PixelProcessor for Ppu<V, P, O>
             0xFF41 => {
                 // CPU can only write bits 3-6; bits 0-2 are PPU-controlled; bit 7 always 1
                 let ppu_bits = self.lcd_status.struct_to_byte() & 0b0000_0111;
-                self.lcd_status.update_from_byte((val & 0b0111_1000) | ppu_bits | 0x80);
+                self.lcd_status
+                    .update_from_byte((val & 0b0111_1000) | ppu_bits | 0x80);
             }
             0xFF42 => self.scy = val,
             0xFF43 => self.scx = val,
@@ -239,8 +250,11 @@ impl <V: Vram, P: PFetcher<V>, O: ObjectManager> PixelProcessor for Ppu<V, P, O>
 
 impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
     fn step_oam_fetcher(&mut self) {
-
-        let height: u8 = if LcdControl::from_byte(self.lcdc_byte).is_obj_size_8x16() { 16 } else { 8 };
+        let height: u8 = if LcdControl::from_byte(self.lcdc_byte).is_obj_size_8x16() {
+            16
+        } else {
+            8
+        };
 
         if self.fetching_sprite {
             if let Some(index) = self.current_sprite_to_fetch
@@ -309,7 +323,8 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
     }
 
     fn sort_sprites_by_x(&mut self) -> Vec<Sprite> {
-        let mut sprites: Vec<(usize, Sprite)> = self.visible_sprites
+        let mut sprites: Vec<(usize, Sprite)> = self
+            .visible_sprites
             .iter()
             .enumerate()
             .filter_map(|(i, s)| s.map(|sprite| (i, sprite)))
@@ -375,8 +390,8 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
             self.pixel_fetcher.reset_for_window();
             self.bg_fifo.clear();
             let wx = self.wx;
-            self.wx_at_window_start=wx;
-            self.pixels_to_discard=0;
+            self.wx_at_window_start = wx;
+            self.pixels_to_discard = 0;
         }
 
         self.use_window = use_window;
@@ -388,7 +403,7 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
         {
             let glitched_pixel = Pixel::new_bg(self.apply_background_palette(0), 0);
             self.bg_fifo.push(glitched_pixel);
-            self.is_wx_glitch_happened=true;
+            self.is_wx_glitch_happened = true;
         }
     }
 
@@ -435,15 +450,15 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
 
     fn step_pixel_fetcher(&mut self, use_window: bool) {
         let tile_pixels = self.pixel_fetcher.tick(
-			&self.bg_fifo,
+            &self.bg_fifo,
             &self.vram,
-			self.ly,
-			self.scx,
-			self.scy,
-			self.wly,
-			&LcdControl::from_byte(self.lcdc_byte),
-			use_window,
-			self.bgp,
+            self.ly,
+            self.scx,
+            self.scy,
+            self.wly,
+            &LcdControl::from_byte(self.lcdc_byte),
+            use_window,
+            self.bgp,
         );
 
         if let Some(pixels) = tile_pixels {
@@ -480,23 +495,27 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
     }
 
     fn reset_for_new_scanline(&mut self) {
-        self.x =  0;
+        self.x = 0;
         self.bg_fifo.clear();
         self.obj_piso.reset();
         self.pixel_fetcher.reset_for_scanline();
         self.pixels_to_discard = self.scx % 8;
         self.use_window = false;
-        self.is_wx_glitch_happened=false;
-        self.is_first_scanline_after_lcd_on=false;
+        self.is_wx_glitch_happened = false;
+        self.is_first_scanline_after_lcd_on = false;
         self.stall_dots = 0;
     }
 
     fn advance_to_next_scanline(&mut self) {
-        if self.read_lcdc().is_window_enabled() && self.ly >= self.wy && self.wx <= 166 && self.wly < WIN_SIZE_Y as u8 {
-            self.wly  += 1;
+        if self.read_lcdc().is_window_enabled()
+            && self.ly >= self.wy
+            && self.wx <= 166
+            && self.wly < WIN_SIZE_Y as u8
+        {
+            self.wly += 1;
         }
 
-        self.ly  += 1;
+        self.ly += 1;
         self.internal_ly += 1;
 
         self.check_lyc_equals_ly();
@@ -563,16 +582,15 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
     }
 
     fn reset_when_ppu_disabled(&mut self) {
-        self.ly = 0 ;
-        self.internal_ly = 0 ;
+        self.ly = 0;
+        self.internal_ly = 0;
 
-        self.dots = 0 ;
+        self.dots = 0;
         self.update_ppu_mode(PpuMode::HBlank);
 
-        self.lcd_was_enabled = false ;
-        self.stat_interrupt_line = false ;
+        self.lcd_was_enabled = false;
+        self.stat_interrupt_line = false;
     }
-
 
     fn check_lyc_equals_ly(&mut self) {
         let lyc_match = self.ly == self.lyc;
@@ -592,5 +610,4 @@ impl<V: Vram, P: PFetcher<V>, O: ObjectManager> Ppu<V, P, O> {
 
         self.stat_interrupt_line = current_line;
     }
-
 }

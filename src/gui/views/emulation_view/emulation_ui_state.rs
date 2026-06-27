@@ -1,10 +1,9 @@
 use crate::gui::CoreGameDevice;
 
-
 pub struct EmulationUiState {
     pub is_paused: bool,
     pub speed: f32,
-    pub volume: f32
+    pub volume: f32,
 }
 
 impl Default for EmulationUiState {
@@ -12,7 +11,7 @@ impl Default for EmulationUiState {
         Self {
             is_paused: false,
             speed: 1.0,
-            volume: 100.0
+            volume: 100.0,
         }
     }
 }

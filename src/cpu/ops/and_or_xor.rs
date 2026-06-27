@@ -1,7 +1,7 @@
 use crate::cpu::defines::Flag;
 use crate::cpu::flags::FlagsOps;
 use crate::mmu::MemoryMapper;
-use crate::{cpu::defines::Cpu, cpu::Reg8};
+use crate::{cpu::Reg8, cpu::defines::Cpu};
 
 impl<M: MemoryMapper> Cpu<M> {
     pub fn and_r8_r8<Dest: Reg8, Src: Reg8>(&mut self, _bus: &mut M) {

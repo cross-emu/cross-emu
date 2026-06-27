@@ -1,11 +1,10 @@
-
 use crate::cpu::*;
 use crate::{
+    cpu::{PC, Reg16, W, Z},
     cpu::{
         defines::{Cpu, Flag},
         flags::FlagsOps,
     },
-    cpu::{PC, Reg16, W, Z},
     mmu::MemoryMapper,
 };
 
@@ -42,10 +41,9 @@ impl<M: MemoryMapper> Cond<M> for CondC {
 }
 
 impl<M: MemoryMapper> Cpu<M> {
-
     pub fn read_memory_incr_check<Src: Reg16, Dest: Reg8, Cc: Cond<M>>(&mut self, bus: &mut M) {
         Self::read_memory_incr::<Src, Dest>(self, bus);
-        
+
         if !Cc::is_met(self) {
             self.load_queue(&[Cpu::noop]);
         }
@@ -92,5 +90,4 @@ impl<M: MemoryMapper> Cpu<M> {
         let wz = ((w as u16) << 8) | (result as u16);
         Self::set_r16::<PC>(self, wz);
     }
-
 }

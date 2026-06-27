@@ -9,15 +9,14 @@ mod mmu;
 mod ppu;
 mod sound;
 
-use std::sync::atomic::AtomicBool;
-use sound::start_audio;
+use crate::{cli::EmulatorArguments, file::GbmuFile, gui::EmulationAppOptions};
 use gui::GraphicalApp;
-use crate::{cli::EmulatorArguments, file::{GbmuFile}, gui::EmulationAppOptions};
-use std::sync::{Arc, LazyLock, Mutex};
+use sound::start_audio;
 use std::f32::consts::PI;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::mmu::apu::sample_buffer;
-
 
 static GBMU_FILE: LazyLock<Mutex<GbmuFile>> =
     LazyLock::new(|| Mutex::new(GbmuFile::get_existing_or_new()));
@@ -36,7 +35,7 @@ async fn main() {
         let buffer = sample_buffer::SampleBuffer::new();
 
         let mut phase = 0.0;
-        for _ in 0..48000*5 {
+        for _ in 0..48000 * 5 {
             phase += 2.0 * PI * 261.63 / 48000.0;
             buffer.push(phase.sin() * 0.5);
         }

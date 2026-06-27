@@ -7,8 +7,10 @@ pub struct DmgTimers {
     previous_and_result: bool,
 }
 
-pub trait TimingComponent  {
-    fn new() -> Self where Self: Sized;
+pub trait TimingComponent {
+    fn new() -> Self
+    where
+        Self: Sized;
 
     fn div(&self) -> u16;
     fn set_div(&mut self, value: u8);
@@ -20,7 +22,7 @@ pub trait TimingComponent  {
     fn tma(&self) -> u8;
     fn set_tma(&mut self, value: u8);
 
-    fn tima (&self) -> u8;
+    fn tima(&self) -> u8;
     fn set_tima(&mut self, value: u8);
     fn inc_tima(&mut self);
 
@@ -41,7 +43,6 @@ pub trait TimingComponent  {
         let kept_bit = (self.div() & mask) > 0;
         kept_bit && enabled
     }
-
 
     fn tick(&mut self) -> bool {
         self.inc_div();
@@ -89,23 +90,52 @@ pub struct CgbTimer {
 }
 
 impl TimingComponent for CgbTimer {
-    fn new() -> Self where Self: Sized { Self::default() }
-    fn div(&self) -> u16 { self.div }
-    fn set_div(&mut self, value: u8) { self.div = value as u16 }
-    fn inc_div(&mut self) { self.div = self.div.wrapping_add(1) }
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self::default()
+    }
+    fn div(&self) -> u16 {
+        self.div
+    }
+    fn set_div(&mut self, value: u8) {
+        self.div = value as u16
+    }
+    fn inc_div(&mut self) {
+        self.div = self.div.wrapping_add(1)
+    }
 
-    fn tac(&self) -> u8 { self.tac }
-    fn set_tac(&mut self, value: u8) { self.tac = value }
+    fn tac(&self) -> u8 {
+        self.tac
+    }
+    fn set_tac(&mut self, value: u8) {
+        self.tac = value
+    }
 
-    fn tma(&self) -> u8 {self.tma }
-    fn set_tma(&mut self, value: u8) { self.tma = value }
+    fn tma(&self) -> u8 {
+        self.tma
+    }
+    fn set_tma(&mut self, value: u8) {
+        self.tma = value
+    }
 
-    fn tima (&self) -> u8 { self.tima }
-    fn set_tima(&mut self, value: u8) { self.tima = value }
-    fn inc_tima(&mut self) { self.tima = self.tima.wrapping_add(1); }
+    fn tima(&self) -> u8 {
+        self.tima
+    }
+    fn set_tima(&mut self, value: u8) {
+        self.tima = value
+    }
+    fn inc_tima(&mut self) {
+        self.tima = self.tima.wrapping_add(1);
+    }
 
-    fn previous_and_result(&self) -> bool { self.previous_and_result }
-    fn set_next_and_result(&mut self, and_result: bool) { self.previous_and_result = and_result}
+    fn previous_and_result(&self) -> bool {
+        self.previous_and_result
+    }
+    fn set_next_and_result(&mut self, and_result: bool) {
+        self.previous_and_result = and_result
+    }
 }
 
 const DIV_ADDR: u16 = 0xFF04;
@@ -114,23 +144,52 @@ const TMA_ADDR: u16 = 0xFF06;
 const TAC_ADDR: u16 = 0xFF07;
 
 impl TimingComponent for DmgTimers {
-    fn new() -> Self where Self: Sized { Self::default() }
-    fn div(&self) -> u16 { self.div }
-    fn set_div(&mut self, value: u8) { self.div = value as u16 }
-    fn inc_div(&mut self) { self.div = self.div.wrapping_add(1) }
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self::default()
+    }
+    fn div(&self) -> u16 {
+        self.div
+    }
+    fn set_div(&mut self, value: u8) {
+        self.div = value as u16
+    }
+    fn inc_div(&mut self) {
+        self.div = self.div.wrapping_add(1)
+    }
 
-    fn tac(&self) -> u8 { self.tac }
-    fn set_tac(&mut self, value: u8) { self.tac = value }
+    fn tac(&self) -> u8 {
+        self.tac
+    }
+    fn set_tac(&mut self, value: u8) {
+        self.tac = value
+    }
 
-    fn tma(&self) -> u8 {self.tma }
-    fn set_tma(&mut self, value: u8) { self.tma = value }
+    fn tma(&self) -> u8 {
+        self.tma
+    }
+    fn set_tma(&mut self, value: u8) {
+        self.tma = value
+    }
 
-    fn tima (&self) -> u8 { self.tima }
-    fn set_tima(&mut self, value: u8) { self.tima = value }
-    fn inc_tima(&mut self) { self.tima = self.tima.wrapping_add(1); }
+    fn tima(&self) -> u8 {
+        self.tima
+    }
+    fn set_tima(&mut self, value: u8) {
+        self.tima = value
+    }
+    fn inc_tima(&mut self) {
+        self.tima = self.tima.wrapping_add(1);
+    }
 
-    fn previous_and_result(&self) -> bool { self.previous_and_result }
-    fn set_next_and_result(&mut self, and_result: bool) { self.previous_and_result = and_result}
+    fn previous_and_result(&self) -> bool {
+        self.previous_and_result
+    }
+    fn set_next_and_result(&mut self, and_result: bool) {
+        self.previous_and_result = and_result
+    }
 }
 
 #[cfg(test)]
@@ -287,8 +346,10 @@ mod tests {
             ..Default::default()
         };
         timers.write(TAC_ADDR, 0b101);
-        (0..=15).into_iter().for_each(|_| {timers.tick();});
-        
+        (0..=15).into_iter().for_each(|_| {
+            timers.tick();
+        });
+
         assert_eq!(timers.tima, timers.tma);
     }
 }

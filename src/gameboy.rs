@@ -1,18 +1,18 @@
 #![allow(unused_variables)]
 
-use std::collections::HashSet;
 use crate::gameboy::instructions::get_instruction_length;
+use std::collections::HashSet;
 
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::gameboy::defines::MicroOp;
-use crate::cpu::*;
 use crate::communications::InstructionList;
 use crate::communications::WatchedAdresses;
 use crate::communications::{GameCT, Mode, Request};
 use crate::cpu::defines::Cpu;
+use crate::cpu::*;
+use crate::gameboy::defines::MicroOp;
 use crate::gui::KeyInput;
 use crate::mmu::MemoryMapper;
 
@@ -31,7 +31,7 @@ pub struct GameBoy<M: MemoryMapper> {
     watched_address: HashSet<u16>,
     cycles_elapsed: u32,
     speed: u64,
-    is_paused: bool
+    is_paused: bool,
 }
 
 type GBMode<M> = fn(&mut GameBoy<M>, &KeyInput, &mut Box<dyn GameCT>);
@@ -68,13 +68,12 @@ impl<M: MemoryMapper> GameBoy<M> {
             };
 
             instructions.push((opcode_to_push, name));
-            
+
             current_pc = current_pc.wrapping_add(instr_len);
         }
 
         ct.send_next_instructions(InstructionList(instructions));
     }
-
 
     pub fn ram_dump(mut self) -> Option<Vec<u8>> {
         self.bus.ram_dump()
@@ -99,7 +98,7 @@ impl<M: MemoryMapper> GameBoy<M> {
             cycles_elapsed: 0,
             watched_address: HashSet::new(),
             speed: 1,
-            is_paused: false
+            is_paused: false,
         };
 
         if skip_boot {
@@ -144,10 +143,8 @@ impl<M: MemoryMapper> GameBoy<M> {
         Ok(self.ram_dump())
     }
 
-
-
     fn cap_frame(&self, wanted_duration: Duration, duration_elapsed: Duration) {
-        let target = wanted_duration; 
+        let target = wanted_duration;
         let start = Instant::now();
 
         let duration_of_the_wait = target.saturating_sub(duration_elapsed);
@@ -169,17 +166,21 @@ impl<M: MemoryMapper> GameBoy<M> {
                 }
                 Mode::Debug => {
                     println!("debug mode set");
-                    *mode =Self::debug_mode
+                    *mode = Self::debug_mode
                 }
-                Mode::Stop =>{
+                Mode::Stop => {
                     println!("stopped mode set");
                     *mode = Self::stopped_mode
                 }
             },
             Request::Execute(instructions) => {
                 if let Some(instr) = self.cpu.find_instruction(&instructions) {
-                    println!("Found instructions {:#?}. Executing....", (instr.name.clone(), instr.opcode));
-                    let snapshot: ([MicroOp<M>; 8], usize, usize) = (self.cpu.queue, self.cpu.queue_len, self.cpu.op_index);
+                    println!(
+                        "Found instructions {:#?}. Executing....",
+                        (instr.name.clone(), instr.opcode)
+                    );
+                    let snapshot: ([MicroOp<M>; 8], usize, usize) =
+                        (self.cpu.queue, self.cpu.queue_len, self.cpu.op_index);
                     self.cpu.load_instruction(instr.opcode);
                     let mut i = self.cpu.queue_len;
 
@@ -215,7 +216,7 @@ impl<M: MemoryMapper> GameBoy<M> {
             Request::StopWatch(address) => {
                 self.watched_address.remove(&address);
             }
-             Request::SetSpeed(speed) => {
+            Request::SetSpeed(speed) => {
                 self.speed = speed as u64;
             }
             _ => unreachable!(),
@@ -274,7 +275,6 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.bus.write_byte(0xFF4A, 0x00);
         self.bus.write_byte(0xFF4B, 0x00);
         self.bus.write_byte(0xFFFF, 0x00);
-
     }
 
     pub fn manage_input(&mut self, key_input: &KeyInput) {
@@ -321,7 +321,7 @@ impl<M: MemoryMapper> GameBoy<M> {
             self.cpu.tick(&mut self.bus);
             self.cycles_elapsed = 0;
         }
-        
+
         self.bus.tick_ppu(ct);
         self.bus.tick_apu();
     }
@@ -330,13 +330,13 @@ impl<M: MemoryMapper> GameBoy<M> {
         for _ in 0..FRAME_CYCLES {
             self.tick_gb(key_input, ct);
         }
-        
+
         if self.instructions_to_send != 0 {
             self.send_next_instructions(ct);
         }
     }
 
-   fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+    fn debug_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
         for _ in 0..FRAME_CYCLES {
             self.tick_gb(key_input, ct)
         }
