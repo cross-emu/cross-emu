@@ -1,5 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{FromSample, SampleFormat, SizedSample};
+use cpal::{Device, FromSample, SampleFormat, SizedSample, SupportedOutputConfigs, SupportedStreamConfig};
+use pixels::wgpu::naga::back::msl::Error::Format;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -40,16 +41,11 @@ pub fn start_audio(buffer: sample_buffer::SampleBuffer, audio_running: Arc<Atomi
     std::thread::spawn(move || {
         let host = cpal::default_host();
         let device = host.default_output_device().expect("no output device");
-        let mut supported_configs_range = device
-            .supported_output_configs()
-            .expect("error while querying configs");
-        let first_supported_config = supported_configs_range
-            .next()
-            .expect("no supported config?!")
-            .with_max_sample_rate();
 
-        let sample_format = first_supported_config.sample_format();
-        let config: cpal::StreamConfig = first_supported_config.into();
+        let sound_config = choose_config(&device);
+
+        let sample_format = sound_config.sample_format();
+        let config: cpal::StreamConfig = sound_config.into();
 
         let stream = match sample_format {
             SampleFormat::U8 => build_stream::<u8>(&device, &config, buffer.clone()),
