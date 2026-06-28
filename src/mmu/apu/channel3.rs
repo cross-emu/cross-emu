@@ -42,7 +42,7 @@ impl ChannelThree {
             self.sample_position = (self.sample_position + 1) % 32;
 
             let byte = self.wave_ram[(self.sample_position / 2) as usize];
-            self.current_sample = if self.sample_position % 2 == 0 {
+            self.current_sample = if self.sample_position.is_multiple_of(2) {
                 byte >> 4
             } else {
                 byte & 0x0F
