@@ -207,7 +207,7 @@ impl Mbc for Mbc2 {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             0x0000..0x4000 => {
-                if addr & 0b1_0000_0000 == 0b1_0000_0000 {
+                if addr & 0b1000_0000 == 0 {
                     self.ram_gate_register = (val & 0b1111) == 0b1010
                 } else {
                     let new_value = val & 0b1111;
