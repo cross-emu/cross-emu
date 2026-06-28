@@ -156,7 +156,7 @@ pub trait MemoryMapper {
     fn read_byte(&mut self, addr: u16) -> u8 where Self: Sized {
         if self.get_dma_index() != 0xFF && addr < 0xFF00
         {
-            return 0xFF
+            return self.get_dma_last_byte()
         }
         self.read_byte_raw(addr)
     }
@@ -202,8 +202,8 @@ pub trait MemoryMapper {
                 } else if addr == 0xFF46 {
                     self.set_dma_last_byte(val);
                     self.update_data(addr as usize, val);
-                    self.set_dma_source((val as u16) << 8);
                     self.set_dma_index(0);
+                    self.set_dma_source((val as u16) << 8);
                 } else {
                     self.update_data(addr as usize, val);
                 }
