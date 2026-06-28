@@ -207,7 +207,7 @@ impl Mbc for Mbc2 {
     fn write(&mut self, addr: u16, val: u8) {
         match addr {
             0x0000..0x4000 => {
-                if addr & 0b1000_0000 == 0 {
+                if addr & 0b1_0000_0000 == 0 {
                     self.ram_gate_register = (val & 0b1111) == 0b1010
                 } else {
                     let new_value = val & 0b1111;
@@ -217,7 +217,7 @@ impl Mbc for Mbc2 {
             0x4000..0x8000 => {} // do nothing
             0xA000..0xC000 => {
                 if self.ram_gate_register {
-                    self.ram_banks[0][(addr & 0b1111_1111) as usize] = val;
+                    self.ram_banks[0][(addr & 0b1_1111_1111) as usize] = val;
                 }
             }
             _ => unreachable!(),
