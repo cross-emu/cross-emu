@@ -170,7 +170,7 @@ impl EmulationDevice {
                         ui.label(RichText::new("Volume").color(Color32::WHITE).strong());
                         let slider = egui::Slider::new(&mut self.ui_state.volume, 0.0..=200.0)
                             .step_by(10.0)
-                            .suffix("x")
+                            .suffix("%")
                             .show_value(true);
                         if ui.add_sized(vec2(140.0, 20.0), slider).changed() {
                             let _ = self
