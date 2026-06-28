@@ -12,7 +12,6 @@ use std::sync::{
 use tokio::sync::mpsc::channel;
 use tokio::sync::watch;
 
-use crate::gui::KeyInput;
 pub use game_tool::GameCT;
 pub use game_tool::GameCommunicationTool;
 pub use interface_tool::InterfaceCT;
@@ -68,7 +67,7 @@ impl Deref for WatchedAdresses {
     }
 }
 
-use crate::ppu::colors_palette::Color;
+use crate::{gui::keymapping::KeyInput, ppu::colors_palette::Color};
 
 pub const FRAME_SIZE_IN_U8: usize = FRAME_SIZE * 3;
 

@@ -1,10 +1,11 @@
-use crate::gui::KeyInput;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, AtomicIsize},
 };
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::watch;
+
+use crate::gui::keymapping::KeyInput;
 
 use super::Color;
 use super::CpuState;

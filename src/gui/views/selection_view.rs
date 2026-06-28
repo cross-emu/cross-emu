@@ -11,14 +11,52 @@ enum OutState {
 
 impl SelectionDevice {
     
-    fn key_cell(ui: &mut egui::Ui, action: &str) {
+    fn try_capture_key(&mut self, ctx: &egui::Context) {
+        let Some(action) = self.listening else { return };
+
+        let captured = ctx.input(|i| {
+            i.events.iter().find_map(|event| match event {
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    repeat: false,
+                    ..
+                } => Some(*key),
+                _ => None,
+            })
+        });
+
+        if let Some(key) = captured {
+            if key != egui::Key::Escape {
+                self.key_mapping.remap(action, key);
+            }
+            self.listening = None;
+        }
+    }
+
+    fn key_cell(&mut self, ui: &mut egui::Ui, action: &'static str) {
+
         ui.vertical_centered(|ui| {
+            let is_listening = self.listening == Some(action);
+
+            let label = if is_listening {
+                "...".to_string()
+            } else {
+                format!("{:?}", self.key_mapping.get(action))
+            };
+
+            let mut button = egui::Button::new(label);
+            if is_listening {
+                button = button.fill(ui.visuals().selection.bg_fill);
+            }
+
             if ui
-                .add_sized(egui::vec2(42.0, 30.0), egui::Button::new("···"))
+                .add_sized(egui::vec2(42.0, 30.0), button)
                 .clicked()
             {
-                todo!()
+                self.listening = Some(action);
             }
+
             ui.add_space(2.0);
             ui.label(egui::RichText::new(action).size(11.0).weak());
         });
@@ -54,6 +92,7 @@ impl SelectionDevice {
     }
 
     fn display(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.try_capture_key(&ui.ctx().clone());
         if let Some(path) = ui.ctx().input(|i| {
             i.raw
                 .dropped_files
@@ -67,14 +106,6 @@ impl SelectionDevice {
             .resizable(true)
             .default_size(220.0)
             .show_inside(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        egui::widgets::global_theme_preference_switch(ui);
-                    });
-                });
-
-                ui.separator();
-
                 ui.horizontal(|ui| {
                     let half_width = ui.available_width() / 2.0 - 8.0;
 
@@ -90,17 +121,17 @@ impl SelectionDevice {
                                     .spacing(egui::vec2(6.0, 6.0))
                                     .show(ui, |ui| {
                                         ui.label("");
-                                        Self::key_cell(ui, "Up");
+                                        self.key_cell(ui, "Up");
                                         ui.label("");
                                         ui.end_row();
 
-                                        Self::key_cell(ui, "Left");
+                                        self.key_cell(ui, "Left");
                                         ui.label("");
-                                        Self::key_cell(ui, "Right");
+                                        self.key_cell(ui, "Right");
                                         ui.end_row();
 
                                         ui.label("");
-                                        Self::key_cell(ui, "Down");
+                                        self.key_cell(ui, "Down");
                                         ui.label("");
                                         ui.end_row();
                                     });
@@ -112,15 +143,15 @@ impl SelectionDevice {
                                         .spacing(egui::vec2(3.0, 6.0))
                                         .show(ui, |ui| {
                                             ui.label("");
-                                            Self::key_cell(ui, "B");
+                                            self.key_cell(ui, "B");
                                             ui.end_row();
 
-                                            Self::key_cell(ui, "A");
+                                            self.key_cell(ui, "A");
                                             ui.label("");
                                             ui.end_row();
-                                            Self::key_cell(ui, "Select");
+                                            self.key_cell(ui, "Select");
                                             ui.add_space(2.0);
-                                            Self::key_cell(ui, "Start");
+                                            self.key_cell(ui, "Start");
                                             ui.label("");
                                             ui.end_row();
                                         });
@@ -137,6 +168,15 @@ impl SelectionDevice {
                         ui.add_space(4.0);
                         // show a scrollable list of save states
                     });
+
+                    });
+                    ui.separator();
+
+                    ui.horizontal(|ui| {
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        egui::widgets::global_theme_preference_switch(ui);
+                    });
+
                 });
             });
 

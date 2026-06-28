@@ -1,5 +1,5 @@
 use super::*;
-use crate::gui::KeyInput;
+use crate::gui::keymapping::KeyInput;
 use crate::ppu::colors_palette::Color;
 
 // ---------------------------------------------------------------------------
