@@ -1,4 +1,3 @@
-use crate::gui::KeyInput;
 use std::sync::atomic::Ordering;
 use std::sync::{
     Arc, Mutex,
@@ -6,6 +5,8 @@ use std::sync::{
 };
 use tokio::sync::mpsc::Sender;
 use tokio::sync::watch;
+
+use crate::gui::keymapping::KeyInput;
 
 use super::Color;
 use super::CpuState;

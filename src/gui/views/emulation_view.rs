@@ -236,7 +236,8 @@ impl From<SelectionDevice> for EmulationDevice {
             boot_rom: true,
             boot_rom_path: "boot-roms/dmg.bin".into(),
         };
-        let core_game = CoreGameDevice::new(options);
+        let mut core_game = CoreGameDevice::new(options);
+        core_game.key_mapping = original.key_mapping;
         Self {
             core_game,
             ui_state: EmulationUiState::default(),

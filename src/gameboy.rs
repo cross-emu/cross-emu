@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
 
 use crate::gameboy::instructions::get_instruction_length;
+use crate::gui::keymapping::KeyInput;
 use std::collections::HashSet;
 
 use std::thread;
@@ -13,7 +14,6 @@ use crate::communications::{GameCT, Mode, Request};
 use crate::cpu::defines::Cpu;
 use crate::cpu::*;
 use crate::gameboy::defines::MicroOp;
-use crate::gui::KeyInput;
 use crate::mmu::MemoryMapper;
 
 const FRAME_CYCLES: u32 = 70224;

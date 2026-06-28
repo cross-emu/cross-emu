@@ -3,10 +3,12 @@
 
 mod common;
 mod views;
+pub mod keymapping;
 
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
+use crate::gui::keymapping::KeyMapping;
 use crate::gameboy::GameBoy;
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 use crate::mmu::DmgMmu;
@@ -16,7 +18,6 @@ use crate::ppu::{self, DmgPpu};
 use egui::load::SizedTexture;
 use egui::{ColorImage, TextureOptions, vec2};
 use egui_file_dialog::{FileDialog, Filter};
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -139,56 +140,6 @@ impl GraphicalApp {
 #[derive(Default)]
 pub struct StartingHubDevice {}
 
-#[derive(Default, Debug, Copy, Clone, PartialEq)]
-pub struct KeyInput {
-    pub a_pushed: bool,
-    pub b_pushed: bool,
-    pub select_pushed: bool,
-    pub start_pushed: bool,
-    pub up_pushed: bool,
-    pub down_pushed: bool,
-    pub left_pushed: bool,
-    pub right_pushed: bool,
-}
-
-impl From<&KeyInput> for bool {
-    fn from(val: &KeyInput) -> Self {
-        val.a_pushed
-            || val.b_pushed
-            || val.select_pushed
-            || val.start_pushed
-            || val.up_pushed
-            || val.down_pushed
-            || val.left_pushed
-            || val.right_pushed
-    }
-}
-
-pub struct KeyMapping {
-    pub a: Key,
-    pub b: Key,
-    pub select: Key,
-    pub start: Key,
-    pub up: Key,
-    pub down: Key,
-    pub left: Key,
-    pub right: Key,
-}
-
-impl Default for KeyMapping {
-    fn default() -> Self {
-        KeyMapping {
-            a: Key::J,
-            b: Key::K,
-            select: Key::N,
-            start: Key::M,
-            up: Key::W,
-            down: Key::S,
-            left: Key::A,
-            right: Key::D,
-        }
-    }
-}
 
 #[allow(clippy::large_enum_variant)]
 pub enum AppState {
@@ -402,20 +353,7 @@ pub struct CoreGameDevice {
     options: CoreGameOptions,
 }
 
-impl KeyMapping {
-    pub fn generate_key_input(&self, keys_down: HashSet<Key>) -> KeyInput {
-        KeyInput {
-            a_pushed: keys_down.contains(&self.a),
-            b_pushed: keys_down.contains(&self.b),
-            select_pushed: keys_down.contains(&self.select),
-            start_pushed: keys_down.contains(&self.start),
-            up_pushed: keys_down.contains(&self.up),
-            down_pushed: keys_down.contains(&self.down),
-            left_pushed: keys_down.contains(&self.left),
-            right_pushed: keys_down.contains(&self.right),
-        }
-    }
-}
+
 
 impl Drop for CoreGameDevice {
     fn drop(&mut self) {
@@ -481,6 +419,8 @@ impl CoreGameDevice {
         self.buffer = [0; FRAME_SIZE_IN_U8];
         self.sized_image = None;
     }
+
+    
 }
 
 pub struct SelectionDevice {
@@ -488,6 +428,8 @@ pub struct SelectionDevice {
     file_dialog: FileDialog,
     picked_file: Option<PathBuf>,
     search: String,
+    listening: Option<&'static str>,
+    key_mapping: KeyMapping
 }
 
 impl Default for SelectionDevice {
@@ -513,6 +455,8 @@ impl Default for SelectionDevice {
                 )
                 .default_file_filter("GameBoy ROMS"),
             search: String::new(),
+            listening: None,
+            key_mapping: KeyMapping::default()
         }
     }
 }
