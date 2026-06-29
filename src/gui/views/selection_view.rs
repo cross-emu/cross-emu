@@ -143,6 +143,7 @@ impl SelectionDevice {
                                         .spacing(egui::vec2(3.0, 6.0))
                                         .show(ui, |ui| {
                                             ui.label("");
+                                            ui.label("");
                                             self.key_cell(ui, "B");
                                             ui.end_row();
 
@@ -150,7 +151,7 @@ impl SelectionDevice {
                                             ui.label("");
                                             ui.end_row();
                                             self.key_cell(ui, "Select");
-                                            ui.add_space(2.0);
+                                            ui.label("");
                                             self.key_cell(ui, "Start");
                                             ui.label("");
                                             ui.end_row();
