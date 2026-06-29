@@ -219,7 +219,7 @@ impl SelectionDevice {
             });
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::central_panel(&ui.style()).inner_margin(0.0))
+            .frame(egui::Frame::central_panel(ui.style()).inner_margin(0.0))
             .show_inside(ui, |ui| {
                 let drop_size = ui.available_size();
                 let is_hovering_file = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
