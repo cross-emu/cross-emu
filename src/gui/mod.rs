@@ -2,14 +2,14 @@
 #![allow(unused_variables)]
 
 mod common;
-mod views;
 pub mod keymapping;
+mod views;
 
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
-use crate::gui::keymapping::KeyMapping;
 use crate::gameboy::GameBoy;
+use crate::gui::keymapping::KeyMapping;
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 use crate::mmu::DmgMmu;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, Mbc5, RomOnly};
@@ -139,7 +139,6 @@ impl GraphicalApp {
 
 #[derive(Default)]
 pub struct StartingHubDevice {}
-
 
 #[allow(clippy::large_enum_variant)]
 pub enum AppState {
@@ -366,8 +365,6 @@ pub struct CoreGameDevice {
     options: CoreGameOptions,
 }
 
-
-
 impl Drop for CoreGameDevice {
     fn drop(&mut self) {
         println!("this was droped");
@@ -432,8 +429,6 @@ impl CoreGameDevice {
         self.buffer = [0; FRAME_SIZE_IN_U8];
         self.sized_image = None;
     }
-
-    
 }
 
 pub struct SelectionDevice {
@@ -443,7 +438,7 @@ pub struct SelectionDevice {
     search: String,
     listening: Option<&'static str>,
     key_mapping: KeyMapping,
-    launch_cgb: bool
+    launch_cgb: bool,
 }
 
 impl Default for SelectionDevice {

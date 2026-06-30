@@ -266,6 +266,9 @@ impl From<DebuggingDevice> for SelectionDevice {
 impl From<EmulationDevice> for SelectionDevice {
     fn from(value: EmulationDevice) -> Self {
         let key_mapping = value.core_game.key_mapping.clone();
-        Self { key_mapping, ..Default::default() }
+        Self {
+            key_mapping,
+            ..Default::default()
+        }
     }
 }

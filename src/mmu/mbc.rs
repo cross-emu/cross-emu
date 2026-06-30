@@ -135,16 +135,13 @@ impl Mbc for Mbc1 {
             }
             0x4000..0x8000 => {
                 self.banks[(max(self.bank_register_1, 1) + (self.bank_register_2 << 5)) as usize
-                % self.banks.len()][addr as usize - ROM_BANK_SIZE]
+                    % self.banks.len()][addr as usize - ROM_BANK_SIZE]
             }
             0xA000..0xC000 => {
                 if self.ram_gate_register {
-                    self.ram_banks[
-                    (
-                        self.mode_register as usize *
-                        (self.bank_register_2 & 0b11) as usize
-                    ) % self.ram_banks.len()
-               ] [addr as usize - 0xA000]
+                    self.ram_banks[(self.mode_register as usize
+                        * (self.bank_register_2 & 0b11) as usize)
+                        % self.ram_banks.len()][addr as usize - 0xA000]
                 } else {
                     0xFF
                 }

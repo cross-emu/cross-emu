@@ -29,7 +29,8 @@ fn choose_config(device: &Device) -> SupportedStreamConfig {
         }
     }
 
-    supported_configs.into_iter()
+    supported_configs
+        .into_iter()
         .next()
         .expect("no supported config")
         .with_sample_rate(48000)

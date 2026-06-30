@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use egui::Key;
+use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyAction {
@@ -141,7 +141,10 @@ impl KeyMapping {
 
         const ALL: [&str; 8] = ["Up", "Down", "Left", "Right", "A", "B", "Select", "Start"];
 
-        if let Some(conflicting) = ALL.into_iter().find(|&s| s != slot && self.get(s) == new_key) {
+        if let Some(conflicting) = ALL
+            .into_iter()
+            .find(|&s| s != slot && self.get(s) == new_key)
+        {
             self.set_raw(conflicting, old_key);
         }
         self.set_raw(slot, new_key);
