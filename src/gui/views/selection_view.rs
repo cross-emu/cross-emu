@@ -10,7 +10,6 @@ enum OutState {
 }
 
 impl SelectionDevice {
-    
     fn try_capture_key(&mut self, ctx: &egui::Context) {
         let Some(action) = self.listening else { return };
 
@@ -35,7 +34,6 @@ impl SelectionDevice {
     }
 
     fn key_cell(&mut self, ui: &mut egui::Ui, action: &'static str) {
-
         ui.vertical_centered(|ui| {
             let is_listening = self.listening == Some(action);
 
@@ -50,10 +48,7 @@ impl SelectionDevice {
                 button = button.fill(ui.visuals().selection.bg_fill);
             }
 
-            if ui
-                .add_sized(egui::vec2(42.0, 30.0), button)
-                .clicked()
-            {
+            if ui.add_sized(egui::vec2(42.0, 30.0), button).clicked() {
                 self.listening = Some(action);
             }
 
@@ -156,8 +151,7 @@ impl SelectionDevice {
                                             ui.label("");
                                             ui.end_row();
                                         });
-
-                                    });
+                                });
                             });
                         });
                     });
@@ -169,6 +163,8 @@ impl SelectionDevice {
                         ui.add_space(4.0);
                         // show a scrollable list of save states
                     });
+                });
+                ui.separator();
 
                     });
                     ui.separator();
@@ -180,10 +176,10 @@ impl SelectionDevice {
                     });
 
                     ui.horizontal(|ui| {
+                ui.horizontal(|ui| {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         egui::widgets::global_theme_preference_switch(ui);
                     });
-
                 });
             });
 
@@ -244,11 +240,7 @@ impl SelectionDevice {
                     ui.set_min_size(drop_size);
                     ui.centered_and_justified(|ui| {
                         ui.vertical_centered(|ui| {
-                            ui.label(
-                                egui::RichText::new("+")
-                                    .size(64.0)
-                                    .weak(),
-                            );
+                            ui.label(egui::RichText::new("+").size(64.0).weak());
                             ui.add_space(8.0);
                             ui.label(
                                 egui::RichText::new("Drag and drop a ROM here")
