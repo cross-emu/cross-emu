@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::mmu::oam::Sprite;
+use crate::ppu::Cram;
+use crate::ppu::colors_palette::{CgbColor, ColorType, DmgColor};
 use crate::ppu::obj_piso::ObjPiso;
-use crate::ppu::vram::Vram;
+use crate::ppu::vram::{CgbVram, DmgVram, Vram};
 
 const VRAM_START: u16 = 0x8000;
 
@@ -15,37 +17,41 @@ pub enum FetcherState {
     PushPixel = 3,
 }
 
-pub struct OamFetcher<V: Vram> {
-    phantom: PhantomData<Option<V>>,
+pub struct OamFetcher<V: Vram, C: ColorType> {
+    phantom_vram: PhantomData<V>,
+    phantom_color: PhantomData<C>,
     fetcher_state: FetcherState,
     tile_id: u8,
     tile_data_low: u8,
     tile_data_high: u8,
     dot_counter: u32,
     actual_sprite_line: usize,
+    attributes: u8,
 }
 
-impl<V: Vram> Default for OamFetcher<V> {
+impl<V: Vram, C: ColorType> Default for OamFetcher<V, C> {
     fn default() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom_vram: PhantomData,
+            phantom_color: PhantomData,
             fetcher_state: FetcherState::default(),
             tile_id: 0,
             tile_data_low: 0,
             tile_data_high: 0,
             dot_counter: 0,
             actual_sprite_line: 0,
+            attributes: 0,
         }
     }
 }
 
-impl<V: Vram> OamFetcher<V> {
+impl OamFetcher<DmgVram, DmgColor> {
     #[allow(clippy::too_many_arguments)]
     pub fn tick(
         &mut self,
-        vram: &V,
+        vram: &DmgVram,
         sprite: &Sprite,
-        piso: &mut ObjPiso,
+        piso: &mut ObjPiso<DmgColor>,
         ly: u8,
         height: u8,
         scanline_x: usize,
@@ -112,13 +118,13 @@ impl<V: Vram> OamFetcher<V> {
         tile_index
     }
 
-    fn get_tile_data_low(&mut self, vram: &V) -> u8 {
+    fn get_tile_data_low(&mut self, vram: &DmgVram) -> u8 {
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read(tile_address)
     }
 
-    fn get_tile_data_high(&mut self, vram: &V) -> u8 {
+    fn get_tile_data_high(&mut self, vram: &DmgVram) -> u8 {
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read(tile_address + 1)
@@ -135,7 +141,7 @@ impl<V: Vram> OamFetcher<V> {
 
     fn push_pixel(
         &mut self,
-        piso: &mut ObjPiso,
+        piso: &mut ObjPiso<DmgColor>,
         sprite: &Sprite,
         scanline_x: usize,
         obp0: u8,
@@ -153,6 +159,127 @@ impl<V: Vram> OamFetcher<V> {
             palette,
             priority,
             scanline_x,
+        );
+    }
+}
+
+impl OamFetcher<CgbVram, CgbColor> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn tick(
+        &mut self,
+        vram: &mut CgbVram,
+        sprite: &Sprite,
+        piso: &mut ObjPiso<CgbColor>,
+        ly: u8,
+        height: u8,
+        scanline_x: usize,
+        obj_cram: &Cram,
+    ) -> bool {
+        self.dot_counter = self.dot_counter.wrapping_add(1);
+        if self.dot_counter.is_multiple_of(2) {
+            match self.fetcher_state {
+                FetcherState::GetTileId => {
+                    self.tile_id = self.get_tile_id(sprite, ly, height);
+                    self.fetcher_state = FetcherState::GetLowData;
+
+                    return false;
+                }
+                FetcherState::GetLowData => {
+                    self.tile_data_low = self.get_tile_data_low(vram);
+                    self.fetcher_state = FetcherState::GetHighData;
+
+                    return false;
+                }
+                FetcherState::GetHighData => {
+                    self.tile_data_high = self.get_tile_data_high(vram);
+                    self.fetcher_state = FetcherState::PushPixel;
+
+                    return false;
+                }
+                FetcherState::PushPixel => {
+                    self.push_pixel(piso, sprite, scanline_x, obj_cram);
+                    self.fetcher_state = FetcherState::GetTileId;
+
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn get_tile_id(&mut self, sprite: &Sprite, ly: u8, height: u8) -> u8 {
+        let sprite_top: i16 = sprite.y as i16 - 16;
+        let sprite_line = (ly as i16 - sprite_top) as usize;
+
+        let y_flip = ((sprite.attributes >> 6) & 1) != 0;
+        let actual_sprite_line = if y_flip {
+            (height as usize - 1) - sprite_line
+        } else {
+            sprite_line
+        };
+
+        let tile_always_pair = if height == 16 {
+            sprite.tile & 0xFE
+        } else {
+            sprite.tile
+        };
+        let tile_index = if height == 16 && actual_sprite_line >= 8 {
+            tile_always_pair + 1
+        } else {
+            tile_always_pair
+        };
+
+        self.actual_sprite_line = actual_sprite_line;
+        self.attributes = sprite.attributes;
+        tile_index
+    }
+
+    fn get_tile_data_low(&mut self, vram: &mut CgbVram) -> u8 {
+        vram.set_vbk(self.attributes);
+
+        let tile_address =
+            VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
+        vram.read(tile_address)
+    }
+
+    fn get_tile_data_high(&mut self, vram: &mut CgbVram) -> u8 {
+        vram.set_vbk(self.attributes);
+
+        let tile_address =
+            VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
+        vram.read(tile_address + 1)
+    }
+
+    fn extract_attributes(&self, attributes: u8) -> (bool, bool, bool, u8, u8) {
+        (
+            ((attributes >> 7) & 1) != 0,
+            ((attributes >> 6) & 1) != 0,
+            ((attributes >> 5) & 1) != 0,
+            (attributes >> 3) & 1,
+            attributes & 0b111,
+        )
+    }
+
+    fn push_pixel(
+        &mut self,
+        piso: &mut ObjPiso<CgbColor>,
+        sprite: &Sprite,
+        scanline_x: usize,
+        cram: &Cram,
+    ) {
+        let (priority, _, x_flip, _bank, palette_index) =
+            self.extract_attributes(sprite.attributes);
+
+        piso.merge(
+            self.tile_data_low,
+            self.tile_data_high,
+            sprite.x,
+            x_flip,
+            palette_index,
+            priority,
+            scanline_x,
+            cram,
         );
     }
 }

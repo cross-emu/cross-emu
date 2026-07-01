@@ -1,37 +1,27 @@
-use crate::ppu::colors_palette::Color;
+use crate::ppu::colors_palette::ColorType;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Pixel {
-    color: Color,
-    color_index: u8,
+#[derive(Debug, Copy)]
+pub struct Pixel<C: ColorType> {
+    color: C,
     priority: bool,
 }
 
-impl Pixel {
-    pub fn new_bg(color: Color, color_index: u8) -> Self {
+impl<C: ColorType> Pixel<C> {
+    pub fn new_bg(color: C) -> Self {
         let priority = false;
-
-        Pixel {
-            color,
-            color_index,
-            priority,
-        }
+        Self::new_obj(color, priority)
     }
 
-    pub fn new_obj(color: Color, color_index: u8, priority: bool) -> Self {
-        Pixel {
-            color,
-            color_index,
-            priority,
-        }
+    pub fn new_obj(color: C, priority: bool) -> Self {
+        Pixel { color, priority }
     }
 
-    pub fn get_color(&self) -> &Color {
+    pub fn get_color(&self) -> &C {
         &self.color
     }
 
-    pub fn get_color_index(&self) -> u8 {
-        self.color_index
+    pub fn get_color_value(&self) -> u16 {
+        self.color.value()
     }
 
     pub fn get_priority(&self) -> bool {
@@ -39,12 +29,20 @@ impl Pixel {
     }
 }
 
-impl Default for Pixel {
+impl<C: ColorType + Copy> Default for Pixel<C> {
     fn default() -> Self {
         Pixel {
-            color: Color::White,
-            color_index: 0,
+            color: ColorType::new(0),
             priority: false,
+        }
+    }
+}
+
+impl<C: ColorType + Clone> Clone for Pixel<C> {
+    fn clone(&self) -> Self {
+        Pixel {
+            color: self.color.clone(),
+            priority: self.priority,
         }
     }
 }

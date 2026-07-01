@@ -1,17 +1,18 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 
+use crate::ppu::colors_palette::ColorType;
 use crate::ppu::pixel::Pixel;
 use std::collections::VecDeque;
 
 #[derive(Debug, Clone, Default)]
-pub struct PixelFifo {
-    bg: VecDeque<Pixel>,
+pub struct PixelFifo<C: ColorType> {
+    bg: VecDeque<Pixel<C>>,
     y: u8,
     state: u8,
 }
 
-impl PixelFifo {
+impl<C: ColorType> PixelFifo<C> {
     pub fn new() -> Self {
         PixelFifo {
             bg: VecDeque::with_capacity(8),
@@ -20,11 +21,11 @@ impl PixelFifo {
         }
     }
 
-    pub fn push(&mut self, pixel: Pixel) {
+    pub fn push(&mut self, pixel: Pixel<C>) {
         self.bg.push_back(pixel);
     }
 
-    pub fn pop(&mut self) -> Option<Pixel> {
+    pub fn pop(&mut self) -> Option<Pixel<C>> {
         self.bg.pop_front()
     }
 

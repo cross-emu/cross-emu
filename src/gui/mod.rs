@@ -12,10 +12,9 @@ use crate::communications::{
 use crate::gameboy::GameBoy;
 use crate::gui::keymapping::KeyMapping;
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
-use crate::mmu::DmgMmu;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, Mbc5, RomOnly};
 use crate::mmu::timers::DmgTimers;
-use crate::ppu::{self, DmgPpu};
+use crate::mmu::{CgbMmu, DmgMmu};
 use egui::load::SizedTexture;
 use egui::{ColorImage, TextureOptions, vec2};
 use egui_file_dialog::{FileDialog, Filter};
@@ -25,6 +24,7 @@ use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
 
+use crate::ppu::{self, CgbPpu, DmgPpu};
 use eframe::egui::{Key, TextureHandle};
 use std::str::FromStr;
 use std::time::Instant;
@@ -69,6 +69,7 @@ impl eframe::App for GraphicalApp {
 pub struct EmulationAppOptions {
     rom_path: String,
     boot_rom: bool,
+    gb_type: GbType,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -104,26 +105,34 @@ impl FromStr for GbType {
 
 #[derive(Clone)]
 pub struct CoreGameOptions {
-    // pub boot_rom_path: String,
+    pub boot_rom_path: String,
     pub rom_path: String,
     pub boot_rom: bool,
-    pub gbtype: GbType,
+    pub gb_type: GbType,
 }
 
 impl From<EmulationAppOptions> for CoreGameOptions {
     fn from(value: EmulationAppOptions) -> Self {
+        let boot_rom_path = match value.gb_type {
+            GbType::Cgb => "boot-roms/cgb.bin".into(),
+            GbType::Dmg => "boot-roms/dmg.bin".into(),
+        };
         Self {
-            // boot_rom_path: "boot-roms/dmg.bin".into(),
+            boot_rom_path,
             rom_path: value.rom_path,
             boot_rom: value.boot_rom,
-            gbtype: GbType::Dmg, // TODO -> need to do feature to choose which type
+            gb_type: value.gb_type,
         }
     }
 }
 
 impl EmulationAppOptions {
-    pub fn new(rom_path: String, boot_rom: bool) -> Self {
-        Self { rom_path, boot_rom }
+    pub fn new(rom_path: String, boot_rom: bool, gb_type: GbType) -> Self {
+        Self {
+            rom_path,
+            boot_rom,
+            gb_type,
+        }
     }
 }
 
@@ -155,15 +164,15 @@ use std::process;
 
 pub enum AnyGameApp {
     DmgOnlyRom(GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>>),
-    CgbOnlyRom(GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>>),
+    CgbOnlyRom(GameBoy<CgbMmu<RomOnly, DmgTimers, CgbPpu>>),
     DmgMbc1(GameBoy<DmgMmu<Mbc1, DmgTimers, DmgPpu>>),
-    CgbMbc1(GameBoy<DmgMmu<Mbc1, DmgTimers, DmgPpu>>),
+    CgbMbc1(GameBoy<CgbMmu<Mbc1, DmgTimers, CgbPpu>>),
     DmgMbc2(GameBoy<DmgMmu<Mbc2, DmgTimers, DmgPpu>>),
-    CgbMbc2(GameBoy<DmgMmu<Mbc2, DmgTimers, DmgPpu>>),
+    CgbMbc2(GameBoy<CgbMmu<Mbc2, DmgTimers, CgbPpu>>),
     DmgMbc3(GameBoy<DmgMmu<Mbc3, DmgTimers, DmgPpu>>),
-    CgbMbc3(GameBoy<DmgMmu<Mbc3, DmgTimers, DmgPpu>>),
+    CgbMbc3(GameBoy<CgbMmu<Mbc3, DmgTimers, CgbPpu>>),
     DmgMbc5(GameBoy<DmgMmu<Mbc5, DmgTimers, DmgPpu>>),
-    CgbMbc5(GameBoy<DmgMmu<Mbc5, DmgTimers, DmgPpu>>),
+    CgbMbc5(GameBoy<CgbMmu<Mbc5, DmgTimers, CgbPpu>>),
 }
 
 impl AnyGameApp {
@@ -176,18 +185,13 @@ impl AnyGameApp {
         };
         let boot_rom_data = if game_data.boot_rom {
             let mut boot_rom = [0u8; 0x0900];
-            match game_data.gbtype {
+            let boot_bytes = std::fs::read(game_data.boot_rom_path).expect("cannot read boot rom");
+            match game_data.gb_type {
                 GbType::Dmg => {
-                    println!("dmg");
-                    let boot_rom_path: String = "boot-roms/dmg.bin".to_string();
-                    let boot_bytes = std::fs::read(boot_rom_path).expect("cannot read boot rom");
                     assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
                     boot_rom[..0x100].copy_from_slice(&boot_bytes);
                 }
                 GbType::Cgb => {
-                    println!("cgb");
-                    let boot_rom_path: String = "boot-roms/cgb.bin".to_string();
-                    let boot_bytes = std::fs::read(boot_rom_path).expect("cannot read boot rom");
                     assert!(boot_bytes.len() == 0x900, "boot rom must be 2304 bytes");
                     boot_rom.copy_from_slice(&boot_bytes);
                 }
@@ -202,14 +206,14 @@ impl AnyGameApp {
         let mbc_code = rom_data[0x0147];
         let supported_gb_types = GbType::supported_types(rom_data[0x0143]);
 
-        if !supported_gb_types.contains(&game_data.gbtype) {
+        if !supported_gb_types.contains(&game_data.gb_type) {
             return Err(format!(
                 "Cartridge doesn't support type {:#?}",
-                game_data.gbtype
+                game_data.gb_type
             ));
         }
 
-        match game_data.gbtype {
+        match game_data.gb_type {
             GbType::Cgb => {
                 match mbc_code {
                     0x00 | 0x08 | 0x09 => {
@@ -343,12 +347,16 @@ impl AnyGameApp {
 
 async fn async_launch_game(game_data: CoreGameOptions, ct: Box<dyn GameCT>) -> Result<(), String> {
     let rom_path = game_data.rom_path.clone();
-    let app = AnyGameApp::new(game_data)?;
-    if let Some(value) = app.launch(ct)? {
-        let save_path = rom_path.clone() + ".save";
-        eprintln!("attempting to save game ram to {}", save_path);
-        fs::write(save_path, value)
-            .unwrap_or_else(|err| eprintln!("backup was unsucessfull {:?}", err));
+    match AnyGameApp::new(game_data) {
+        Ok(app) => {
+            if let Some(value) = app.launch(ct)? {
+                let save_path = rom_path.clone() + ".save";
+                eprintln!("attempting to save game ram to {}", save_path);
+                fs::write(save_path, value)
+                    .unwrap_or_else(|err| eprintln!("backup was unsucessfull {:?}", err));
+            }
+        }
+        Err(e) => eprintln!("{:?}", e),
     }
     Ok(())
 }

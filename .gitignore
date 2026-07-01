@@ -13,3 +13,4 @@ rtc3test
 utils
 **/*.gb.save
 CLAUDE.md
+/.idea/.gitignore

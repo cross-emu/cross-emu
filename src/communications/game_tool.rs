@@ -5,19 +5,17 @@ use std::sync::{
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::watch;
 
-use crate::gui::keymapping::KeyInput;
-
-use super::Color;
 use super::CpuState;
 use super::InstructionList;
 use super::Request;
 use super::WatchedAdresses;
+use crate::gui::keymapping::KeyInput;
 
 pub trait GameCT: Send {
     // Emulation
     fn update_input(&mut self, input_ref: &mut KeyInput) -> Result<(), String>;
     fn update_fps(&mut self, fps: u128) -> Result<(), String>;
-    fn put_pixel_to_frame(&mut self, offset: usize, color: Color);
+    fn put_pixel_to_frame(&mut self, offset: usize, color: [u8; 3]);
 
     // Debug
     fn send_cpu_state(&mut self, state: &CpuState);
@@ -29,7 +27,7 @@ pub trait GameCT: Send {
 pub struct GameCommunicationTool {
     input_receiver: watch::Receiver<KeyInput>,
     fps: Arc<AtomicIsize>,
-    image: Arc<Mutex<Vec<Color>>>,
+    image: Arc<Mutex<Vec<[u8; 3]>>>,
     image_has_changed: Arc<AtomicBool>,
     cpu_state_sender: watch::Sender<CpuState>,
     instructions_sender: watch::Sender<Arc<InstructionList>>,
@@ -42,7 +40,7 @@ impl GameCommunicationTool {
     pub fn new(
         input_receiver: watch::Receiver<KeyInput>,
         fps: Arc<AtomicIsize>,
-        image: Arc<Mutex<Vec<Color>>>,
+        image: Arc<Mutex<Vec<[u8; 3]>>>,
         image_has_changed: Arc<AtomicBool>,
         cpu_state_sender: watch::Sender<CpuState>,
         instructions_sender: watch::Sender<Arc<InstructionList>>,
@@ -74,7 +72,7 @@ impl GameCT for GameCommunicationTool {
         }
     }
 
-    fn put_pixel_to_frame(&mut self, offset: usize, pixel_color: Color) {
+    fn put_pixel_to_frame(&mut self, offset: usize, pixel_color: [u8; 3]) {
         if let Ok(mut image) = self.image.lock() {
             image[offset] = pixel_color;
             drop(image);
