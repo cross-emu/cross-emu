@@ -1,4 +1,4 @@
-use crate::gui::CoreGameDevice;
+use crate::{GBMU_FILE, gui::CoreGameDevice};
 
 pub struct EmulationUiState {
     pub is_paused: bool,
@@ -11,7 +11,7 @@ impl Default for EmulationUiState {
         Self {
             is_paused: false,
             speed: 1.0,
-            volume: 100.0,
+            volume: GBMU_FILE.lock().unwrap().settings.volume,
         }
     }
 }

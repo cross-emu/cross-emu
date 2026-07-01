@@ -2,6 +2,7 @@ pub mod emulation_ui_state;
 use egui::vec2;
 use egui::{Color32, RichText};
 
+use crate::GBMU_FILE;
 use crate::communications::{CpuState, InstructionList, Mode, WatchedAdresses};
 use crate::gui::egui::Id;
 use crate::gui::{
@@ -177,6 +178,8 @@ impl EmulationDevice {
                                 .core_game
                                 .interface_ct
                                 .set_volume(self.ui_state.volume as u8);
+                            GBMU_FILE.lock().unwrap().settings.volume = self.ui_state.volume;
+                            GBMU_FILE.lock().unwrap().persist();
                         }
                     });
                 });

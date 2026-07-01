@@ -4,6 +4,8 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::{fs, fs::File};
 
+use crate::gui::keymapping::KeyMapping;
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PlayedRom {
     pub last_launched: DateTime<Utc>,
@@ -12,9 +14,25 @@ pub struct PlayedRom {
     pub launch_count: u32,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Settings {
+    pub keymapping: KeyMapping,
+    pub volume: f32,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            keymapping: KeyMapping::default(),
+            volume: 100.0,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Default)]
 pub struct GbmuFile {
     pub history: Vec<PlayedRom>,
+    pub settings: Settings,
 
     #[serde(skip)]
     pub path: PathBuf,
@@ -65,16 +83,12 @@ impl GbmuFile {
                 launch_count: 1,
             });
         }
+        self.history
+            .sort_by_key(|b| std::cmp::Reverse(b.last_launched));
         self.persist();
     }
 
-    // pub fn recent(&self) -> Vec<&PlayedRom> {
-    //     let mut sorted: Vec<&PlayedRom> = self.history.iter().collect();
-    //     sorted.sort_by(|a, b| b.last_launched.cmp(&a.last_launched));
-    //     sorted
-    // }
-
-    fn persist(&self) {
+    pub fn persist(&self) {
         match serde_json::to_string_pretty(self) {
             Ok(json) => {
                 if let Err(e) = fs::write(&self.path, json) {
