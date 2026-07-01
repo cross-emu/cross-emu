@@ -35,7 +35,7 @@ async fn main() {
     };
 
     let app = if let Some(rom_path) = arguments.rom_path {
-        let options = EmulationAppOptions::new(rom_path, arguments.boot_rom);
+        let options = EmulationAppOptions::new(rom_path, arguments.boot_rom, arguments.gb_type);
         GraphicalApp::create_emulation_app(options)
     } else {
         GraphicalApp::default()

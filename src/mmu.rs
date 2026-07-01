@@ -141,7 +141,7 @@ pub trait MemoryMapper {
                         result &= self.get_button_state();
                     }
                     0b1100_0000 | selection | result
-                } else if matches!(addr, 0xFF40..=0xFF4B) && addr != 0xFF46 {
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 {
                     self.get_ppu().read_register(addr)
                 } else {
                     self.get_data()[addr as usize]
@@ -184,7 +184,7 @@ pub trait MemoryMapper {
                     let val = 0b1100_0000 | selection_bits | current_inputs;
                     self.update_data(0xFF00, val);
                     self.update_joypad_register();
-                } else if matches!(addr, 0xFF40..=0xFF4F) && addr != 0xFF46 {
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 {
                     self.get_ppu().write_register(addr, val);
                 } else if addr == 0xFF46 {
                     self.set_dma_last_byte(val);
@@ -270,7 +270,7 @@ pub trait MemoryMapper {
     fn tick_dma(&mut self);
 }
 
-impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T, P> {
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T, P> {
     const RANGE_BOOT_ROM: RangeInclusive<u16> = 0x0000..=0x00FF;
     fn get_timer(&mut self) -> &mut dyn TimingComponent {
         &mut self.timers
@@ -322,7 +322,7 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
         Ok(Self {
             apu: Apu::new(),
             data: Box::new([0xFF; 0x10000]),
-            cart: C::new(rom_data, ram_data)?,
+            cart: M::new(rom_data, ram_data)?,
             interrupts: InterruptController::new(),
             timers: T::new(),
             oam: RwLock::new(Oam::default()),
@@ -413,9 +413,9 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<C, T
     }
 }
 
-pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
+pub struct DmgMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
     data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
-    cart: C,
+    cart: M,
     interrupts: InterruptController,
     timers: T,
     oam: RwLock<Oam>,
@@ -431,13 +431,13 @@ pub struct DmgMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
     dma_delay: u8,
 }
 
-impl<C: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<C, T, P> {
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<M, T, P> {
     fn default() -> Self {
-        DmgMmu::<C, T, P>::new(None, vec![], None).expect("This is not suppose to happen")
+        DmgMmu::<M, T, P>::new(None, vec![], None).expect("This is not suppose to happen")
     }
 }
 
-impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T, P> {
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T, P> {
     const RANGE_BOOT_ROM: RangeInclusive<u16> = 0x0000..=0x08FF;
 
     fn set_dma_last_byte(&mut self, val: u8) {
@@ -490,7 +490,7 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
         Ok(CgbMmu {
             apu: Apu::new(),
             data: Box::new([0xFF; 0x10000]),
-            cart: C::new(rom_data, ram_data)?,
+            cart: M::new(rom_data, ram_data)?,
             interrupts: InterruptController::new(),
             timers: T::new(),
             ppu: P::new(),
@@ -587,9 +587,9 @@ impl<C: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<C, T
     }
 }
 
-pub struct CgbMmu<C: Mbc, T: TimingComponent, P: PixelProcessor> {
+pub struct CgbMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
     data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
-    cart: C,
+    cart: M,
     interrupts: InterruptController,
     timers: T,
     apu: Apu,

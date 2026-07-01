@@ -67,7 +67,7 @@ impl Deref for WatchedAdresses {
     }
 }
 
-use crate::{gui::keymapping::KeyInput, ppu::colors_palette::Color};
+use crate::gui::keymapping::KeyInput;
 
 pub const FRAME_SIZE_IN_U8: usize = FRAME_SIZE * 3;
 
@@ -96,7 +96,7 @@ pub const FRAME_SIZE: usize = 160 * 144;
 
 pub fn create_communication_tools() -> (Box<dyn GameCT>, Box<dyn InterfaceCT>) {
     let (input_sender, input_receiver) = watch::channel(KeyInput::default());
-    let image = Arc::new(Mutex::new(vec![Color::White; FRAME_SIZE]));
+    let image = Arc::new(Mutex::new(vec![[0u8; 3]; FRAME_SIZE]));
     let image_has_changed = Arc::new(AtomicBool::new(false));
     let fps = Arc::new(AtomicIsize::new(0));
     let (cpu_state_sender, cpu_state_receiver) = watch::channel(CpuState::default());

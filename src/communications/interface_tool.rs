@@ -1,3 +1,4 @@
+use super::FRAME_SIZE_IN_U8;
 use std::sync::atomic::Ordering;
 use std::sync::{
     Arc, Mutex,
@@ -8,9 +9,7 @@ use tokio::sync::watch;
 
 use crate::gui::keymapping::KeyInput;
 
-use super::Color;
 use super::CpuState;
-use super::FRAME_SIZE_IN_U8;
 use super::InstructionList;
 use super::Mode;
 use super::Request;
@@ -47,7 +46,7 @@ pub trait InterfaceCT {
 
 pub struct InterfaceCommunicationTool {
     input_sender: watch::Sender<KeyInput>,
-    image: Arc<Mutex<Vec<Color>>>,
+    image: Arc<Mutex<Vec<[u8; 3]>>>,
     image_has_changed: Arc<AtomicBool>,
     fps: Arc<AtomicIsize>,
     cpu_state_receiver: watch::Receiver<CpuState>,
@@ -60,7 +59,7 @@ impl InterfaceCommunicationTool {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         input_sender: watch::Sender<KeyInput>,
-        image: Arc<Mutex<Vec<Color>>>,
+        image: Arc<Mutex<Vec<[u8; 3]>>>,
         image_has_changed: Arc<AtomicBool>,
         fps: Arc<AtomicIsize>,
         cpu_state_receiver: watch::Receiver<CpuState>,
@@ -109,7 +108,7 @@ impl InterfaceCT for InterfaceCommunicationTool {
                 .into_iter()
                 .enumerate()
                 .for_each(|(index, color)| {
-                    buffer[index * 3..index * 3 + 3].copy_from_slice(color.to_rgb());
+                    buffer[index * 3..index * 3 + 3].copy_from_slice(&color);
                 });
             self.image_has_changed.store(false, Ordering::Relaxed);
             Ok(Some(()))
