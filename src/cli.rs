@@ -3,10 +3,11 @@ use clap::{Arg, ArgAction, command, value_parser};
 use std::fs::metadata;
 use std::io::ErrorKind;
 
+#[derive(Debug)]
 pub struct EmulatorArguments {
     pub rom_path: Option<String>,
     pub boot_rom: bool,
-    pub gb_type: GbType,
+    pub gb_type: Option<GbType>,
 }
 
 impl EmulatorArguments {
@@ -25,7 +26,6 @@ impl EmulatorArguments {
                     .short('t')
                     .long("type")
                     .value_parser(value_parser!(GbType))
-                    .default_value("dmg")
                     .help("Set the type of gameboy to emulate. (Cgb or Dmg)"),
             )
             .get_matches();
@@ -35,12 +35,12 @@ impl EmulatorArguments {
 
         // boot_with_nintendo_room
         let boot_rom = matches.get_flag("boot_rom");
-        let gb_type: &GbType = matches.get_one::<GbType>("type").unwrap();
+        let gb_type = matches.get_one::<GbType>("type");
 
         let unchecked = Self {
             rom_path,
             boot_rom,
-            gb_type: gb_type.clone(),
+            gb_type: gb_type.cloned(),
         };
 
         unchecked.check_fields()
