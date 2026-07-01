@@ -5,6 +5,7 @@ mod common;
 pub mod keymapping;
 mod views;
 
+use crate::GBMU_FILE;
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
@@ -413,7 +414,7 @@ impl CoreGameDevice {
             buffer: [0; FRAME_SIZE_IN_U8],
             texture_handler: None,
             sized_image: None,
-            key_mapping: KeyMapping::default(),
+            key_mapping: GBMU_FILE.lock().unwrap().settings.keymapping.clone(),
             options,
         }
     }
@@ -464,7 +465,7 @@ impl Default for SelectionDevice {
                 .default_file_filter("GameBoy ROMS"),
             search: String::new(),
             listening: None,
-            key_mapping: KeyMapping::default(),
+            key_mapping: GBMU_FILE.lock().unwrap().settings.keymapping.clone(),
             launch_cgb: false,
         }
     }

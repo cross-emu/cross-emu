@@ -1,4 +1,5 @@
 use egui::Key;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,7 +65,7 @@ impl From<&KeyInput> for bool {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct KeyMapping {
     pub a: Key,
     pub b: Key,
