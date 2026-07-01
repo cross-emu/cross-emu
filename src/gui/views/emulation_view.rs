@@ -249,6 +249,9 @@ impl From<SelectionDevice> for EmulationDevice {
         };
         let mut core_game = CoreGameDevice::new(options);
         core_game.key_mapping = original.key_mapping;
+        let _ = core_game
+            .interface_ct
+            .set_volume(GBMU_FILE.lock().unwrap().settings.volume as u8);
         Self {
             core_game,
             ui_state: EmulationUiState::default(),
