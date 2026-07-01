@@ -1,4 +1,4 @@
-use crate::gui::common::display_game;
+use crate::{gui::common::display_game};
 
 use eframe::egui::{
     Align, Button, Color32, DragValue, Grid, Layout, Panel, RichText, ScrollArea, TextEdit, Ui,
@@ -38,6 +38,15 @@ pub fn display_interface(
                                 .inner
                         })
                         .inner;
+
+                    ui.separator();
+
+                    ui.add_space(8.0);
+
+                    ui.label("FPS Counter:");
+                    ui.label(data.fps.to_string());
+
+
                     ui.separator();
 
                     ui.add_space(8.0);
