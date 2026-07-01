@@ -475,9 +475,9 @@ impl Mbc for Mbc3 {
 
 pub struct Mbc5 {
     ram_gate_enable: bool,
-    rom_bank_register: u16,
+    rom_bank_register_high: u8,
+    rom_bank_register_low: u8,
     ram_bank_register: u8,
-    rumble: bool,
     rom_banks: Vec<[u8; ROM_BANK_SIZE]>,
     ram_banks: Vec<[u8; RAM_BANK_SIZE]>,
 }
@@ -500,17 +500,18 @@ impl Mbc for Mbc5 {
             rom_banks,
             ram_banks,
             ram_gate_enable: false,
-            rom_bank_register: 0,
-            ram_bank_register: 0,
-            rumble: false,
+            rom_bank_register_high: 0,
+            rom_bank_register_low: 1,
+            ram_bank_register: 1,
         })
     }
     fn read(&self, addr: u16) -> u8 {
         match addr {
             0x0000..0x4000 => self.rom_banks[0][addr as usize],
             0x4000..0x8000 => {
-                self.rom_banks[(self.rom_bank_register as usize) % self.rom_banks.len()]
-                    [(addr - 0x4000) as usize]
+                self.rom_banks[((self.rom_bank_register_high & 0b1) as u16 * 0b1_0000_0000
+                    + self.rom_bank_register_low as u16) as usize
+                    % self.rom_banks.len()][(addr - 0x4000) as usize]
             }
             0xA000..0xC000 => {
                 if !self.ram_gate_enable || self.ram_banks.is_empty() {
@@ -527,15 +528,13 @@ impl Mbc for Mbc5 {
         match addr {
             0x0000..0x2000 => self.ram_gate_enable = (val & 0b1111) == 0b0000_1010,
             0x2000..0x3000 => {
-                self.rom_bank_register = (self.rom_bank_register & 0x100) | val as u16
+                self.rom_bank_register_low = val;
             }
             0x3000..0x4000 => {
-                self.rom_bank_register =
-                    (self.rom_bank_register & 0xFF) | (((val & 0x01) as u16) << 8)
+                self.rom_bank_register_high = val;
             }
             0x4000..0x6000 => {
-                self.ram_bank_register = val & 0x0F;
-                self.rumble = (val & 0b0000_1000) != 0;
+                self.ram_bank_register = val;
             }
             0x6000..0x8000 => {}
             0xA000..0xC000 => {
