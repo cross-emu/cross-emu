@@ -66,9 +66,10 @@ impl eframe::App for GraphicalApp {
 }
 
 pub struct EmulationAppOptions {
+    boot_rom_path: Option<String>,
     rom_path: String,
     boot_rom: bool,
-    gb_type: GbType,
+    gb_type: Option<GbType>,
 }
 
 #[derive(PartialEq, Debug, Clone)]
@@ -104,20 +105,25 @@ impl FromStr for GbType {
 
 #[derive(Clone)]
 pub struct CoreGameOptions {
-    pub boot_rom_path: String,
+    pub boot_rom_path: Option<String>,
     pub rom_path: String,
     pub boot_rom: bool,
-    pub gb_type: GbType,
+    pub gb_type: Option<GbType>,
+}
+
+impl CoreGameOptions {
+    pub fn define_gb_type(&self, supported_gb_types: &[GbType]) -> GbType {
+        match &self.gb_type {
+            Some(gb_type) => gb_type.clone(),
+            None => supported_gb_types.first().unwrap().clone(),
+        }
+    }
 }
 
 impl From<EmulationAppOptions> for CoreGameOptions {
     fn from(value: EmulationAppOptions) -> Self {
-        let boot_rom_path = match value.gb_type {
-            GbType::Cgb => "boot-roms/cgb.bin".into(),
-            GbType::Dmg => "boot-roms/dmg.bin".into(),
-        };
         Self {
-            boot_rom_path,
+            boot_rom_path: value.boot_rom_path,
             rom_path: value.rom_path,
             boot_rom: value.boot_rom,
             gb_type: value.gb_type,
@@ -126,8 +132,14 @@ impl From<EmulationAppOptions> for CoreGameOptions {
 }
 
 impl EmulationAppOptions {
-    pub fn new(rom_path: String, boot_rom: bool, gb_type: GbType) -> Self {
+    pub fn new(
+        boot_rom_path: Option<String>,
+        rom_path: String,
+        boot_rom: bool,
+        gb_type: Option<GbType>,
+    ) -> Self {
         Self {
+            boot_rom_path,
             rom_path,
             boot_rom,
             gb_type,
@@ -176,15 +188,40 @@ pub enum AnyGameApp {
 impl AnyGameApp {
     pub fn new(game_data: CoreGameOptions) -> Result<Self, String> {
         let rom_data: Vec<u8> = Self::read_rom(&game_data.rom_path);
+
+        // type
+        let mbc_code = rom_data[0x0147];
+        let supported_gb_types = GbType::supported_types(rom_data[0x0143]);
+
+        let gb_type = game_data.define_gb_type(&supported_gb_types);
+
+        if !supported_gb_types.contains(&gb_type) {
+            return Err(format!(
+                "Cartridge doesn't support type {:#?}",
+                game_data.gb_type
+            ));
+        }
+
+        // boot_rom path
+        let boot_rom_path = match game_data.boot_rom_path {
+            Some(path) => path,
+            None => match gb_type {
+                GbType::Cgb => "boot-roms/cgb.bin".into(),
+                GbType::Dmg => "boot-roms/dmg.bin".into(),
+            },
+        };
+
+        // ram_path
         let ram_path = game_data.rom_path.to_owned() + ".save";
         let ram_data: Option<Vec<u8>> = Self::read_ram(&ram_path);
         if ram_data.is_some() {
             println!("Backup detected")
         };
-        let boot_rom_data = if game_data.boot_rom {
+
+        let boot_rom_data: Option<[u8; 0x0900]> = if game_data.boot_rom {
             let mut boot_rom = [0u8; 0x0900];
-            let boot_bytes = std::fs::read(game_data.boot_rom_path).expect("cannot read boot rom");
-            match game_data.gb_type {
+            let boot_bytes = std::fs::read(boot_rom_path).expect("cannot read boot rom");
+            match gb_type {
                 GbType::Dmg => {
                     assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
                     boot_rom[..0x100].copy_from_slice(&boot_bytes);
@@ -201,17 +238,7 @@ impl AnyGameApp {
 
         println!("new AnyGameApp");
 
-        let mbc_code = rom_data[0x0147];
-        let supported_gb_types = GbType::supported_types(rom_data[0x0143]);
-
-        if !supported_gb_types.contains(&game_data.gb_type) {
-            return Err(format!(
-                "Cartridge doesn't support type {:#?}",
-                game_data.gb_type
-            ));
-        }
-
-        match game_data.gb_type {
+        match gb_type {
             GbType::Cgb => {
                 match mbc_code {
                     0x00 | 0x08 | 0x09 => {

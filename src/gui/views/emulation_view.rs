@@ -238,11 +238,11 @@ impl From<SelectionDevice> for EmulationDevice {
             false => GbType::Dmg,
         };
         let boot_rom_path = match gb_type {
-            GbType::Cgb => "boot-roms/cgb.bin".into(),
-            GbType::Dmg => "boot-roms/dmg.bin".into(),
+            GbType::Cgb => Some("boot-roms/cgb.bin".into()),
+            GbType::Dmg => Some("boot-roms/dmg.bin".into()),
         };
         let options = CoreGameOptions {
-            gb_type,
+            gb_type: Some(gb_type),
             rom_path,
             boot_rom: true,
             boot_rom_path,
