@@ -19,7 +19,7 @@ use sample_buffer::SampleBuffer;
 
 const T_CYCLES_PER_SEC: f64 = 4_194_304.0;
 const SAMPLE_RATE: f64 = 48_000.0;
-const CYCLES_PER_SAMPLE: f64 = T_CYCLES_PER_SEC / SAMPLE_RATE; // ~= 87.38
+const BASE_CYCLE: f64 = T_CYCLES_PER_SEC / SAMPLE_RATE; // ~= 87.38
 
 pub struct Apu {
     nr50_master_vol_and_vin_panning: MasterVolVinPanningReg,
@@ -37,6 +37,7 @@ pub struct Apu {
     frame_seq_step: u8,
     sample_buffer: SampleBuffer,
     volume: f32, // 1.0 = 100%
+    speed: f64,
 }
 
 impl Apu {
@@ -59,6 +60,7 @@ impl Apu {
             frame_seq_step: 0,
             sample_buffer,
             volume: 1.0,
+            speed: 1.0,
         }
     }
 
@@ -96,8 +98,10 @@ impl Apu {
                 _ => {}
             }
         }
-        if self.sample_counter >= CYCLES_PER_SAMPLE {
-            self.sample_counter -= CYCLES_PER_SAMPLE;
+
+        let cycles_per_sample = BASE_CYCLE * self.speed;
+        if self.sample_counter >= cycles_per_sample {
+            self.sample_counter -= cycles_per_sample;
 
             let mixed = (self.channel_one.output()
                 + self.channel_two.output()
@@ -193,6 +197,10 @@ impl Apu {
 
     pub fn set_volume(&mut self, percent: u8) {
         self.volume = percent as f32 / 100.0;
+    }
+
+    pub fn set_speed(&mut self, speed: f64) {
+        self.speed = speed;
     }
 }
 
