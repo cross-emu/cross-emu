@@ -219,6 +219,7 @@ impl<M: MemoryMapper> GameBoy<M> {
             }
             Request::SetSpeed(speed) => {
                 self.speed = speed as u64;
+                self.bus.get_apu().set_speed(speed as f64);
             }
             Request::SetVolume(volume) => {
                 self.bus.get_apu().set_volume(volume);
