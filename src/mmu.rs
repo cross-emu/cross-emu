@@ -1,4 +1,3 @@
-use std::ops::RangeInclusive;
 use std::sync::RwLock;
 
 pub mod apu;
@@ -75,7 +74,6 @@ impl MemoryRegion {
 }
 
 pub trait MemoryMapper {
-    const RANGE_BOOT_ROM: RangeInclusive<u16>;
     fn write_timers(&mut self, addr: u16, value: u8);
     fn new(
         wrapped_boot_rom: Option<[u8; 0x900]>,
@@ -111,11 +109,13 @@ pub trait MemoryMapper {
         self.get_cart().dump()
     }
 
+    fn addr_is_in_boot_rom(addr: u16) -> bool;
+
     fn read_byte(&mut self, addr: u16) -> u8
     where
         Self: Sized,
     {
-        if self.get_boot_enable() && Self::RANGE_BOOT_ROM.contains(&addr) {
+        if self.get_boot_enable() && Self::addr_is_in_boot_rom(addr) {
             return self.get_boot_rom()[addr as usize];
         }
 
@@ -271,7 +271,10 @@ pub trait MemoryMapper {
 }
 
 impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T, P> {
-    const RANGE_BOOT_ROM: RangeInclusive<u16> = 0x0000..=0x00FF;
+    fn addr_is_in_boot_rom(addr: u16) -> bool {
+        (0..0x0100).contains(&addr)
+    }
+
     fn get_timer(&mut self) -> &mut dyn TimingComponent {
         &mut self.timers
     }
@@ -438,7 +441,9 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<M, T, P> 
 }
 
 impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T, P> {
-    const RANGE_BOOT_ROM: RangeInclusive<u16> = 0x0000..=0x08FF;
+    fn addr_is_in_boot_rom(addr: u16) -> bool {
+        (0..0x100).contains(&addr) || (0x0200..0x08FF).contains(&addr)
+    }
 
     fn set_dma_last_byte(&mut self, val: u8) {
         self.dma_last_byte = val;
