@@ -670,7 +670,7 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
             && self.x + 7 >= self.wx as usize
             && !self.is_wx_glitch_happened
         {
-            let glitched_pixel = Pixel::new_bg(DmgColor::apply_background_palette_bgp(0, self.bgp));
+            let glitched_pixel = Pixel::new_bg(DmgColor::apply_background_palette_bgp(0, self.bgp), 0);
             self.bg_fifo.push(glitched_pixel);
             self.is_wx_glitch_happened = true;
         }
@@ -683,18 +683,18 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
             } else {
                 let obj_pixel = self.obj_piso.shift_out();
 
-                let bg_color_index: u16;
+                let bg_color_index: u8;
                 let bg_color: DmgColor;
 
                 if !self.read_lcdc().is_bg_window_enabled() {
                     bg_color_index = 0;
                     bg_color = DmgColor::apply_background_palette_bgp(0, self.bgp);
                 } else {
-                    bg_color_index = bg_pixel.get_color_value();
+                    bg_color_index = bg_pixel.get_color_index();
                     bg_color = *bg_pixel.get_color();
                 }
 
-                let obj_color_index = obj_pixel.get_color_value();
+                let obj_color_index = obj_pixel.get_color_index();
 
                 let mut final_color = if obj_color_index == 0 {
                     bg_color
@@ -905,7 +905,7 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
             && self.x + 7 >= self.wx as usize
             && !self.is_wx_glitch_happened
         {
-            let glitched_pixel = Pixel::new_bg(CgbColor::apply_background_palette_bgp(0, self.bgp));
+            let glitched_pixel = Pixel::new_bg(CgbColor::apply_background_palette_bgp(0, self.bgp), 0);
             self.bg_fifo.push(glitched_pixel);
             self.is_wx_glitch_happened = true;
         }
@@ -918,18 +918,18 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
             } else {
                 let obj_pixel = self.obj_piso.shift_out();
 
-                let bg_color_index: u16;
+                let bg_color_index: u8;
                 let bg_color: CgbColor;
 
                 if !self.read_lcdc().is_bg_window_enabled() {
                     bg_color_index = 0;
                     bg_color = CgbColor::apply_background_palette_bgp(0, self.bgp);
                 } else {
-                    bg_color_index = bg_pixel.get_color_value();
+                    bg_color_index = bg_pixel.get_color_index();
                     bg_color = *bg_pixel.get_color();
                 }
 
-                let obj_color_index = obj_pixel.get_color_value();
+                let obj_color_index = obj_pixel.get_color_index();
 
                 let mut final_color = if obj_color_index == 0 {
                     bg_color

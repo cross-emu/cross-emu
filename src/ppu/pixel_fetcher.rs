@@ -45,7 +45,7 @@ pub trait PFetcher<V, C: ColorType + Copy> {
     where
         Self: Sized;
     fn push_pixel(&self, _cram: &Cram, _bgp: u8) -> Option<[Pixel<C>; 8]> {
-        Some([Pixel::<C>::new_bg(C::new(0)); 8])
+        Some([Pixel::<C>::new_bg(C::new(0), 0); 8])
     }
     fn get_tile_data_high(
         &self,
@@ -261,7 +261,7 @@ impl PFetcher<DmgVram, DmgColor> for PixelFetcher<DmgVram, DmgColor> {
 
             let color_index = (high_weight_bit << 1) | low_weight_bit;
             let color = DmgColor::apply_background_palette_bgp(color_index, bgp);
-            let pixel = Pixel::new_bg(color);
+            let pixel = Pixel::new_bg(color, color_index);
 
             tile_pixels[i as usize] = pixel;
         }
@@ -465,7 +465,7 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
             let palette_index = self.bg_attribute & 0b111;
             let color =
                 CgbColor::apply_background_palette_cram(bg_cram, palette_index, color_index);
-            let pixel = Pixel::new_bg(color);
+            let pixel = Pixel::new_bg(color, color_index);
 
             tile_pixels[i as usize] = pixel;
         }
