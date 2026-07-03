@@ -1,6 +1,9 @@
 use super::*;
-use crate::gui::KeyInput;
-use crate::ppu::colors_palette::Color;
+use crate::gui::keymapping::KeyInput;
+const WHITE: [u8; 3] = [255, 255, 255];
+const LIGHTGRAY: [u8; 3] = [192, 192, 192];
+const DARKGRAY: [u8; 3] = [96, 96, 96];
+const BLACK: [u8; 3] = [0, 0, 0];
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -33,7 +36,9 @@ mod update_input {
     fn without_prior_send_input_is_unchanged() {
         let (mut gct, _ict) = setup();
         let mut input = KeyInput::default();
-        if let Err(_) = gct.update_input(&mut input) { panic!("update in error") }
+        if let Err(_) = gct.update_input(&mut input) {
+            panic!("update in error")
+        }
         assert_eq!(input, KeyInput::default());
     }
 
@@ -42,9 +47,13 @@ mod update_input {
         let (mut gct, ict) = setup();
         let mut input = KeyInput::default();
         input.a_pushed = true;
-        if let Err(_) = ict.send_input(input) { panic!("update in error") }
+        if let Err(_) = ict.send_input(input) {
+            panic!("update in error")
+        }
         let mut received = KeyInput::default();
-        if let Err(_) = gct.update_input(&mut received) { panic!("update in error") }
+        if let Err(_) = gct.update_input(&mut received) {
+            panic!("update in error")
+        }
         assert_eq!(input, received);
     }
 
@@ -62,22 +71,23 @@ mod update_input {
 
 mod put_pixel_to_frame {
     use super::*;
+    use crate::ppu::colors_palette::{ColorType, DmgColor};
 
     #[test]
     fn writes_color_at_the_given_offset() {
         let (mut gct, mut ict) = setup();
-        let c = Color::LightGray;
-        gct.put_pixel_to_frame(0, c);
+        let c = DmgColor::new(2, 2);
+        gct.put_pixel_to_frame(0, c.rgb);
         let mut image = [0; FRAME_SIZE_IN_U8];
         ict.get_new_image(&mut image).unwrap();
-        assert_eq!(&image[0..3], c.to_rgb());
+        assert_eq!(&image[0..3], &c.rgb);
     }
 
     #[test]
     fn marks_image_as_changed() {
         let (mut gct, mut ict) = setup();
-        let c = Color::LightGray;
-        gct.put_pixel_to_frame(0, c);
+        let c = DmgColor::new(1, 1);
+        gct.put_pixel_to_frame(0, c.rgb);
         let mut image = [0; FRAME_SIZE_IN_U8];
         let Ok(Some(_)) = ict.get_new_image(&mut image) else {
             panic!("image must be set");
@@ -87,19 +97,19 @@ mod put_pixel_to_frame {
     #[test]
     fn two_pixels_at_different_offsets_are_independent() {
         let (mut gct, mut ict) = setup();
-        gct.put_pixel_to_frame(0, Color::Black);
-        gct.put_pixel_to_frame(1, Color::White);
+        gct.put_pixel_to_frame(0, BLACK);
+        gct.put_pixel_to_frame(1, WHITE);
         let mut buffer = [0; FRAME_SIZE_IN_U8];
         ict.get_new_image(&mut buffer).unwrap();
-        assert_eq!(&buffer[0..3], Color::Black.to_rgb());
-        assert_eq!(&buffer[3..6], Color::White.to_rgb());
+        assert_eq!(&buffer[0..3], &BLACK);
+        assert_eq!(&buffer[3..6], &WHITE);
     }
 
     #[test]
     fn last_valid_offset_does_not_panic() {
         let (mut gct, _ict) = setup();
-        let c = Color::LightGray;
-        gct.put_pixel_to_frame(FRAME_SIZE - 1, c);
+        let c = DmgColor::new(1, 1);
+        gct.put_pixel_to_frame(FRAME_SIZE - 1, c.rgb);
     }
 }
 
@@ -176,27 +186,52 @@ mod instructions {
     #[test]
     fn without_send_the_list_is_unchanged() {
         let (_gct, mut ict) = setup();
-        let mut list = InstructionList(vec![0xAF, 0x01]);
+        let mut list = InstructionList(vec![
+            (0xAF, "instruction_name".to_string()),
+            (0x01, "instruction_name".to_string()),
+        ]);
         ict.get_next_instructions(&mut list).unwrap();
-        assert_eq!(&*list, &[0xAF, 0x01]);
+        assert_eq!(
+            &*list,
+            &[
+                (0xAF, "instruction_name".to_string()),
+                (0x01, "instruction_name".to_string())
+            ]
+        );
     }
 
     #[test]
     fn after_send_the_list_contains_the_sent_opcodes() {
         let (mut gct, mut ict) = setup();
-        gct.send_next_instructions(InstructionList(vec![0xAF, 0x01]));
+        gct.send_next_instructions(InstructionList(vec![
+            (0xAF, "instruction_name".to_string()),
+            (0x01, "instruction_name".to_string()),
+        ]));
         let mut list = InstructionList::default();
         ict.get_next_instructions(&mut list).unwrap();
-        assert_eq!(&*list, &[0xAF_u16, 0x01]);
+        assert_eq!(
+            &*list,
+            &[
+                (0xAF, "instruction_name".to_string()),
+                (0x01, "instruction_name".to_string())
+            ]
+        );
     }
 
     #[test]
     fn get_next_instructions_clears_the_list_before_filling_it() {
         let (mut gct, mut ict) = setup();
-        gct.send_next_instructions(InstructionList(vec![0xAF]));
-        let mut list = InstructionList(vec![0x00, 0x00, 0x00]);
+        gct.send_next_instructions(InstructionList(vec![(
+            0xAF,
+            "instruction_name".to_string(),
+        )]));
+        let mut list = InstructionList(vec![
+            (0x00, "instruction_name".to_string()),
+            (0x00, "instruction_name".to_string()),
+            (0x00, "instruction_name".to_string()),
+        ]);
         ict.get_next_instructions(&mut list).unwrap();
-        assert_eq!(&*list, &[0xAF_u16]);
+        assert_eq!(&*list, &[(0xAF, "instruction_name".to_string())]);
     }
 }
 
@@ -324,10 +359,10 @@ mod interface_requests {
     #[test]
     fn execute_instruction_produces_request_execute_with_correct_bytes() {
         let (mut gct, ict) = setup();
-        ict.execute_instruction(vec![0xAF]).unwrap();
+        ict.execute_instruction("0xAF".to_string()).unwrap();
         let requests = gct.poll_requests();
         assert_eq!(requests.len(), 1);
-        assert!(matches!(&requests[0], Request::Execute(bytes) if bytes == &vec![0xAF]));
+        assert!(matches!(&requests[0], Request::Execute(bytes) if bytes == "0xAF"));
     }
 
     #[test]
@@ -384,7 +419,7 @@ mod get_new_image {
     #[test]
     fn returns_some_after_a_pixel_is_written() {
         let (mut gct, mut ict) = setup();
-        gct.put_pixel_to_frame(0, Color::Black);
+        gct.put_pixel_to_frame(0, BLACK);
         let mut buffer = [0; FRAME_SIZE_IN_U8];
         assert_eq!(ict.get_new_image(&mut buffer), Ok(Some(())));
     }
@@ -392,16 +427,16 @@ mod get_new_image {
     #[test]
     fn correctly_copies_pixels_to_rgb_buffer() {
         let (mut gct, mut ict) = setup();
-        gct.put_pixel_to_frame(0, Color::Black);
+        gct.put_pixel_to_frame(0, BLACK);
         let mut buffer = [0; FRAME_SIZE_IN_U8];
         ict.get_new_image(&mut buffer).unwrap();
-        assert_eq!(&buffer[0..3], Color::Black.to_rgb());
+        assert_eq!(&buffer[0..3], &BLACK);
     }
 
     #[test]
     fn returns_none_on_second_call_without_new_write() {
         let (mut gct, mut ict) = setup();
-        gct.put_pixel_to_frame(0, Color::Black);
+        gct.put_pixel_to_frame(0, BLACK);
         let mut buffer = [0; FRAME_SIZE_IN_U8];
         ict.get_new_image(&mut buffer).unwrap();
         assert_eq!(ict.get_new_image(&mut buffer), Ok(None));

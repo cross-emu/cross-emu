@@ -1,113 +1,225 @@
 #![allow(unused_variables, dead_code)]
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(Default)]
-struct ChannelOne {
-    sweep: SweepReg,
-    ln_timer_duty_cycle: LnTimerDutyCycleReg,
-    volume_envelope: VolumeEnvReg,
-    period_high_ctrl: PeriodHighCtrlReg,
-    period_low: PeriodLowReg,
+use serde::{Deserialize, Serialize};
+
+use crate::sound::start_audio;
+
+pub mod channel3;
+pub mod channel4;
+pub mod channels_square;
+pub mod registers;
+pub mod sample_buffer;
+
+use crate::mmu::apu::registers::*;
+use channel3::ChannelThree;
+use channel4::ChannelFour;
+use channels_square::ChannelSquare;
+use sample_buffer::SampleBuffer;
+
+const T_CYCLES_PER_SEC: f64 = 4_194_304.0;
+const SAMPLE_RATE: f64 = 48_000.0;
+const BASE_CYCLE: f64 = T_CYCLES_PER_SEC / SAMPLE_RATE; // ~= 87.38
+
+fn default_audio_running() -> Arc<AtomicBool> {
+    Arc::new(AtomicBool::new(true))
 }
 
-#[derive(Default)]
-struct ChannelTwo {
-    channel_two_ln_timer_duty_cycle: LnTimerDutyCycleReg,
-    channel_two_volume_envelope: VolumeEnvReg,
-    channel_two_period_high_ctrl: PeriodHighCtrlReg,
-    channel_two_period_low: PeriodLowReg,
-}
-
-#[derive(Default)]
-struct ChannelThree {
-    channel_three_dac_enable: WaveDacEnableReg,
-    channel_three_ln_timer: WaveLengthTimerReg,
-    channel_three_output_level: OutputLevelReg,
-    channel_three_period_low: PeriodLowReg,
-    channel_three_period_high_crtl: PeriodHighCtrlReg,
-}
-
-#[derive(Default)]
-struct ChannelFour {
-    channel_four_length_timer: NoiseLengthTimer,
-    channel_four_volume_evelope: VolumeEnvReg,
-    channel_four_freq_and_rand: FreqRandomnessReg,
-    channel_four_ctrl: ChannelFourCtrlReg,
-}
-
-#[derive(Default)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Apu {
-    audio_master_control: AudioMasterControlReg,
-    sound_panning: SoundPanningReg,
-    master_vol_and_vin_panning: MasterVolVinPanningReg,
+    nr50_master_vol_and_vin_panning: MasterVolVinPanningReg,
+    nr51_sound_panning: SoundPanningReg,
+    nr52_audio_master_control: AudioMasterControlReg,
 
-    channel_one: ChannelOne,
-    channel_two: ChannelTwo,
+    channel_one: ChannelSquare,
+    channel_two: ChannelSquare,
     channel_three: ChannelThree,
     channel_four: ChannelFour,
-}
 
-trait Channel {}
-
-macro_rules! define_register {
-    ($name:ident) => {
-        #[derive(Default, Debug, Copy, Clone)]
-        struct $name { byte: u8, }
-    };
-}
-
-macro_rules! read_write_register {
-    ($name:ident) => {
-        define_register!($name);
-        impl Register for $name {
-            fn read(&self) -> u8 { self.byte }
-            fn write(&mut self, value: u8) { self.byte = value}
-        }
-    };
-}
-
-macro_rules! write_only_register {
-    ($name:ident) => {
-        define_register!($name);
-        impl Register for $name {
-            fn read(&self) -> u8 { 0xFF }
-            fn write(&mut self, value: u8) { self.byte = value}
-        }
-    };
-}
-
-read_write_register!(AudioMasterControlReg);
-read_write_register!(SoundPanningReg);
-read_write_register!(MasterVolVinPanningReg);
-read_write_register!(SweepReg);
-
-define_register!(LnTimerDutyCycleReg);
-impl Register for LnTimerDutyCycleReg {
-    fn read(&self) -> u8 { (self.byte & 0b1100_0000) | 0b0011_1111 }
-    fn write(&mut self, value: u8) { self.byte = value;}
-}
-
-read_write_register!(VolumeEnvReg);
-write_only_register!(PeriodHighCtrlReg);
-write_only_register!(PeriodLowReg);
-read_write_register!(WaveDacEnableReg);
-write_only_register!(WaveLengthTimerReg);
-
-read_write_register!(OutputLevelReg);
-read_write_register!(NoiseLengthTimer);
-read_write_register!(FreqRandomnessReg);
-define_register!(ChannelFourCtrlReg);
-impl Register for ChannelFourCtrlReg {
-    fn read(&self) -> u8 { (self.byte & 0b0110_0000) | 0b1001_1111 }
-    fn write(&mut self, value: u8) { self.byte = value }
-}
-
-trait Register {
-    fn read(&self) -> u8;
-    fn write(&mut self, value: u8);
+    // Runtime-only handles to the audio playback thread: not meaningful to
+    // persist, and reconstructed unlinked to any thread on deserialize (the
+    // caller must re-hook audio playback afterwards, same as Apu::new does).
+    #[serde(skip, default = "default_audio_running")]
+    audio_running: Arc<AtomicBool>,
+    sample_counter: f64,
+    frame_seq_counter: u64,
+    frame_seq_step: u8,
+    #[serde(skip)]
+    sample_buffer: SampleBuffer,
+    volume: f32, // 1.0 = 100%
+    speed: f64,
 }
 
 impl Apu {
-    pub fn read(&self, addr: u16) -> u8 { 0xFF }
-    pub fn write(&self, addr:u16 , value :u8) { }
+    pub fn new() -> Self {
+        let sample_buffer = SampleBuffer::new();
+        let audio_running = Arc::new(AtomicBool::new(true));
+        start_audio(sample_buffer.clone(), audio_running.clone());
+
+        Self {
+            nr50_master_vol_and_vin_panning: MasterVolVinPanningReg::default(),
+            nr51_sound_panning: SoundPanningReg::default(),
+            nr52_audio_master_control: AudioMasterControlReg::default(),
+            channel_one: ChannelSquare::default(),
+            channel_two: ChannelSquare::default(),
+            channel_three: ChannelThree::default(),
+            channel_four: ChannelFour::default(),
+            audio_running,
+            sample_counter: 0.0,
+            frame_seq_counter: 0,
+            frame_seq_step: 0,
+            sample_buffer,
+            volume: 1.0,
+            speed: 1.0,
+        }
+    }
+
+    pub fn step(&mut self) {
+        self.channel_one.step();
+        self.channel_two.step();
+        self.channel_three.step();
+        self.channel_four.step();
+
+        self.sample_counter += 1.0;
+        self.frame_seq_counter += 1;
+        if self.frame_seq_counter >= 8192 {
+            self.frame_seq_counter -= 8192;
+            self.frame_seq_step = (self.frame_seq_step + 1) % 8;
+
+            match self.frame_seq_step {
+                0 | 4 => {
+                    self.channel_one.tick_length();
+                    self.channel_two.tick_length();
+                    self.channel_three.tick_length();
+                    self.channel_four.tick_length();
+                }
+                2 | 6 => {
+                    self.channel_one.tick_length();
+                    self.channel_two.tick_length();
+                    self.channel_three.tick_length();
+                    self.channel_four.tick_length();
+                    self.channel_one.tick_sweep();
+                }
+                7 => {
+                    self.channel_one.tick_envelope();
+                    self.channel_two.tick_envelope();
+                    self.channel_four.tick_envelope();
+                }
+                _ => {}
+            }
+        }
+
+        let cycles_per_sample = BASE_CYCLE * self.speed;
+        if self.sample_counter >= cycles_per_sample {
+            self.sample_counter -= cycles_per_sample;
+
+            let mixed = (self.channel_one.output()
+                + self.channel_two.output()
+                + self.channel_three.output()
+                + self.channel_four.output())
+                / 4.0;
+            let sample = (mixed * self.volume).clamp(-1.0, 1.0);
+
+            self.sample_buffer.push(sample);
+        }
+    }
+
+    pub fn read(&self, addr: u16) -> u8 {
+        match addr {
+            0xFF10 => self.channel_one.nr0_sweep.read(),
+            0xFF11 => self.channel_one.nr1_ln_timer_duty_cycle.read(),
+            0xFF12 => self.channel_one.nr2_volume_envelope.read(),
+            0xFF13 => self.channel_one.nr3_period_low.read(),
+            0xFF14 => self.channel_one.nr4_period_high_ctrl.read(),
+            0xFF16 => self.channel_two.nr1_ln_timer_duty_cycle.read(),
+            0xFF17 => self.channel_two.nr2_volume_envelope.read(),
+            0xFF18 => self.channel_two.nr3_period_low.read(),
+            0xFF19 => self.channel_two.nr4_period_high_ctrl.read(),
+            0xFF1A => self.channel_three.nr30_dac_enable.read(),
+            0xFF1B => self.channel_three.nr31_ln_timer.read(),
+            0xFF1C => self.channel_three.nr32_output_level.read(),
+            0xFF1D => self.channel_three.nr33_period_low.read(),
+            0xFF1E => self.channel_three.nr34_period_high_crtl.read(),
+            0xFF20 => self.channel_four.nr41_length_timer.read(),
+            0xFF21 => self.channel_four.nr42_volume_envelope.read(),
+            0xFF22 => self.channel_four.nr43_freq_and_randomness.read(),
+            0xFF23 => self.channel_four.nr44_control.read(),
+            0xFF24 => self.nr50_master_vol_and_vin_panning.read(),
+            0xFF25 => self.nr51_sound_panning.read(),
+            0xFF26 => self.nr52_audio_master_control.read(),
+            0xFF30..=0xFF3F => {
+                let index = (addr - 0xFF30) as usize;
+                self.channel_three.wave_ram[index]
+            }
+            _ => 0xFF,
+        }
+    }
+    pub fn write(&mut self, addr: u16, value: u8) {
+        match addr {
+            0xFF10 => self.channel_one.nr0_sweep.write(value),
+            0xFF11 => self.channel_one.nr1_ln_timer_duty_cycle.write(value),
+            0xFF12 => self.channel_one.nr2_volume_envelope.write(value),
+            0xFF13 => self.channel_one.nr3_period_low.write(value),
+            0xFF14 => {
+                self.channel_one.nr4_period_high_ctrl.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_one.trigger();
+                }
+            }
+            0xFF16 => self.channel_two.nr1_ln_timer_duty_cycle.write(value),
+            0xFF17 => self.channel_two.nr2_volume_envelope.write(value),
+            0xFF18 => self.channel_two.nr3_period_low.write(value),
+            0xFF19 => {
+                self.channel_two.nr4_period_high_ctrl.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_two.trigger();
+                }
+            }
+            0xFF1A => self.channel_three.nr30_dac_enable.write(value),
+            0xFF1B => self.channel_three.nr31_ln_timer.write(value),
+            0xFF1C => self.channel_three.nr32_output_level.write(value),
+            0xFF1D => self.channel_three.nr33_period_low.write(value),
+            0xFF1E => {
+                self.channel_three.nr34_period_high_crtl.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_three.trigger();
+                }
+            }
+            0xFF20 => self.channel_four.nr41_length_timer.write(value),
+            0xFF21 => self.channel_four.nr42_volume_envelope.write(value),
+            0xFF22 => self.channel_four.nr43_freq_and_randomness.write(value),
+            0xFF23 => {
+                self.channel_four.nr44_control.write(value);
+                if value & 0b1000_0000 != 0 {
+                    self.channel_four.trigger();
+                }
+            }
+            0xFF24 => self.nr50_master_vol_and_vin_panning.write(value),
+            0xFF25 => self.nr51_sound_panning.write(value),
+            0xFF26 => self.nr52_audio_master_control.write(value),
+            0xFF30..=0xFF3F => {
+                let index = (addr - 0xFF30) as usize;
+                self.channel_three.wave_ram[index] = value;
+            }
+            _ => {}
+        }
+    }
+
+    pub fn set_volume(&mut self, percent: u8) {
+        self.volume = percent as f32 / 100.0;
+    }
+
+    pub fn set_speed(&mut self, speed: f64) {
+        self.speed = speed;
+    }
 }
+
+impl Drop for Apu {
+    fn drop(&mut self) {
+        self.audio_running.store(false, Ordering::Relaxed);
+    }
+}
+
+trait Channel {}

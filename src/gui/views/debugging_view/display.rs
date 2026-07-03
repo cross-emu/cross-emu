@@ -1,8 +1,7 @@
 use crate::gui::common::display_game;
 
 use eframe::egui::{
-    Align, Button, Color32, DragValue, Grid, Layout, RichText, ScrollArea, Panel,
-    TextEdit, Ui,
+    Align, Button, Color32, DragValue, Grid, Layout, Panel, RichText, ScrollArea, TextEdit, Ui,
 };
 
 use super::{DebuggingDataIn, DebuggingDataOut};
@@ -15,12 +14,14 @@ pub fn display_interface(
     let (
         close_btn_clicked,
         step_mode_btn_clkd,
+        instruction_to_exec,
         stp_btn_clkd,
         refresh_register_clicked,
         nb_instruction_requested,
         hex_string,
         register_new_addr,
-    ): (bool, bool, bool, bool, u8, String, bool) = Panel::right("debug_panel")
+        delete_watched_addr,
+    ): (bool, bool, Option<String>, bool, bool, u8, String, bool, Option<u16>) = Panel::right("debug_panel")
         .resizable(true)
         .default_size(400.0)
         .min_size(300.0)
@@ -37,6 +38,15 @@ pub fn display_interface(
                                 .inner
                         })
                         .inner;
+
+                    ui.separator();
+
+                    ui.add_space(8.0);
+
+                    ui.label("FPS Counter:");
+                    ui.label(data.fps.to_string());
+
+
                     ui.separator();
 
                     ui.add_space(8.0);
@@ -53,6 +63,16 @@ pub fn display_interface(
 
                     ui.add_space(8.0);
 
+
+                    let custom_instr: Option<String> = ui
+                        .group(|inner_ui| {
+                            inner_ui.label(RichText::new("Execute Custom Instructions").strong());
+                            inner_ui.label(RichText::new("Executing Custom Instructions WILL break your ROM! Do not use for serious gaming")
+                                                .size(10.0)
+                                                .color(Color32::RED)
+                                                .weak() );
+                            execute_custom_instruction(inner_ui, &data)
+                        }).inner;
                     let refresh_register_clicked: bool = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Registers").strong());
@@ -69,7 +89,7 @@ pub fn display_interface(
 
                     ui.add_space(8.0);
 
-                    let (hex_string, register_new_addr) = ui
+                    let (hex_string, register_new_addr , remove_addr) = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Memory Watch").strong());
                             watch_address(inner_ui, &data)
@@ -79,11 +99,13 @@ pub fn display_interface(
                     (
                         close_button_is_clicked,
                         step_mode_button_clicked,
+                        custom_instr,
                         step_button_clicked,
                         refresh_register_clicked,
                         nb_instruction_requested,
                         hex_string,
                         register_new_addr,
+                        remove_addr,
                     )
                 })
                 .inner
@@ -96,12 +118,14 @@ pub fn display_interface(
 
     DebuggingDataOut {
         step_clicked: stp_btn_clkd,
+        delete_new_addr: delete_watched_addr,
         step_mode_clicked: step_mode_btn_clkd,
         close_btn_clicked,
         refresh_register_clicked,
         nb_instruction_requested,
         hex_string,
         register_new_addr,
+        instruction_to_exec,
     }
 }
 
@@ -116,6 +140,35 @@ fn step_mode_button(ui: &mut Ui, is_in_step_mode: bool) -> bool {
 
 fn step_button(ui: &mut Ui) -> bool {
     ui.button("Next Step").clicked()
+}
+
+fn execute_custom_instruction(
+    ui: &mut egui::Ui,
+    debugging_data: &DebuggingDataIn,
+) -> Option<String> {
+    let id = ui.id().with("custom_instruction_input");
+
+    let mut input = ui.data_mut(|d| {
+        d.get_temp::<String>(id).unwrap_or_else(|| {
+            debugging_data
+                .instruction_to_exec
+                .clone()
+                .unwrap_or_default()
+        })
+    });
+
+    let response = ui.text_edit_singleline(&mut input);
+
+    let mut result = None;
+
+    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+        result = Some(input.clone());
+        input.clear();
+    }
+
+    ui.data_mut(|d| d.insert_temp(id, input));
+
+    result
 }
 
 fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
@@ -139,8 +192,6 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
             ui.label(RichText::new("Binary").strong());
             ui.end_row();
 
-            println!("{:?}", debugging_data);
-
             let registers_8bit = [
                 ("A", debugging_data.registers.a),
                 ("B", debugging_data.registers.b),
@@ -148,6 +199,7 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
                 ("D", debugging_data.registers.d),
                 ("E", debugging_data.registers.e),
                 ("H", debugging_data.registers.h),
+                ("L", debugging_data.registers.l),
             ];
 
             for (name, value) in registers_8bit.iter() {
@@ -161,12 +213,6 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
                         .color(Color32::from_rgb(150, 150, 150)),
                 );
 
-                ui.label(
-                    RichText::new(format!("{:08b}", value))
-                        .monospace()
-                        .color(Color32::from_rgb(100, 255, 100)),
-                );
-
                 ui.end_row();
             }
 
@@ -178,7 +224,6 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
 
             // 16-bit registers
             let registers_16bit = [
-                ("L", debugging_data.registers.l as u16),
                 ("HL", debugging_data.registers.hl),
                 ("SP", debugging_data.registers.sp),
                 ("PC", debugging_data.registers.pc),
@@ -203,6 +248,32 @@ fn get_registers(ui: &mut Ui, debugging_data: &DebuggingDataIn) -> bool {
 
                 ui.end_row();
             }
+
+            ui.end_row();
+
+            ui.label(
+                RichText::new("IME".to_string())
+                    .monospace()
+                    .color(Color32::from_rgb(150, 150, 150)),
+            );
+
+            ui.label(
+                RichText::new(format!("{}", debugging_data.registers.ime))
+                    .monospace()
+                    .color(Color32::from_rgb(100, 255, 100)),
+            );
+            ui.end_row();
+            ui.label(
+                RichText::new("HALT".to_string())
+                    .monospace()
+                    .color(Color32::from_rgb(150, 150, 150)),
+            );
+
+            ui.label(
+                RichText::new(format!("{}", debugging_data.registers.ime))
+                    .monospace()
+                    .color(Color32::from_rgb(100, 255, 100)),
+            );
         });
     refresh_button_is_clicked
 }
@@ -253,6 +324,7 @@ fn get_next_instructions(ui: &mut Ui, data: &DebuggingDataIn) -> u8 {
                 ui.label(RichText::new("Hex").strong());
                 ui.label(RichText::new("Dec").strong());
                 ui.label(RichText::new("Binary").strong());
+                ui.label(RichText::new("Mnemonic").strong());
             });
 
         ui.separator();
@@ -278,21 +350,28 @@ fn get_next_instructions(ui: &mut Ui, data: &DebuggingDataIn) -> u8 {
 
                                 // Hex value
                                 ui.label(
-                                    RichText::new(format!("0x{:02X}", instruction))
+                                    RichText::new(format!("0x{:02X}", instruction.0))
                                         .monospace()
                                         .color(Color32::from_rgb(100, 200, 255)),
                                 );
 
                                 // Decimal value
                                 ui.label(
-                                    RichText::new(format!("{:3}", instruction))
+                                    RichText::new(format!("{:3}", instruction.0))
                                         .monospace()
                                         .color(Color32::from_rgb(150, 150, 150)),
                                 );
 
                                 // Binary value
                                 ui.label(
-                                    RichText::new(format!("{:08b}", instruction))
+                                    RichText::new(format!("{:08b}", instruction.0))
+                                        .monospace()
+                                        .color(Color32::from_rgb(100, 255, 100)),
+                                );
+
+                                // Mnemonic
+                                ui.label(
+                                    RichText::new(instruction.1.clone())
                                         .monospace()
                                         .color(Color32::from_rgb(100, 255, 100)),
                                 );
@@ -312,7 +391,7 @@ fn get_next_instructions(ui: &mut Ui, data: &DebuggingDataIn) -> u8 {
     instruction_requested_tuple
 }
 
-fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool) {
+fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool, Option<u16>) {
     let mut hex_string = data.hex_string.clone();
     // Input section with better layout
     let register_new_addr: bool = ui
@@ -357,10 +436,7 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool) {
         ui.heading("Watched Addresses");
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if !data.watched_address.is_empty() {
-                ui.label(format!(
-                    "({})",
-                    data.watched_address.len()
-                ));
+                ui.label(format!("({})", data.watched_address.len()));
             }
         });
     });
@@ -368,57 +444,57 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool) {
     ui.add_space(4.0);
 
     // Display watched addresses with better formatting
-    if data.watched_address.is_empty() {
+
+    let remove_addr = if data.watched_address.is_empty() {
         ui.label(
             RichText::new("No addresses being watched")
                 .italics()
                 .color(Color32::DARK_GRAY),
         );
+        None
     } else {
         let mut address_to_remove = None;
         ui.push_id("watched_address", |ui| {
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("#").strong());
+                ui.label(RichText::new("    Address").strong());
+                ui.label(RichText::new("    Value (Hex)").strong());
+                ui.label(RichText::new("    Value (Dec)").strong());
+                ui.label(RichText::new("    Binary").strong());
+            });
             ScrollArea::vertical()
                 .auto_shrink([true; 2])
                 .max_height(300.0)
                 .show(ui, |ui| {
                     // Table header
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("#").strong());
-                        ui.label(RichText::new("Address").strong());
-                        ui.label(RichText::new("Value (Hex)").strong());
-                        ui.label(RichText::new("Value (Dec)").strong());
-                        ui.label(RichText::new("Binary").strong());
-                    });
 
                     ui.separator();
 
-                    for (i, (address, value)) in
-                        data.watched_address.iter().enumerate()
-                    {
+                    for (i, (address, value)) in data.watched_address.iter().enumerate() {
                         ui.horizontal(|ui| {
                             // Index
-                            ui.label(format!("{}", i + 1));
+                            ui.label(format!("  {}", i + 1));
 
                             // Address in hex
                             ui.label(
-                                RichText::new(format!("0x{:04X}", address))
+                                RichText::new(format!(" 0x{:04X}", address))
                                     .monospace()
                                     .color(Color32::from_rgb(100, 200, 255)),
                             );
 
                             // Value in hex
-                            ui.label(RichText::new(format!("0x{:02X}", value)).monospace());
+                            ui.label(RichText::new(format!("    0x{:02X}", value)).monospace());
 
                             // Value in decimal
                             ui.label(
-                                RichText::new(format!("{:3}", value))
+                                RichText::new(format!(" {:3}", value))
                                     .monospace()
                                     .color(Color32::from_rgb(150, 150, 150)),
                             );
 
                             // Value in binary
                             ui.label(
-                                RichText::new(format!("{:08b}", value))
+                                RichText::new(format!("         {:08b}", value))
                                     .monospace()
                                     .color(Color32::from_rgb(100, 255, 100)),
                             );
@@ -438,25 +514,22 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool) {
                         }
                     }
                 });
-            /*
 
-                        if let Some(addr) = address_to_remove
-                        && let Some(index) = data
-                            .watched_address
-                            .addresses_n_values
-                            .iter()
-                            .position(|(address, _)| *address == addr)
-                        {
-                            data.watched_address.addresses_n_values.remove(index);
-                            data.watch_address(address_to_remove.unwrap());
-                        }
-            */
-        });
-    }
+            let mut remove_addr: Option<u16> = None;
+            if let Some(addr) = address_to_remove
+                && let Some(index) = data
+                    .watched_address
+                    .iter()
+                    .position(|(address, _)| *address == addr)
+            {
+                remove_addr = Some(addr);
+            }
+            remove_addr
+        })
+        .inner
+    };
     ui.add_space(4.0);
-    (hex_string, register_new_addr)
 
-    /*
     // Optional: Quick access to common GameBoy memory regions
     ui.collapsing("Quick Add Memory Regions", |ui| {
         ui.horizontal_wrapped(|ui| {
@@ -477,19 +550,16 @@ fn watch_address(ui: &mut Ui, data: &DebuggingDataIn) -> (String, bool) {
             ];
 
             for (name, addr) in regions.iter() {
-                if ui.small_button(*name).clicked() {
-                    data.watched_address_value = *addr;
-                    if !data
+                if ui.small_button(*name).clicked()
+                    && !data
                         .watched_address
-                        .addresses_n_values
                         .iter()
                         .any(|(address, _)| *address == *addr)
-                    {
-                        data.watch_address(*addr);
-                    }
+                {
+                    hex_string = format!("{:x}", *addr);
                 }
             }
         });
     });
-    */
+    (hex_string, register_new_addr, remove_addr)
 }

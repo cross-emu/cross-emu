@@ -11,5 +11,11 @@ gb-test-roms
 callgrind.*
 rtc3test
 utils
+.idea/*
+.idea/
+./boot-roms/*.gb
+./boot-roms/*.gb.save
 
+**/*.gb.save
 CLAUDE.md
+/.idea/.gitignore

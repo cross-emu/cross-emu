@@ -1,37 +1,35 @@
-use std::sync::{RwLock, RwLockReadGuard};
-
+pub mod apu;
 pub mod interrupt;
 pub mod mbc;
-pub mod timers;
 pub mod oam;
-pub mod apu;
+pub mod timers;
 
-use self::timers::Timers;
+use serde::{Deserialize, Serialize};
+
+use crate::communications::GameCT;
+use crate::mmu::apu::Apu;
 use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
 use crate::mmu::mbc::Mbc;
-use crate::mmu::oam::Oam;
-use crate::mmu::apu::Apu;
-use crate::communications::GameCT;
-use crate::ppu::Ppu;
+use crate::mmu::timers::TimingComponent;
+use crate::ppu::{HdmaMode, PixelProcessor, PpuMode};
 
-#[allow(unused)]
 #[derive(PartialEq, Eq, Debug)]
 pub enum MemoryRegion {
-    Mbc,                // 0x000-0x7FFF: read-only
-    Vram,               // 0x8000-0x9FFF
-    ERam,               // 0xA000-0xBFFF
-    Wram,               // 0xC000-0xDFFF
-    Mram,               // 0xE000-0xFDFF: mirror of C000-DDFF
-    Oam,                // 0xFE00-0xFE9F: Sprite Attribute Table
-    Unusable,           // 0xFEA0-0xFEFF
-    InterruptFlag,      // 0xFF0F: Interruption Flag: Inside IO
-    Timers,             // 0xFF04-0xFF07
-    Audio,              // 0xFF10-0xFF26
-    Io,                 // 0xFF00-0xFF7F
-    HRam,               // 0xFF80-0xFFFE
-    InterruptEnable,    // 0xFFFF: Interruption Enable
-    WavePatternRam,     // 0xFF30-0xFF3F
+    Mbc,             // 0x000-0x7FFF: read-only
+    Vram,            // 0x8000-0x9FFF
+    ERam,            // 0xA000-0xBFFF
+    Wram,            // 0xC000-0xDFFF
+    Mram,            // 0xE000-0xFDFF: mirror of C000-DDFF
+    Oam,             // 0xFE00-0xFE9F: Sprite Attribute Table
+    Unusable,        // 0xFEA0-0xFEFF
+    InterruptFlag,   // 0xFF0F: Interruption Flag: Inside IO
+    Timers,          // 0xFF04-0xFF07
+    Audio,           // 0xFF10-0xFF26
+    WaveRam,         // 0xFF30-0xFF3F
+    Io,              // 0xFF00-0xFF7F
+    HRam,            // 0xFF80-0xFFFE
+    InterruptEnable, // 0xFFFF: Interruption Enable
 }
 
 impl MemoryRegion {
@@ -46,6 +44,8 @@ impl MemoryRegion {
             0xFEA0..=0xFEFF => MemoryRegion::Unusable,
             0xFF04..=0xFF07 => MemoryRegion::Timers,
             0xFF0F => MemoryRegion::InterruptFlag,
+            0xFF10..=0xFF26 => MemoryRegion::Audio,
+            0xFF30..=0xFF3F => MemoryRegion::WaveRam,
             0xFF00..=0xFF7F => MemoryRegion::Io,
             0xFF80..=0xFFFE => MemoryRegion::HRam,
             0xFFFF => MemoryRegion::InterruptEnable,
@@ -67,60 +67,592 @@ impl MemoryRegion {
             MemoryRegion::HRam => 0xFF80,
             MemoryRegion::InterruptEnable => 0xFFFF,
             MemoryRegion::Audio => 0xFF10,
-            MemoryRegion::WavePatternRam => 0xFF30,
+            MemoryRegion::WaveRam => 0xFF30,
         }
     }
 }
 
-#[allow(unused)]
-pub struct Mmu<T: Mbc> {
-    data: Box<[u8; 0x10000]>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
-    cart: T,
-    interrupts: InterruptController,
-    timers: Timers,
-    oam: RwLock<Oam>,
-    apu: Apu,
-    pub ppu: Ppu,
-    boot_enable: bool,
-    boot_rom: [u8; 0x0100],
-    dpad_state: u8, // for joypad
-    button_state: u8, // for joypad
-    accessed_oam_ram: u8, // for OAM Bug
-    dma_source: u16,
-    pub dma_index: u8,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HardwareKind {
+    Dmg,
+    Cgb,
 }
 
-impl<T: Mbc> Mmu<T> {
-    pub fn ram_dump(&self) ->  Option<Vec<u8>> {
-        self.cart.dump()
+pub trait MemoryMapper {
+    fn hardware_kind(&self) -> HardwareKind;
+    fn write_timers(&mut self, addr: u16, value: u8);
+    fn new(
+        wrapped_boot_rom: Option<[u8; 0x900]>,
+        rom_data: Vec<u8>,
+        ram_data: Option<Vec<u8>>,
+        rom_compatibility: bool,
+    ) -> Result<Self, String>
+    where
+        Self: Sized;
+    fn get_boot_enable(&self) -> bool;
+    fn get_boot_rom(&self) -> &[u8];
+    fn get_button_state(&self) -> &u8;
+    fn get_cart(&mut self) -> &mut dyn Mbc;
+    fn get_timer(&mut self) -> &mut dyn TimingComponent;
+    fn get_data(&self) -> &[u8];
+    fn get_dma_source(&self) -> u16;
+    fn get_dpad_state(&self) -> &u8;
+    fn get_interrupts(&mut self) -> &mut InterruptController;
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor;
+    fn get_apu(&mut self) -> &mut Apu;
+    fn set_boot_enable(&mut self, enabled: bool);
+    fn set_button_state(&mut self, buttons: u8);
+    fn set_dma_source(&mut self, val: u16);
+    fn set_dpad_state(&mut self, dpad: u8);
+    fn update_data(&mut self, index: usize, val: u8);
+    fn get_dma_index(&mut self) -> u8;
+    fn set_dma_index(&mut self, val: u8);
+    fn get_dma_last_byte(&mut self) -> u8;
+    fn set_dma_last_byte(&mut self, val: u8);
+
+    fn read_timers(&mut self, addr: u16) -> u8;
+
+    fn ram_dump(&mut self) -> Option<Vec<u8>> {
+        self.get_cart().dump()
     }
 
-    pub fn new(rom_data: Vec<u8>, ram_data: Option<Vec<u8>>) -> Result<Self, String> {
-        println!("New Mmu");
-        Ok(Mmu {
-            apu: Apu::default(),
-            data: Box::new([0xFF; 0x10000]),
-            cart: T::new(rom_data, ram_data)?,
+    fn addr_is_in_boot_rom(addr: u16) -> bool;
+
+    fn read_byte(&mut self, addr: u16) -> u8
+    where
+        Self: Sized,
+    {
+        if self.get_boot_enable() && Self::addr_is_in_boot_rom(addr) {
+            return self.get_boot_rom()[addr as usize];
+        }
+
+        match MemoryRegion::from(addr) {
+            MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().read(addr),
+            MemoryRegion::Vram => self.get_ppu().read_vram(addr),
+            MemoryRegion::Mram => {
+                let mirror = addr - 0x2000;
+                self.get_data()[mirror as usize]
+            }
+            MemoryRegion::Timers => self.read_timers(addr),
+            MemoryRegion::Audio => self.get_apu().read(addr),
+            MemoryRegion::WaveRam => self.get_apu().read(addr),
+            MemoryRegion::Io => {
+                if addr == 0xFF00 {
+                    let selection = self.get_data()[0xFF00] & 0b0011_0000;
+                    let mut result = 0x0F;
+
+                    if selection & 0b0001_0000 == 0 {
+                        result &= self.get_dpad_state();
+                    }
+                    if selection & 0b0010_0000 == 0 {
+                        result &= self.get_button_state();
+                    }
+                    0b1100_0000 | selection | result
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 && addr != 0xFF55 {
+                    self.get_ppu().read_register(addr)
+                } else if addr == 0xFF55 {
+                    self.handle_read_hdma5()
+                } else {
+                    self.get_data()[addr as usize]
+                }
+            }
+            MemoryRegion::Oam => self.get_ppu().read_oam(addr),
+            MemoryRegion::Unusable => 0xFF,
+            MemoryRegion::InterruptFlag => self.get_interrupts().read_interrupt_flag(),
+            MemoryRegion::InterruptEnable => self.get_interrupts().read_interrupt_enable(),
+            _ => self.get_data()[addr as usize],
+        }
+    }
+
+    fn write_byte(&mut self, addr: u16, val: u8)
+    where
+        Self: Sized,
+    {
+        if val != 0 && addr == 0xFF50 {
+            self.update_data(addr as usize, val);
+            self.set_boot_enable(false);
+            return;
+        }
+
+        match MemoryRegion::from(addr) {
+            MemoryRegion::Mbc | MemoryRegion::ERam => self.get_cart().write(addr, val),
+            MemoryRegion::Vram => {
+                self.get_ppu().write_vram(addr, val);
+            }
+            MemoryRegion::Mram => {
+                let mirror = addr - 0x2000;
+                self.update_data(mirror as usize, val);
+            }
+            MemoryRegion::Timers => self.get_timer().write(addr, val),
+            MemoryRegion::Audio => self.get_apu().write(addr, val),
+            MemoryRegion::WaveRam => self.get_apu().write(addr, val),
+            MemoryRegion::Io => {
+                if addr == 0xFF00 {
+                    let selection_bits = val & 0b0011_0000;
+                    let current_inputs = self.get_data()[0xFF00] & 0x0F;
+                    let val = 0b1100_0000 | selection_bits | current_inputs;
+                    self.update_data(0xFF00, val);
+                    self.update_joypad_register();
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 && addr != 0xFF55 {
+                    self.get_ppu().write_register(addr, val);
+                } else if addr == 0xFF46 {
+                    self.set_dma_last_byte(val);
+                    self.update_data(addr as usize, val);
+                    self.set_dma_index(0);
+                    self.set_dma_source((val as u16) << 8);
+                } else if addr == 0xFF55 {
+                    self.handle_write_hdma5(val);
+                } else {
+                    self.update_data(addr as usize, val);
+                }
+            }
+            MemoryRegion::Oam => {
+                self.get_ppu().write_oam(addr, val);
+            }
+            MemoryRegion::Unusable => {}
+            MemoryRegion::InterruptFlag => self.get_interrupts().write_interrupt_flag(val),
+            MemoryRegion::InterruptEnable => self.get_interrupts().write_interrupt_enable(val),
+            _ => self.update_data(addr as usize, val),
+        }
+    }
+
+    fn read_interrupt_enable(&mut self) -> u8 {
+        self.get_interrupts().read_interrupt_enable()
+    }
+    fn read_interrupt_flag(&mut self) -> u8 {
+        self.get_interrupts().read_interrupt_flag()
+    }
+    fn interrupts_next_request(&mut self) -> Option<Interrupt> {
+        self.get_interrupts().next_request()
+    }
+    fn interrupts_clear_request(&mut self, interrupt: Interrupt) {
+        self.get_interrupts().clear_request(interrupt);
+    }
+    fn interrupts_request(&mut self, interrupt: Interrupt) {
+        self.get_interrupts().request(interrupt);
+    }
+
+    fn update_joypad_register(&mut self) {
+        let mut new_inputs = 0x0F;
+        let selection = self.get_data()[0xFF00] & 0b0011_0000;
+
+        if selection & 0b0001_0000 == 0 {
+            new_inputs &= self.get_dpad_state();
+        }
+        if selection & 0b0010_0000 == 0 {
+            new_inputs &= self.get_button_state();
+        }
+
+        let old_inputs = self.get_data()[0xFF00] & 0x0F;
+        if old_inputs & !new_inputs & 0x0F != 0 {
+            self.interrupts_request(Interrupt::Joypad);
+        }
+
+        let val = 0xC0 | selection | new_inputs;
+        self.update_data(0xFF00, val);
+    }
+
+    fn tick_timers(&mut self)
+    where
+        Self: Sized,
+    {
+        if self.get_timer().tick() {
+            let interrupt_flags_addr = MemoryRegion::InterruptFlag.to_address();
+            let mut interrupt_flags = self.read_byte(interrupt_flags_addr);
+            interrupt_flags |= 0b100;
+            self.write_byte(interrupt_flags_addr, interrupt_flags);
+        }
+    }
+
+    fn update_keys(&mut self, dpad: u8, buttons: u8) {
+        self.set_dpad_state(dpad);
+        self.set_button_state(buttons);
+        self.update_joypad_register();
+    }
+
+    fn tick_apu(&mut self) {
+        self.get_apu().step();
+    }
+
+    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>, _is_interrupted: bool) -> PpuMode
+    where
+        Self: Sized;
+
+    fn tick_dma(&mut self);
+    fn handle_write_hdma5(&mut self, _val: u8) {}
+    fn handle_read_hdma5(&mut self) -> u8 {
+        0
+    }
+    fn hdma_mode(&mut self) -> &HdmaMode {
+        &HdmaMode::Hblank
+    }
+    fn hdma_active(&mut self) -> bool {
+        false
+    }
+}
+
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T, P> {
+    fn hardware_kind(&self) -> HardwareKind {
+        HardwareKind::Dmg
+    }
+
+    fn addr_is_in_boot_rom(addr: u16) -> bool {
+        (0..0x0100).contains(&addr)
+    }
+
+    fn get_timer(&mut self) -> &mut dyn TimingComponent {
+        &mut self.timers
+    }
+    fn get_dma_index(&mut self) -> u8 {
+        self.dma_index
+    }
+    fn set_dma_index(&mut self, val: u8) {
+        self.dma_index = val
+    }
+    fn write_timers(&mut self, addr: u16, value: u8) {
+        self.timers.write(addr, value)
+    }
+    fn read_timers(&mut self, addr: u16) -> u8 {
+        self.timers.read(addr)
+    }
+    fn get_dma_last_byte(&mut self) -> u8 {
+        self.dma_last_byte
+    }
+
+    fn set_dma_last_byte(&mut self, val: u8) {
+        self.dma_last_byte = val;
+    }
+
+    fn tick_dma(&mut self) {
+        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
+
+        let dma_index = self.dma_index;
+
+        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
+
+        self.dma_index += 1;
+
+        if self.dma_index == 160 {
+            self.dma_index = 0xFF;
+        }
+    }
+
+    fn new(
+        wrapped_boot_rom: Option<[u8; 0x900]>,
+        rom_data: Vec<u8>,
+        ram_data: Option<Vec<u8>>,
+        rom_compatibility: bool,
+    ) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        let boot_enable = wrapped_boot_rom.is_some();
+        let boot_rom = wrapped_boot_rom
+            .map(|b| b.to_vec())
+            .unwrap_or_else(|| vec![0xFF; 0x0900]);
+        Ok(Self {
+            apu: Apu::new(),
+            data: vec![0xFF; 0x10000],
+            cart: M::new(rom_data, ram_data)?,
             interrupts: InterruptController::new(),
-            timers: Timers::default(),
-            oam: RwLock::new(Oam::default()),
-            ppu: Ppu::new(),
-            boot_enable: false,
-            boot_rom: [0xFF; 0x0100],
+            timers: T::new(),
+            ppu: P::new(rom_compatibility),
+            boot_enable,
+            boot_rom,
             dpad_state: 0x0F,
             button_state: 0x0F,
-            accessed_oam_ram: 0xFF,
             dma_source: 0x0,
             dma_index: 0xFF,
+            dma_last_byte: 0,
+            dma_delay: 0,
         })
     }
 
-    pub fn load_boot_rom(&mut self, boot_rom: [u8; 0x0100]) {
-        self.boot_rom = boot_rom;
-        self.boot_enable = true;
+    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>, _is_interrupted: bool) -> PpuMode
+    where
+        Self: Sized,
+    {
+        self.ppu.tick(ct, self.boot_enable);
+        if self.ppu.pending_vblank() {
+            self.interrupts_request(Interrupt::VBlank);
+            self.ppu.set_pending_vblank(false);
+        }
+        if self.ppu.pending_stat() {
+            self.interrupts_request(Interrupt::LcdStat);
+            self.ppu.set_pending_stat(false);
+        }
+        self.ppu.lcd_status().get_ppu_mode()
     }
 
-    pub fn tick_timers(&mut self) {
+    fn get_cart(&mut self) -> &mut dyn Mbc {
+        &mut self.cart
+    }
+    fn get_data(&self) -> &[u8] {
+        &self.data
+    }
+
+    fn get_interrupts(&mut self) -> &mut InterruptController {
+        &mut self.interrupts
+    }
+
+    fn get_boot_rom(&self) -> &[u8] {
+        &self.boot_rom
+    }
+
+    fn get_button_state(&self) -> &u8 {
+        &self.button_state
+    }
+
+    fn get_dpad_state(&self) -> &u8 {
+        &self.dpad_state
+    }
+
+    fn get_boot_enable(&self) -> bool {
+        self.boot_enable
+    }
+
+    fn get_dma_source(&self) -> u16 {
+        self.dma_source
+    }
+
+    fn set_boot_enable(&mut self, enabled: bool) {
+        self.boot_enable = enabled;
+    }
+
+    fn set_dma_source(&mut self, val: u16) {
+        self.dma_source = val;
+    }
+
+    fn set_dpad_state(&mut self, dpad: u8) {
+        self.dpad_state = dpad;
+    }
+
+    fn set_button_state(&mut self, buttons: u8) {
+        self.button_state = buttons;
+    }
+
+    fn update_data(&mut self, index: usize, val: u8) {
+        self.data[index] = val;
+    }
+
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor {
+        &mut self.ppu
+    }
+
+    fn get_apu(&mut self) -> &mut Apu {
+        &mut self.apu
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DmgMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
+    data: Vec<u8>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
+    cart: M,
+    interrupts: InterruptController,
+    timers: T,
+    apu: Apu,
+    pub ppu: P,
+    boot_enable: bool,
+    boot_rom: Vec<u8>,
+    dpad_state: u8,   // for joypad
+    button_state: u8, // for joypad
+    dma_source: u16,
+    pub dma_index: u8,
+    dma_last_byte: u8,
+    dma_delay: u8,
+}
+
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> Default for DmgMmu<M, T, P> {
+    fn default() -> Self {
+        DmgMmu::<M, T, P>::new(None, vec![], None, false).expect("This is not suppose to happen")
+    }
+}
+
+impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T, P> {
+    fn hardware_kind(&self) -> HardwareKind {
+        HardwareKind::Cgb
+    }
+
+    fn addr_is_in_boot_rom(addr: u16) -> bool {
+        (0..0x100).contains(&addr) || (0x0200..0x08FF).contains(&addr)
+    }
+
+    fn set_dma_last_byte(&mut self, val: u8) {
+        self.dma_last_byte = val;
+    }
+    fn get_timer(&mut self) -> &mut dyn TimingComponent {
+        &mut self.timers
+    }
+    fn get_dma_index(&mut self) -> u8 {
+        self.dma_index
+    }
+    fn set_dma_index(&mut self, val: u8) {
+        self.dma_index = val
+    }
+    fn write_timers(&mut self, addr: u16, value: u8) {
+        self.timers.write(addr, value)
+    }
+    fn read_timers(&mut self, addr: u16) -> u8 {
+        self.timers.read(addr)
+    }
+
+    fn get_dma_last_byte(&mut self) -> u8 {
+        self.dma_last_byte
+    }
+
+    fn tick_dma(&mut self) {
+        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
+
+        let dma_index = self.dma_index;
+
+        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
+
+        self.dma_index += 1;
+
+        if self.dma_index == 160 {
+            self.dma_index = 0xFF;
+        }
+    }
+
+    fn new(
+        wrapped_boot_rom: Option<[u8; 0x900]>,
+        rom_data: Vec<u8>,
+        ram_data: Option<Vec<u8>>,
+        rom_compatibility: bool,
+    ) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        let boot_enable = wrapped_boot_rom.is_some();
+        let boot_rom = wrapped_boot_rom
+            .map(|b| b.to_vec())
+            .unwrap_or_else(|| vec![0xFF; 0x0900]);
+        Ok(CgbMmu {
+            apu: Apu::new(),
+            data: vec![0xFF; 0x10000],
+            cart: M::new(rom_data, ram_data)?,
+            interrupts: InterruptController::new(),
+            timers: T::new(),
+            ppu: P::new(rom_compatibility),
+            boot_enable,
+            boot_rom,
+            dpad_state: 0x0F,
+            button_state: 0x0F,
+            dma_source: 0x0,
+            dma_index: 0xFF,
+            dma_last_byte: 0,
+            hdma_source: 0x00,
+            hdma_dest: 0x00,
+            hdma_length: 0x00,
+            hdma_active: false,
+            hdma_mode: HdmaMode::Hblank,
+            was_hblank: false,
+            hdma_blocks_remaining: 0x00,
+            hdma_pending_this_period: false,
+        })
+    }
+
+    fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>, is_halted: bool) -> PpuMode
+    where
+        Self: Sized,
+    {
+        let is_hblank = self.ppu.lcd_status().get_ppu_mode() == PpuMode::HBlank;
+        let entered_hblank = is_hblank && !self.was_hblank;
+        self.was_hblank = is_hblank;
+
+        if entered_hblank {
+            self.hdma_pending_this_period = true;
+        }
+
+        if self.hdma_pending_this_period
+            && !is_halted
+            && self.hdma_active
+            && self.hdma_mode == HdmaMode::Hblank
+        {
+            let old_ie = self.get_interrupts().read_interrupt_enable();
+            let old_if = self.get_interrupts().read_interrupt_flag();
+            self.get_interrupts().write_interrupt_enable(0x00);
+            self.get_interrupts().write_interrupt_flag(0x00);
+            for _ in 0..=15 {
+                let src = self.hdma_source;
+                let data = self.get_cart().read(src);
+                let dest = self.hdma_dest;
+                self.get_ppu().write_hdma_value(dest, data);
+                self.hdma_dest = self.hdma_dest.wrapping_add(1);
+                self.hdma_source = self.hdma_source.wrapping_add(1);
+            }
+
+            self.get_interrupts().write_interrupt_enable(old_ie);
+            self.get_interrupts().write_interrupt_flag(old_if);
+            self.hdma_blocks_remaining -= 1;
+            if self.hdma_blocks_remaining == 0 {
+                self.hdma_active = false;
+            }
+            self.hdma_pending_this_period = false;
+        }
+        self.ppu.tick(ct, self.boot_enable);
+        if self.ppu.pending_vblank() {
+            self.interrupts_request(Interrupt::VBlank);
+            self.ppu.set_pending_vblank(false);
+        }
+        if self.ppu.pending_stat() {
+            self.interrupts_request(Interrupt::LcdStat);
+            self.ppu.set_pending_stat(false);
+        }
+        self.ppu.lcd_status().get_ppu_mode()
+    }
+
+    fn get_cart(&mut self) -> &mut dyn Mbc {
+        &mut self.cart
+    }
+    fn get_data(&self) -> &[u8] {
+        &self.data
+    }
+
+    fn get_interrupts(&mut self) -> &mut InterruptController {
+        &mut self.interrupts
+    }
+
+    fn get_boot_rom(&self) -> &[u8] {
+        &self.boot_rom
+    }
+
+    fn get_button_state(&self) -> &u8 {
+        &self.button_state
+    }
+
+    fn get_dpad_state(&self) -> &u8 {
+        &self.dpad_state
+    }
+
+    fn get_boot_enable(&self) -> bool {
+        self.boot_enable
+    }
+
+    fn get_dma_source(&self) -> u16 {
+        self.dma_source
+    }
+
+    fn set_boot_enable(&mut self, enabled: bool) {
+        self.boot_enable = enabled;
+    }
+    fn set_dma_source(&mut self, val: u16) {
+        self.dma_source = val;
+    }
+
+    fn set_dpad_state(&mut self, dpad: u8) {
+        self.dpad_state = dpad;
+    }
+
+    fn set_button_state(&mut self, buttons: u8) {
+        self.button_state = buttons;
+    }
+
+    fn update_data(&mut self, index: usize, val: u8) {
+        self.data[index] = val;
+    }
+
+    fn tick_timers(&mut self) {
         if self.timers.tick() {
             let interrupt_flags_addr = MemoryRegion::InterruptFlag.to_address();
             let mut interrupt_flags = self.read_byte(interrupt_flags_addr);
@@ -129,208 +661,120 @@ impl<T: Mbc> Mmu<T> {
         }
     }
 
-    pub fn read_byte(&self, addr: u16) -> u8 {
-        if self.boot_enable && addr <= 0x00FF {
-            return self.boot_rom[addr as usize];
-        }
-        
-        match MemoryRegion::from(addr) {
-            MemoryRegion::Mbc | MemoryRegion::ERam => self.cart.read(addr),
-            MemoryRegion::Mram => {
-                let mirror = addr - 0x2000;
-
-                self.data[mirror as usize]
-            }
-            MemoryRegion::Timers => self.timers.read_byte(addr),
-            MemoryRegion::Io => {
-                if addr == 0xFF00 {
-                    let selection = self.data[0xFF00] & 0b0011_0000;
-                    let mut result = 0x0F;
-
-                    if selection & 0b0001_0000 == 0 {
-                        result &= self.dpad_state;
-                    }
-                    if selection & 0b0010_0000 == 0 {
-                        result &= self.button_state;
-                    }
-
-                    0b1100_0000 | selection | result
-                } else if matches!(addr, 0xFF40..=0xFF4B) && addr != 0xFF46 {
-                    self.ppu.read_register(addr)
-                } else {
-                    self.data[addr as usize]
-                }
-            }
-            MemoryRegion::Oam => {
-                let mut oam = self.oam.write().unwrap();
-                if self.accessed_oam_ram != 0xFF {
-                    oam.trigger_oam_bug_read(self.accessed_oam_ram);
-                }
-                oam.read(addr)
-            },
-            MemoryRegion::Unusable => 0xFF,
-            MemoryRegion::InterruptFlag => self.interrupts.read_interrupt_flag(),
-            MemoryRegion::InterruptEnable => self.interrupts.read_interrupt_enable(),
-            _ => self.data[addr as usize],
-        }
+    fn get_ppu(&mut self) -> &mut dyn PixelProcessor {
+        &mut self.ppu
     }
 
-    pub fn write_byte(&mut self, addr: u16, val: u8) {
-        if val != 0 && addr == 0xFF50 {
-            self.data[addr as usize] = val;
-            self.boot_enable = false;
+    fn get_apu(&mut self) -> &mut Apu {
+        &mut self.apu
+    }
 
+    fn handle_write_hdma5(&mut self, val: u8) {
+        if val & 0x80 == 0 && self.hdma_active {
+            self.hdma_active = false;
             return;
         }
 
-        match MemoryRegion::from(addr) {
-            MemoryRegion::Mbc | MemoryRegion::ERam => self.cart.write(addr, val),
-            MemoryRegion::Mram => {
-                let mirror = addr - 0x2000;
-
-                self.data[mirror as usize] = val;
-            }
-            MemoryRegion::Timers => self.timers.write_byte(addr, val),
-            MemoryRegion::Io => {
-                // The CPU can only change the bits 4 and 5. The emulator use methods to write into the memory.
-                if addr == 0xFF00 {
-                    let selection_bits = val & 0b0011_0000;
-                    let current_inputs = self.data[0xFF00] & 0x0F;
-                    self.data[0xFF00] = 0b1100_0000 | selection_bits | current_inputs;
-
-                    self.update_joypad_register();
-                } else if matches!(addr, 0xFF40..=0xFF4B) && addr != 0xFF46 {
-                    self.ppu.write_register(addr, val);
-                } else if addr == 0xFF46 {
-                    self.data[addr as usize] = val;
-                    self.dma_index = 0;
-                    self.dma_source = (val as u16) << 8;
+        let source =
+            (((self.get_ppu().hdma1() as u16) << 8) | self.get_ppu().hdma2() as u16) & 0xFFF0;
+        let dest = 0x8000
+            | ((((self.get_ppu().hdma3() as u16) << 8) | self.get_ppu().hdma4() as u16) & 0x1FF0);
+        let blocks = (val & 0x7F) as u16 + 1;
+        let length = (((val & 0x7F) + 1) as u16) * 0x10;
+        self.hdma_source = source;
+        self.hdma_dest = dest;
+        self.hdma_length = length;
+        self.hdma_blocks_remaining = blocks;
+        if val & 0x80 == 0 {
+            let old_ie = self.get_interrupts().read_interrupt_enable();
+            let old_if = self.get_interrupts().read_interrupt_flag();
+            self.get_interrupts().write_interrupt_enable(0x00);
+            self.get_interrupts().write_interrupt_flag(0x00);
+            self.hdma_mode = HdmaMode::Gdma;
+            self.hdma_active = true;
+            for i in 0..self.hdma_length {
+                let current_dest = self.hdma_dest + i;
+                let current_src = self.hdma_source + i;
+                let current_data = if (0x0000..0xBFFF).contains(&current_src) {
+                    self.get_cart().read(current_src)
                 } else {
-                    self.data[addr as usize] = val;
-                }
+                    self.get_data()[current_src as usize]
+                };
+                self.get_ppu().write_hdma_value(current_dest, current_data);
             }
-            MemoryRegion::Oam => {
-                let mut oam = self.oam.write().unwrap();
-                if self.accessed_oam_ram != 0xFF {
-                    oam.trigger_oam_bug_write(self.accessed_oam_ram);
-                }
-                oam.write(addr, val)
-            },
-            MemoryRegion::Unusable => {}
-            MemoryRegion::InterruptFlag => self.interrupts.write_interrupt_flag(val),
-            MemoryRegion::InterruptEnable => self.interrupts.write_interrupt_enable(val),
-            _ => self.data[addr as usize] = val,
+            self.hdma_length = 0;
+            self.hdma_active = false;
+            self.get_interrupts().write_interrupt_enable(old_ie);
+            self.get_interrupts().write_interrupt_flag(old_if);
+        } else {
+            self.hdma_active = true;
+            self.hdma_mode = HdmaMode::Hblank;
         }
     }
 
-    pub fn read_interrupt_enable(&self) -> u8 {
-        self.interrupts.read_interrupt_enable()
-    }
-
-    pub fn read_interrupt_flag(&self) -> u8 {
-        self.interrupts.read_interrupt_flag()
-    }
-
-    pub fn interrupts_next_request(&self) -> Option<Interrupt> {
-        self.interrupts.next_request()
-    }
-
-    pub fn interrupts_clear_request(&mut self, interrupt: Interrupt) {
-        self.interrupts.clear_request(interrupt);
-    }
-
-    pub fn interrupts_request(&mut self, interrupt: Interrupt) {
-        self.interrupts.request(interrupt);
-    }
-
-    pub fn get_oam(&self) -> RwLockReadGuard<'_, Oam> {
-        self.oam.read().unwrap()
-    }
-
-    pub fn get_boot_enable(&self) -> bool {
-        self.boot_enable
-    }
-
-    fn update_joypad_register(&mut self) {
-        let mut new_inputs = 0x0F;
-        let selection = self.data[0xFF00] & 0b0011_0000;
-
-        if selection & 0b0001_0000 == 0 {
-            new_inputs &= self.dpad_state;
+    fn handle_read_hdma5(&mut self) -> u8 {
+        if self.hdma_active {
+            ((self.hdma_blocks_remaining - 1) as u8) & 0x7F
+        } else {
+            0xFF
         }
-        if selection & 0b0010_0000 == 0 {
-            new_inputs &= self.button_state;
-        }
-
-        let old_inputs = self.data[0xFF00] & 0x0F;
-        if (old_inputs & !new_inputs) & 0x0F != 0 {
-            self.interrupts_request(Interrupt::Joypad);
-        }
-
-        self.data[0xFF00] = 0xC0 | selection | new_inputs;
     }
 
-    pub fn update_keys(&mut self, dpad: u8, buttons: u8) {
-        self.dpad_state = dpad;
-        self.button_state = buttons;
-        self.update_joypad_register();
+    fn hdma_mode(&mut self) -> &HdmaMode {
+        &self.hdma_mode
     }
 
-    pub fn tick_ppu(&mut self, ct: &mut Box<dyn GameCT>) {
-        let mut ppu = std::mem::replace(&mut self.ppu, Ppu::new());
-        ppu.tick(self, ct);
-        if ppu.pending_vblank {
-            self.interrupts_request(Interrupt::VBlank);
-            ppu.pending_vblank = false;
-        }
-        if ppu.pending_stat {
-            self.interrupts_request(Interrupt::LcdStat);
-            ppu.pending_stat = false;
-        }
-        self.ppu = ppu;
-    }
-
-    pub fn set_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram = val;
-    }
-
-    pub fn update_accessed_oam_row(&mut self, val: u8) {
-        self.accessed_oam_ram += val;
-    }
-
-    pub fn trigger_oam_bug_read_increase(&mut self, offset: u8) {
-        self.oam.write().unwrap().trigger_oam_bug_read_increase(offset);
-    }
-
-    pub fn tick_dma(&mut self) {
-        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
-
-        let mut oam = self.oam.write().unwrap();
-        oam.write(0xFE00 + self.dma_index as u16, byte);
-
-        self.dma_index += 1;
-
-        if self.dma_index == 160 { self.dma_index = 0xFF; }
+    fn hdma_active(&mut self) -> bool {
+        self.hdma_active
     }
 }
 
-impl<T: Mbc> Default for Mmu<T> {
-    fn default() -> Self {
-        Mmu::<T>::new(vec![], None).expect("This is not suppose to happen")
-    }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CgbMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
+    data: Vec<u8>, // 0xFFFF (65535) + 1 = 0x10000 (65536)
+    cart: M,
+    interrupts: InterruptController,
+    timers: T,
+    apu: Apu,
+    pub ppu: P,
+    boot_enable: bool,
+    boot_rom: Vec<u8>,
+    dpad_state: u8,   // for joypad
+    button_state: u8, // for joypad
+    dma_source: u16,
+    pub dma_index: u8,
+    dma_last_byte: u8,
+    hdma_source: u16,
+    hdma_dest: u16,
+    hdma_length: u16,
+    hdma_active: bool,
+    hdma_mode: HdmaMode,
+    was_hblank: bool,
+    hdma_blocks_remaining: u16,
+    hdma_pending_this_period: bool,
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::mmu::mbc::RomOnly;
+    use crate::mmu::timers::DmgTimers;
+    use crate::ppu::DmgPpu;
 
-    use super::{MemoryRegion, Mmu};
+    use super::{DmgMmu, MemoryRegion};
+
+    fn default_dmg_mmu_from(rom: Vec<u8>) -> DmgMmu<RomOnly, DmgTimers, DmgPpu> {
+        DmgMmu::<RomOnly, DmgTimers, DmgPpu>::new(None, rom, None, false).unwrap()
+    }
+
+    fn default_dmg_mmu() -> DmgMmu<RomOnly, DmgTimers, DmgPpu> {
+        DmgMmu::<RomOnly, DmgTimers, DmgPpu>::default()
+    }
 
     #[test]
     fn mmu_routes_reads_and_writes() {
         let rom = vec![0x12, 0x34, 0x56, 0x78];
-        let mut mmu = Mmu::<RomOnly>::new(rom, None).unwrap();
-
+        let mut mmu = default_dmg_mmu_from(rom);
         // Reading from ROM region gives you the first bank data
         assert_eq!(mmu.read_byte(0x0000), 0x12);
         assert_eq!(mmu.read_byte(0x0001), 0x34);
@@ -350,7 +794,9 @@ mod tests {
         assert_eq!(MemoryRegion::from(0xFE50), MemoryRegion::Oam);
         assert_eq!(MemoryRegion::from(0xFEA0), MemoryRegion::Unusable);
         assert_eq!(MemoryRegion::from(0xFF0F), MemoryRegion::InterruptFlag);
-        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Io);
+        assert_eq!(MemoryRegion::from(0xFF10), MemoryRegion::Audio);
+        assert_eq!(MemoryRegion::from(0xFF30), MemoryRegion::WaveRam);
+        assert_eq!(MemoryRegion::from(0xFF00), MemoryRegion::Io);
         assert_eq!(MemoryRegion::from(0xFF80), MemoryRegion::HRam);
         assert_eq!(MemoryRegion::from(0xFFFF), MemoryRegion::InterruptEnable);
     }
@@ -358,7 +804,7 @@ mod tests {
     // MRAM ECHO RAM
     #[test]
     fn echo_ram_mirror() {
-        let mut mmu = Mmu::<RomOnly>::default();
+        let mut mmu = default_dmg_mmu();
 
         // Write to Work RAM (0xC000) and read from Echo RAM (0xE000)
         mmu.write_byte(0xC000, 0xAA);
@@ -372,7 +818,7 @@ mod tests {
     // UNUSABLE REGION
     #[test]
     fn unusable_region_behavior() {
-        let mut mmu = Mmu::<RomOnly>::default();
+        let mut mmu = default_dmg_mmu();
 
         // Unusable region reads back as 0xFF
         let base = 0xFEA0;

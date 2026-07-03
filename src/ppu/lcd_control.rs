@@ -17,7 +17,7 @@ const OBJ_SIZE_MASK: u8 = 0b0000_0100;
 const OBJ_ENABLE_MASK: u8 = 0b0000_0010;
 const BG_WINDOW_ENABLE_MASK: u8 = 0b0000_0001;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct LcdControl {
     ppu_enable: bool,
     window_tile_map_area: bool,
@@ -73,7 +73,7 @@ impl LcdControl {
     pub fn is_bg_window_enabled(&self) -> bool {
         self.bg_window_enable
     }
-    
+
     pub fn from_byte(byte: u8) -> Self {
         let mut lcdc = Self::default();
         lcdc.update_from_byte(byte);
@@ -91,4 +91,4 @@ impl LcdControl {
         self.obj_enable = value & OBJ_ENABLE_MASK != 0;
         self.bg_window_enable = value & BG_WINDOW_ENABLE_MASK != 0;
     }
-} 
+}

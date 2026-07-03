@@ -1,15 +1,10 @@
 #![allow(unused_variables)]
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
-pub enum PpuMode {
-    HBlank = 0,
-    VBlank = 1,
-    #[default]
-    OamSearch = 2,
-    PixelTransfer = 3,
-}
+use serde::{Deserialize, Serialize};
 
-#[derive(Default)]
+use crate::ppu::PpuMode;
+
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct LcdStatus {
     lyc_int_select: bool,
     mode_2_int_select: bool,
