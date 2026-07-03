@@ -16,6 +16,9 @@ use std::sync::{LazyLock, Mutex};
 static GBMU_FILE: LazyLock<Mutex<GbmuFile>> =
     LazyLock::new(|| Mutex::new(GbmuFile::get_existing_or_new()));
 
+static ROM_COMPTABILITY: LazyLock<Mutex<bool>> = LazyLock::new(|| Mutex::new(false));
+static IS_BOOT_ROM_FINISHED: LazyLock<Mutex<bool>> = LazyLock::new(|| Mutex::new(false));
+
 #[tokio::main]
 async fn main() {
     let arguments = match EmulatorArguments::get() {
