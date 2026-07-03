@@ -11,14 +11,15 @@ mod wram;
 
 pub type DmgPpu = Ppu<DmgVram, PixelFetcher<DmgVram, DmgColor>, Oam, DmgColor>;
 pub type CgbPpu = Ppu<CgbVram, PixelFetcher<CgbVram, CgbColor>, Oam, CgbColor>;
+
 use crate::ppu::lcd_control::LcdControl;
+use std::cmp::PartialEq;
 
 use crate::communications::GameCT;
 use crate::mmu::oam::{Oam, Sprite};
+use crate::ppu::PpuMode::PixelTransfer;
 use crate::ppu::colors_palette::{CgbColor, ColorType, DmgColor};
 use crate::ppu::lcd_status::LcdStatus;
-use crate::ppu::lcd_status::PpuMode;
-use crate::ppu::lcd_status::PpuMode::PixelTransfer;
 use crate::ppu::oam_fetcher::OamFetcher;
 use crate::ppu::obj_piso::ObjPiso;
 use crate::ppu::pixel::Pixel;
@@ -34,13 +35,24 @@ const OAM_DOTS: u32 = 80;
 const SCANLINE_DOTS: u32 = 456;
 
 const LCD_OFF_COLOR_DMG: DmgColor = DmgColor {
-    value: 0,
+    base_index: 0,
+    index_treated: 0,
     rgb: [255, 255, 255],
 };
 const LCD_OFF_COLOR_CGB: CgbColor = CgbColor {
-    value: 255,
+    base_index: 0,
+    index_treated: 0,
     rgb: [255, 255, 255],
 };
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Default)]
+pub enum PpuMode {
+    HBlank = 0,
+    VBlank = 1,
+    #[default]
+    OamSearch = 2,
+    PixelTransfer = 3,
+}
 
 pub trait PixelProcessor {
     fn new() -> Self
@@ -64,6 +76,13 @@ pub trait PixelProcessor {
     fn handle_window_switch(&mut self, use_window: bool);
     fn push_pixel_to_screen(&mut self, ct: &mut Box<dyn GameCT>);
     fn mode_pixel_transfer(&mut self, ct: &mut Box<dyn GameCT>);
+    fn mode_oam_search(&mut self);
+    fn lcd_status(&self) -> &LcdStatus;
+    fn hdma1(&self) -> u8;
+    fn hdma2(&self) -> u8;
+    fn hdma3(&self) -> u8;
+    fn hdma4(&self) -> u8;
+    fn write_hdma_value(&mut self, addr: u16, value: u8);
 }
 
 pub trait ObjectManager {
@@ -89,6 +108,12 @@ impl Cram {
     pub fn new() -> Cram {
         Self { data: [0x00; 64] }
     }
+}
+
+#[derive(PartialEq, Debug)]
+pub enum HdmaMode {
+    Gdma,
+    Hblank,
 }
 
 pub struct Ppu<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy> {
@@ -140,14 +165,14 @@ pub struct Ppu<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy
     oam: O,
     bg_cram: Cram,
     obj_cram: Cram,
+    key0_sys: u8, //0xFF4C
+    key1_spd: u8, //0xFF4D
+    opri: u8,     //0xFF6C
     hdma1: u8,    //0xFF51
     hdma2: u8,    //0xFF52
     hdma3: u8,    //0xFF53
     hdma4: u8,    //0xFF54
     hdma5: u8,    //0xFF55
-    key0_sys: u8, //0xFF4C
-    key1_spd: u8, //0xFF4D
-    opri: u8,     //0xFF6C
 }
 impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy + Default> Ppu<V, P, O, C> {
     fn pending_vblank(&self) -> bool {
@@ -211,14 +236,14 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy + Default
             obpi: 0x00,
             bg_cram: Cram::new(),
             obj_cram: Cram::new(),
+            key0_sys: 0x00,
+            key1_spd: 0x00,
+            opri: 0x00,
             hdma1: 0x00,
             hdma2: 0x00,
             hdma3: 0x00,
             hdma4: 0x00,
             hdma5: 0x00,
-            key0_sys: 0x00,
-            key1_spd: 0x00,
-            opri: 0x00,
         }
     }
 
@@ -254,11 +279,10 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy + Default
             0xFF4C => self.key0_sys,
             0xFF4D => self.key1_spd,
             0xFF4F => self.vram.vbk(),
-            0xFF51 => self.hdma1,
-            0xFF52 => self.hdma2,
-            0xFF53 => self.hdma3,
-            0xFF54 => self.hdma4,
-            0xFF55 => self.hdma5,
+            0xFF51 => 0xFF,
+            0xFF52 => 0xFF,
+            0xFF53 => 0xFF,
+            0xFF54 => 0xFF,
             0xFF68 => self.bgpi,
             0xFF69 => {
                 if !self.lcd_status.get_ppu_mode().eq(&PixelTransfer) {
@@ -299,14 +323,16 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy + Default
             0xFF49 => self.obp1 = val,
             0xFF4A => self.wy = val,
             0xFF4B => self.wx = val,
-            0xFF4C => self.key0_sys = val,
+            0xFF4C => {
+                self.key0_sys = val;
+                self.assign_value_to_opri(val)
+            }
             0xFF4D => self.key1_spd = val,
             0xFF4F => self.vram.set_vbk(val),
             0xFF51 => self.hdma1 = val,
             0xFF52 => self.hdma2 = val,
             0xFF53 => self.hdma3 = val,
             0xFF54 => self.hdma4 = val,
-            0xFF55 => self.hdma5 = val,
             0xFF68 => {
                 if !self.lcd_status.get_ppu_mode().eq(&PixelTransfer) {
                     self.bgpi = val
@@ -346,13 +372,20 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy + Default
             _ => {}
         }
     }
+
+    fn assign_value_to_opri(&mut self, value: u8) {
+        if value & 0b00000100 == 0 {
+            self.opri = 0x00;
+        } else {
+            self.opri = 0x01;
+        }
+    }
 }
 
 impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy> Ppu<V, P, O, C> {
     fn read_lcdc(&self) -> LcdControl {
         LcdControl::from_byte(self.lcdc_byte)
     }
-
     fn sort_sprites_by_x(&mut self) -> Vec<Sprite> {
         let mut sprites: Vec<(usize, Sprite)> = self
             .visible_sprites
@@ -370,50 +403,6 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy> Ppu<V, P
         });
 
         sprites.into_iter().map(|(_, s)| s).collect()
-    }
-
-    fn mode_oam_search(&mut self) {
-        if self.dots == 1 {
-            self.oam.set_accessed_oam_row(0);
-            self.oam_scan_index = 0;
-            self.visible_sprites_count = 0;
-            self.visible_sprites = [None; 10];
-            self.current_obj_height = if self.read_lcdc().is_obj_size_8x16() {
-                16
-            } else {
-                8
-            };
-        }
-
-        if self.dots.is_multiple_of(2) && self.oam_scan_index < 40 {
-            let sprite = self.oam.sprite(self.oam_scan_index);
-
-            if sprite.is_visible(self.ly, self.current_obj_height)
-                && self.visible_sprites_count < 10
-            {
-                sprite.oam_index = self.oam_scan_index;
-                let visible_sprites_count = self.visible_sprites_count;
-                self.visible_sprites[visible_sprites_count as usize] = Some(*sprite);
-                self.visible_sprites_count += 1;
-            }
-            self.oam_scan_index += 1;
-        }
-
-        if self.dots.is_multiple_of(4) {
-            self.oam.update_accessed_oam_row(8);
-        }
-
-        if self.dots >= OAM_DOTS {
-            let sorted = self.sort_sprites_by_x();
-            self.visible_sprites = [None; 10];
-
-            for (i, sprite) in sorted.into_iter().enumerate() {
-                self.visible_sprites[i] = Some(sprite);
-            }
-
-            self.update_ppu_mode(PpuMode::PixelTransfer);
-            self.oam.set_accessed_oam_row(0xFF);
-        }
     }
 
     fn step_pixel_fetcher(&mut self, use_window: bool) {
@@ -562,6 +551,9 @@ impl<V: Vram, P: PFetcher<V, C>, O: ObjectManager, C: ColorType + Copy> Ppu<V, P
 impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
     for Ppu<DmgVram, P, O, DmgColor>
 {
+    fn lcd_status(&self) -> &LcdStatus {
+        &self.lcd_status
+    }
     fn tick(&mut self, ct: &mut Box<dyn GameCT>) {
         self.check_lyc_equals_ly();
 
@@ -591,6 +583,51 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
 
         self.evaluate_stat_interrupt();
     }
+
+    fn mode_oam_search(&mut self) {
+        if self.dots == 1 {
+            self.oam.set_accessed_oam_row(0);
+            self.oam_scan_index = 0;
+            self.visible_sprites_count = 0;
+            self.visible_sprites = [None; 10];
+            self.current_obj_height = if self.read_lcdc().is_obj_size_8x16() {
+                16
+            } else {
+                8
+            };
+        }
+
+        if self.dots.is_multiple_of(2) && self.oam_scan_index < 40 {
+            let sprite = self.oam.sprite(self.oam_scan_index);
+
+            if sprite.is_visible(self.ly, self.current_obj_height)
+                && self.visible_sprites_count < 10
+            {
+                sprite.oam_index = self.oam_scan_index;
+                let visible_sprites_count = self.visible_sprites_count;
+                self.visible_sprites[visible_sprites_count as usize] = Some(*sprite);
+                self.visible_sprites_count += 1;
+            }
+            self.oam_scan_index += 1;
+        }
+
+        if self.dots.is_multiple_of(4) {
+            self.oam.update_accessed_oam_row(8);
+        }
+
+        if self.dots >= OAM_DOTS {
+            let sorted = self.sort_sprites_by_x();
+            self.visible_sprites = [None; 10];
+
+            for (i, sprite) in sorted.into_iter().enumerate() {
+                self.visible_sprites[i] = Some(sprite);
+            }
+
+            self.update_ppu_mode(PpuMode::PixelTransfer);
+            self.oam.set_accessed_oam_row(0xFF);
+        }
+    }
+
     fn step_oam_fetcher(&mut self) {
         let height: u8 = if LcdControl::from_byte(self.lcdc_byte).is_obj_size_8x16() {
             16
@@ -670,7 +707,11 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
             && self.x + 7 >= self.wx as usize
             && !self.is_wx_glitch_happened
         {
-            let glitched_pixel = Pixel::new_bg(DmgColor::apply_background_palette_bgp(0, self.bgp));
+            let glitched_pixel = Pixel::new_bg(
+                DmgColor::apply_background_palette_bgp(0, self.bgp),
+                false,
+                0,
+            );
             self.bg_fifo.push(glitched_pixel);
             self.is_wx_glitch_happened = true;
         }
@@ -683,18 +724,18 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
             } else {
                 let obj_pixel = self.obj_piso.shift_out();
 
-                let bg_color_index: u16;
+                let bg_color_index: u8;
                 let bg_color: DmgColor;
 
                 if !self.read_lcdc().is_bg_window_enabled() {
                     bg_color_index = 0;
                     bg_color = DmgColor::apply_background_palette_bgp(0, self.bgp);
                 } else {
-                    bg_color_index = bg_pixel.get_color_value();
+                    bg_color_index = bg_pixel.get_color_base_index();
                     bg_color = *bg_pixel.get_color();
                 }
 
-                let obj_color_index = obj_pixel.get_color_value();
+                let obj_color_index = obj_pixel.get_color_base_index();
 
                 let mut final_color = if obj_color_index == 0 {
                     bg_color
@@ -795,11 +836,29 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
     fn set_pending_stat(&mut self, value: bool) {
         self.set_pending_stat(value)
     }
+    fn hdma1(&self) -> u8 {
+        0
+    }
+    fn hdma2(&self) -> u8 {
+        0
+    }
+    fn hdma3(&self) -> u8 {
+        0
+    }
+    fn hdma4(&self) -> u8 {
+        0
+    }
+    fn write_hdma_value(&mut self, _addr: u16, _value: u8) {
+        todo!()
+    }
 }
 
 impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
     for Ppu<CgbVram, P, O, CgbColor>
 {
+    fn lcd_status(&self) -> &LcdStatus {
+        &self.lcd_status
+    }
     fn tick(&mut self, ct: &mut Box<dyn GameCT>) {
         self.check_lyc_equals_ly();
 
@@ -847,6 +906,7 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
                     height,
                     self.x,
                     &self.obj_cram,
+                    self.opri,
                 );
 
                 if !self.fetching_sprite {
@@ -878,6 +938,7 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
                         height,
                         self.x,
                         &self.obj_cram,
+                        self.opri,
                     );
 
                     if !self.fetching_sprite {
@@ -905,9 +966,59 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
             && self.x + 7 >= self.wx as usize
             && !self.is_wx_glitch_happened
         {
-            let glitched_pixel = Pixel::new_bg(CgbColor::apply_background_palette_bgp(0, self.bgp));
+            let glitched_pixel = Pixel::new_bg(
+                CgbColor::apply_background_palette_bgp(0, self.bgp),
+                false,
+                0,
+            );
             self.bg_fifo.push(glitched_pixel);
             self.is_wx_glitch_happened = true;
+        }
+    }
+
+    fn mode_oam_search(&mut self) {
+        if self.dots == 1 {
+            self.oam.set_accessed_oam_row(0);
+            self.oam_scan_index = 0;
+            self.visible_sprites_count = 0;
+            self.visible_sprites = [None; 10];
+            self.current_obj_height = if self.read_lcdc().is_obj_size_8x16() {
+                16
+            } else {
+                8
+            };
+        }
+
+        if self.dots.is_multiple_of(2) && self.oam_scan_index < 40 {
+            let sprite = self.oam.sprite(self.oam_scan_index);
+
+            if sprite.is_visible(self.ly, self.current_obj_height)
+                && self.visible_sprites_count < 10
+            {
+                sprite.oam_index = self.oam_scan_index;
+                let visible_sprites_count = self.visible_sprites_count;
+                self.visible_sprites[visible_sprites_count as usize] = Some(*sprite);
+                self.visible_sprites_count += 1;
+            }
+            self.oam_scan_index += 1;
+        }
+
+        if self.dots.is_multiple_of(4) {
+            self.oam.update_accessed_oam_row(8);
+        }
+
+        let sorted: Vec<Sprite>;
+
+        if self.dots >= OAM_DOTS {
+            sorted = self.sort_sprites_by_x();
+            self.visible_sprites = [None; 10];
+
+            for (i, sprite) in sorted.into_iter().enumerate() {
+                self.visible_sprites[i] = Some(sprite);
+            }
+
+            self.update_ppu_mode(PpuMode::PixelTransfer);
+            self.oam.set_accessed_oam_row(0xFF);
         }
     }
 
@@ -918,29 +1029,21 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
             } else {
                 let obj_pixel = self.obj_piso.shift_out();
 
-                let bg_color_index: u16;
-                let bg_color: CgbColor;
+                let bg_color_index = bg_pixel.get_color_base_index();
+                let bg_color = *bg_pixel.get_color();
 
-                if !self.read_lcdc().is_bg_window_enabled() {
-                    bg_color_index = 0;
-                    bg_color = CgbColor::apply_background_palette_bgp(0, self.bgp);
+                let obj_color_index = obj_pixel.get_color_base_index();
+
+                let obj_priority = obj_pixel.get_priority();
+                let bg_priority = bg_pixel.get_priority();
+                let mut final_color = if obj_color_index != 0
+                    && (bg_color_index == 0
+                        || self.lcdc_byte & 0b00000001 == 0x00
+                        || (!obj_priority && !bg_priority))
+                {
+                    *obj_pixel.get_color()
                 } else {
-                    bg_color_index = bg_pixel.get_color_value();
-                    bg_color = *bg_pixel.get_color();
-                }
-
-                let obj_color_index = obj_pixel.get_color_value();
-
-                let mut final_color = if obj_color_index == 0 {
                     bg_color
-                } else {
-                    let priority = obj_pixel.get_priority();
-
-                    if priority && bg_color_index != 0 {
-                        bg_color
-                    } else {
-                        *obj_pixel.get_color()
-                    }
                 };
 
                 let ly = self.ly as usize;
@@ -1029,5 +1132,20 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
 
     fn set_pending_stat(&mut self, value: bool) {
         self.set_pending_stat(value)
+    }
+    fn hdma1(&self) -> u8 {
+        self.hdma1
+    }
+    fn hdma2(&self) -> u8 {
+        self.hdma2
+    }
+    fn hdma3(&self) -> u8 {
+        self.hdma3
+    }
+    fn hdma4(&self) -> u8 {
+        self.hdma4
+    }
+    fn write_hdma_value(&mut self, addr: u16, value: u8) {
+        self.vram.write_with_custom_vbk(addr, value, 0x00);
     }
 }

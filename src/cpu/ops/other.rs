@@ -315,7 +315,5 @@ impl<M: MemoryMapper> Cpu<M> {
         Self::write_memory::<Addr, Reg>(self, bus);
     }
 
-    pub fn stop(&mut self, _bus: &mut M) {
-        unreachable!("This should not happen :(")
-    }
+    pub fn stop(&mut self, _bus: &mut M) {}
 }

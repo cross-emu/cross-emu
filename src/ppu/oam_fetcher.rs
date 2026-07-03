@@ -150,7 +150,7 @@ impl OamFetcher<DmgVram, DmgColor> {
         let (priority, _, x_flip, palette_attribute) = self.extract_attributes(sprite.attributes);
 
         let palette = if palette_attribute { obp1 } else { obp0 };
-
+        let oam_index = sprite.oam_index;
         piso.merge(
             self.tile_data_low,
             self.tile_data_high,
@@ -159,6 +159,7 @@ impl OamFetcher<DmgVram, DmgColor> {
             palette,
             priority,
             scanline_x,
+            oam_index,
         );
     }
 }
@@ -174,6 +175,7 @@ impl OamFetcher<CgbVram, CgbColor> {
         height: u8,
         scanline_x: usize,
         obj_cram: &Cram,
+        opri: u8,
     ) -> bool {
         self.dot_counter = self.dot_counter.wrapping_add(1);
         if self.dot_counter.is_multiple_of(2) {
@@ -197,7 +199,7 @@ impl OamFetcher<CgbVram, CgbColor> {
                     return false;
                 }
                 FetcherState::PushPixel => {
-                    self.push_pixel(piso, sprite, scanline_x, obj_cram);
+                    self.push_pixel(piso, sprite, scanline_x, obj_cram, opri);
                     self.fetcher_state = FetcherState::GetTileId;
 
                     return true;
@@ -236,27 +238,24 @@ impl OamFetcher<CgbVram, CgbColor> {
     }
 
     fn get_tile_data_low(&mut self, vram: &mut CgbVram) -> u8 {
-        vram.set_vbk(self.attributes);
-
+        let vbk = vram.get_vbk(self.attributes);
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
-        vram.read(tile_address)
+        vram.read_with_custom_vbk(tile_address, vbk)
     }
 
     fn get_tile_data_high(&mut self, vram: &mut CgbVram) -> u8 {
-        vram.set_vbk(self.attributes);
-
+        let vbk = vram.get_vbk(self.attributes);
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
-        vram.read(tile_address + 1)
+        vram.read_with_custom_vbk(tile_address + 1, vbk)
     }
 
-    fn extract_attributes(&self, attributes: u8) -> (bool, bool, bool, u8, u8) {
+    fn extract_attributes(&self, attributes: u8) -> (bool, bool, bool, u8) {
         (
             ((attributes >> 7) & 1) != 0,
             ((attributes >> 6) & 1) != 0,
             ((attributes >> 5) & 1) != 0,
-            (attributes >> 3) & 1,
             attributes & 0b111,
         )
     }
@@ -267,10 +266,10 @@ impl OamFetcher<CgbVram, CgbColor> {
         sprite: &Sprite,
         scanline_x: usize,
         cram: &Cram,
+        opri: u8,
     ) {
-        let (priority, _, x_flip, _bank, palette_index) =
-            self.extract_attributes(sprite.attributes);
-
+        let (priority, _, x_flip, palette_index) = self.extract_attributes(sprite.attributes);
+        let oam_index = sprite.oam_index;
         piso.merge(
             self.tile_data_low,
             self.tile_data_high,
@@ -280,6 +279,8 @@ impl OamFetcher<CgbVram, CgbColor> {
             priority,
             scanline_x,
             cram,
+            oam_index,
+            opri,
         );
     }
 }

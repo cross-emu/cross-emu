@@ -76,7 +76,7 @@ mod put_pixel_to_frame {
     #[test]
     fn writes_color_at_the_given_offset() {
         let (mut gct, mut ict) = setup();
-        let c = DmgColor::new(2);
+        let c = DmgColor::new(2, 2);
         gct.put_pixel_to_frame(0, c.rgb);
         let mut image = [0; FRAME_SIZE_IN_U8];
         ict.get_new_image(&mut image).unwrap();
@@ -86,7 +86,7 @@ mod put_pixel_to_frame {
     #[test]
     fn marks_image_as_changed() {
         let (mut gct, mut ict) = setup();
-        let c = DmgColor::new(1);
+        let c = DmgColor::new(1, 1);
         gct.put_pixel_to_frame(0, c.rgb);
         let mut image = [0; FRAME_SIZE_IN_U8];
         let Ok(Some(_)) = ict.get_new_image(&mut image) else {
@@ -108,7 +108,7 @@ mod put_pixel_to_frame {
     #[test]
     fn last_valid_offset_does_not_panic() {
         let (mut gct, _ict) = setup();
-        let c = DmgColor::new(1);
+        let c = DmgColor::new(1, 1);
         gct.put_pixel_to_frame(FRAME_SIZE - 1, c.rgb);
     }
 }

@@ -45,7 +45,7 @@ pub trait PFetcher<V, C: ColorType + Copy> {
     where
         Self: Sized;
     fn push_pixel(&self, _cram: &Cram, _bgp: u8) -> Option<[Pixel<C>; 8]> {
-        Some([Pixel::<C>::new_bg(C::new(0)); 8])
+        Some([Pixel::<C>::new_bg(C::new(0, 0), false, 0); 8])
     }
     fn get_tile_data_high(
         &self,
@@ -261,7 +261,7 @@ impl PFetcher<DmgVram, DmgColor> for PixelFetcher<DmgVram, DmgColor> {
 
             let color_index = (high_weight_bit << 1) | low_weight_bit;
             let color = DmgColor::apply_background_palette_bgp(color_index, bgp);
-            let pixel = Pixel::new_bg(color);
+            let pixel = Pixel::new_bg(color, false, 0);
 
             tile_pixels[i as usize] = pixel;
         }
@@ -407,15 +407,15 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
         let flipped_y = if y_flip { 7 - (y % 8) } else { y % 8 };
         let correct_byte = flipped_y * 2;
 
-        vram.set_vbk(self.bg_attribute);
+        let vbk = vram.get_vbk(self.bg_attribute);
         if lcd_control.bg_window_tile_data_area().start == TILE_DATA_1_START {
             let tilemap_base = TILE_DATA_1_START + (self.tile_id as u16) * 16;
-            vram.read(tilemap_base + correct_byte as u16)
+            vram.read_with_custom_vbk(tilemap_base + correct_byte as u16, vbk)
         } else if lcd_control.bg_window_tile_data_area().start == TILE_DATA_0_START {
             let base = 0x9000u16;
             let offset = (self.tile_id as i8) as i16 * 16;
             let tilemap_base = base.wrapping_add_signed(offset);
-            vram.read(tilemap_base + correct_byte as u16)
+            vram.read_with_custom_vbk(tilemap_base + correct_byte as u16, vbk)
         } else {
             unreachable!()
         }
@@ -439,16 +439,15 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
         let flipped_y = if y_flip == 1 { 7 - (y % 8) } else { y % 8 };
         let correct_byte = (flipped_y * 2) + 1;
 
-        vram.set_vbk(self.bg_attribute);
-
+        let vbk = vram.get_vbk(self.bg_attribute);
         if lcd_control.bg_window_tile_data_area().start == TILE_DATA_1_START {
             let tilemap_base = TILE_DATA_1_START + (self.tile_id as u16) * 16;
-            vram.read(tilemap_base + correct_byte as u16)
+            vram.read_with_custom_vbk(tilemap_base + correct_byte as u16, vbk)
         } else if lcd_control.bg_window_tile_data_area().start == TILE_DATA_0_START {
             let base = 0x9000u16;
             let offset = (self.tile_id as i8) as i16 * 16;
             let tilemap_base = base.wrapping_add_signed(offset);
-            vram.read(tilemap_base + correct_byte as u16)
+            vram.read_with_custom_vbk(tilemap_base + correct_byte as u16, vbk)
         } else {
             unreachable!()
         }
@@ -463,9 +462,10 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
             let high_weight_bit = (self.tile_data_high >> bit_index) & 1;
             let color_index = (high_weight_bit << 1) | low_weight_bit;
             let palette_index = self.bg_attribute & 0b111;
+            let priority = ((self.bg_attribute >> 7) & 1) != 0;
             let color =
                 CgbColor::apply_background_palette_cram(bg_cram, palette_index, color_index);
-            let pixel = Pixel::new_bg(color);
+            let pixel = Pixel::new_bg(color, priority, 0);
 
             tile_pixels[i as usize] = pixel;
         }
@@ -501,8 +501,8 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
 
         let offset = (y * 32 + x) as u16;
         let addr = tilemap_base.start + offset;
-        self.bg_attribute = vram.read_tile_attribute(addr);
-        vram.read(addr)
+        self.bg_attribute = vram.read_with_custom_vbk(addr, 0x01);
+        vram.read_with_custom_vbk(addr, self.bg_attribute << 3 & 1)
     }
 }
 

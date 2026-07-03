@@ -2,7 +2,7 @@ use crate::ppu::ObjectManager;
 
 const OAM_BEGINNING: u16 = 0xFE00;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Sprite {
     pub y: u8,          // Y-position of the sprite
     pub x: u8,          // X-position of the sprite

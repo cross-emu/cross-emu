@@ -10,7 +10,7 @@ use crate::mmu::interrupt::Interrupt;
 use crate::mmu::interrupt::InterruptController;
 use crate::mmu::mbc::Mbc;
 use crate::mmu::timers::TimingComponent;
-use crate::ppu::PixelProcessor;
+use crate::ppu::{HdmaMode, PixelProcessor, PpuMode};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum MemoryRegion {
@@ -138,8 +138,10 @@ pub trait MemoryMapper {
                         result &= self.get_button_state();
                     }
                     0b1100_0000 | selection | result
-                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 {
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 && addr != 0xFF55 {
                     self.get_ppu().read_register(addr)
+                } else if addr == 0xFF55 {
+                    self.handle_read_hdma5()
                 } else {
                     self.get_data()[addr as usize]
                 }
@@ -181,13 +183,15 @@ pub trait MemoryMapper {
                     let val = 0b1100_0000 | selection_bits | current_inputs;
                     self.update_data(0xFF00, val);
                     self.update_joypad_register();
-                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 {
+                } else if matches!(addr, 0xFF40..=0xFF6B) && addr != 0xFF46 && addr != 0xFF55 {
                     self.get_ppu().write_register(addr, val);
                 } else if addr == 0xFF46 {
                     self.set_dma_last_byte(val);
                     self.update_data(addr as usize, val);
                     self.set_dma_index(0);
                     self.set_dma_source((val as u16) << 8);
+                } else if addr == 0xFF55 {
+                    self.handle_write_hdma5(val);
                 } else {
                     self.update_data(addr as usize, val);
                 }
@@ -265,6 +269,16 @@ pub trait MemoryMapper {
         Self: Sized;
 
     fn tick_dma(&mut self);
+    fn handle_write_hdma5(&mut self, _val: u8) {}
+    fn handle_read_hdma5(&mut self) -> u8 {
+        0
+    }
+    fn hdma_mode(&mut self) -> &HdmaMode {
+        &HdmaMode::Hblank
+    }
+    fn hdma_active(&mut self) -> bool {
+        false
+    }
 }
 
 impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T, P> {
@@ -501,6 +515,13 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T
             dma_source: 0x0,
             dma_index: 0xFF,
             dma_last_byte: 0,
+            hdma_source: 0x00,
+            hdma_dest: 0x00,
+            hdma_length: 0x00,
+            hdma_active: false,
+            hdma_mode: HdmaMode::Hblank,
+            was_hblank: false,
+            hdma_blocks_remaining: 0x00,
         })
     }
 
@@ -508,6 +529,27 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T
     where
         Self: Sized,
     {
+        let is_hblank = self.ppu.lcd_status().get_ppu_mode() == PpuMode::HBlank;
+        if is_hblank && !self.was_hblank && self.hdma_active && self.hdma_mode == HdmaMode::Hblank {
+            self.get_interrupts().write_interrupt_enable(0x00);
+            self.get_interrupts().write_interrupt_flag(0x00);
+            for _ in 0..=15 {
+                let src = self.hdma_source;
+                let data = self.get_cart().read(src);
+                let dest = self.hdma_dest;
+                self.get_ppu().write_hdma_value(dest, data);
+                self.hdma_dest = self.hdma_dest.wrapping_add(1);
+                self.hdma_source = self.hdma_source.wrapping_add(1);
+            }
+            self.hdma_blocks_remaining -= 1;
+
+            if self.hdma_blocks_remaining == 0 {
+                self.hdma_active = false;
+            }
+            self.get_interrupts().write_interrupt_enable(0x01);
+            self.get_interrupts().write_interrupt_flag(0x01);
+        }
+        self.was_hblank = is_hblank;
         self.ppu.tick(ct);
         if self.ppu.pending_vblank() {
             self.interrupts_request(Interrupt::VBlank);
@@ -585,6 +627,63 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T
     fn get_apu(&mut self) -> &mut Apu {
         &mut self.apu
     }
+
+    fn handle_write_hdma5(&mut self, val: u8) {
+        if val & 0x80 == 0 && self.hdma_active {
+            self.hdma_active = false;
+            return;
+        }
+
+        let source =
+            (((self.get_ppu().hdma1() as u16) << 8) | self.get_ppu().hdma2() as u16) & 0xFFF0;
+        let dest = 0x8000
+            | ((((self.get_ppu().hdma3() as u16) << 8) | self.get_ppu().hdma4() as u16) & 0x1FF0);
+        let blocks = (val & 0x7F) as u16 + 1;
+        let length = (((val & 0x7F) + 1) as u16) * 0x10;
+        self.hdma_source = source;
+        self.hdma_dest = dest;
+        self.hdma_length = length;
+        self.hdma_blocks_remaining = blocks;
+        if val & 0x80 == 0 {
+            self.get_interrupts().write_interrupt_enable(0x00);
+            self.get_interrupts().write_interrupt_flag(0x00);
+            self.hdma_mode = HdmaMode::Gdma;
+            self.hdma_active = true;
+            for i in 0..self.hdma_length {
+                let current_dest = self.hdma_dest + i;
+                let current_src = self.hdma_source + i;
+                let current_data = if (0x0000..0xBFFF).contains(&current_src) {
+                    self.get_cart().read(current_src)
+                } else {
+                    self.get_data()[current_src as usize]
+                };
+                self.get_ppu().write_hdma_value(current_dest, current_data);
+            }
+            self.hdma_length = 0;
+            self.hdma_active = false;
+            self.get_interrupts().write_interrupt_enable(0x01);
+            self.get_interrupts().write_interrupt_flag(0x01);
+        } else {
+            self.hdma_active = true;
+            self.hdma_mode = HdmaMode::Hblank;
+        }
+    }
+
+    fn handle_read_hdma5(&mut self) -> u8 {
+        if self.hdma_active {
+            ((self.hdma_length - 1) as u8) & 0x7F
+        } else {
+            0xFF
+        }
+    }
+
+    fn hdma_mode(&mut self) -> &HdmaMode {
+        &self.hdma_mode
+    }
+
+    fn hdma_active(&mut self) -> bool {
+        self.hdma_active
+    }
 }
 
 pub struct CgbMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
@@ -601,6 +700,13 @@ pub struct CgbMmu<M: Mbc, T: TimingComponent, P: PixelProcessor> {
     dma_source: u16,
     pub dma_index: u8,
     dma_last_byte: u8,
+    hdma_source: u16,
+    hdma_dest: u16,
+    hdma_length: u16,
+    hdma_active: bool,
+    hdma_mode: HdmaMode,
+    was_hblank: bool,
+    hdma_blocks_remaining: u16,
 }
 
 #[cfg(test)]
