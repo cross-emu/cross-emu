@@ -3,23 +3,26 @@
 use crate::ppu::Cram;
 
 pub trait ColorType {
-    fn get_rgb(value: u16) -> [u8; 3];
-    fn new(value: u16) -> Self;
+    fn get_rgb(index_treated: u16) -> [u8; 3];
+    fn new(index_treated: u16, base_index: u8) -> Self;
     fn apply_background_palette_bgp(color_index: u8, bgp: u8) -> Self;
     fn apply_background_palette_cram(bg_cram: &Cram, bg_attributes: u8, color_index: u8) -> Self;
-    fn value(&self) -> u16;
+    fn index_treated(&self) -> u16;
+    fn base_index(&self) -> u8;
     fn rgb(&self) -> [u8; 3];
 }
 
 #[derive(Default, Copy, Clone)]
 pub struct DmgColor {
-    pub value: u16,
+    pub index_treated: u16,
+    pub base_index: u8,
     pub rgb: [u8; 3],
 }
 
 #[derive(Default, Copy, Clone)]
 pub struct CgbColor {
-    pub value: u16,
+    pub index_treated: u16,
+    pub base_index: u8,
     pub rgb: [u8; 3],
 }
 
@@ -30,9 +33,13 @@ const DARKGRAY: [u8; 3] = [96, 96, 96];
 const BLACK: [u8; 3] = [0, 0, 0];
 
 impl ColorType for DmgColor {
-    fn new(value: u16) -> Self {
-        let rgb = Self::get_rgb(value);
-        Self { value, rgb }
+    fn new(index_treated: u16, base_index: u8) -> Self {
+        let rgb = Self::get_rgb(index_treated);
+        Self {
+            index_treated,
+            rgb,
+            base_index,
+        }
     }
     fn get_rgb(value: u16) -> [u8; 3] {
         match value {
@@ -45,25 +52,32 @@ impl ColorType for DmgColor {
     }
 
     fn apply_background_palette_bgp(color_index: u8, bgp: u8) -> Self {
-        let index = (bgp >> (color_index * 2)) & 0b11;
-        Self::new(index as u16)
+        let index_treated = (bgp >> (color_index * 2)) & 0b11;
+        Self::new(index_treated as u16, color_index)
     }
-    fn value(&self) -> u16 {
-        self.value
+    fn index_treated(&self) -> u16 {
+        self.index_treated
+    }
+    fn base_index(&self) -> u8 {
+        self.base_index
     }
     fn rgb(&self) -> [u8; 3] {
         self.rgb
     }
 
     fn apply_background_palette_cram(bg_cram: &Cram, bg_attributes: u8, color_index: u8) -> Self {
-        Self::new(0)
+        Self::new(0, 0)
     }
 }
 
 impl ColorType for CgbColor {
-    fn new(value: u16) -> Self {
-        let rgb = Self::get_rgb(value);
-        Self { value, rgb }
+    fn new(index_treated: u16, base_index: u8) -> Self {
+        let rgb = Self::get_rgb(index_treated);
+        Self {
+            index_treated,
+            rgb,
+            base_index,
+        }
     }
     fn get_rgb(value: u16) -> [u8; 3] {
         let color = value;
@@ -85,15 +99,18 @@ impl ColorType for CgbColor {
         let low = bg_cram.data[offset];
         let high = bg_cram.data[offset + 1];
         let color_raw = (high as u16) << 8 | low as u16;
-        CgbColor::new(color_raw)
+        CgbColor::new(color_raw, color_index)
     }
 
     fn apply_background_palette_bgp(color_index: u8, bgp: u8) -> Self {
-        Self::new(0)
+        Self::new(0, 0)
     }
 
-    fn value(&self) -> u16 {
-        self.value
+    fn index_treated(&self) -> u16 {
+        self.index_treated
+    }
+    fn base_index(&self) -> u8 {
+        self.base_index
     }
     fn rgb(&self) -> [u8; 3] {
         self.rgb

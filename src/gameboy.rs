@@ -357,11 +357,6 @@ impl<M: MemoryMapper> GameBoy<M> {
         self.bus.write_byte(0xFF4C, 0xFF);
         self.bus.write_byte(0xFF4D, 0x7E);
         self.bus.write_byte(0xFF4F, 0xFE);
-        self.bus.write_byte(0xFF51, 0xFF);
-        self.bus.write_byte(0xFF52, 0xFF);
-        self.bus.write_byte(0xFF53, 0xFF);
-        self.bus.write_byte(0xFF54, 0xFF);
-        self.bus.write_byte(0xFF55, 0xFF);
         self.bus.write_byte(0xFF56, 0x3E);
         self.bus.write_byte(0xFF68, 0xFF);
         self.bus.write_byte(0xFF69, 0xFF);

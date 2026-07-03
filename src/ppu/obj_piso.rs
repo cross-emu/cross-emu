@@ -50,6 +50,7 @@ impl ObjPiso<DmgColor> {
         palette: u8,
         priority: bool,
         scanline_x: usize,
+        oam_index: u8,
     ) {
         for i in 0..8 {
             let pos = (sprite_x as i16 + i as i16 - 8) - scanline_x as i16;
@@ -67,7 +68,6 @@ impl ObjPiso<DmgColor> {
 
             // Merge the two bits to create the pixels's color number
             let color_index = low | (high << 1);
-
             // If the color number of the new pixel is transparent,
             // the pixel at the current fifo index is not modified
             if color_index == 0 {
@@ -77,13 +77,12 @@ impl ObjPiso<DmgColor> {
             // Extract the current pixel at the current fifo index to compare it
             // against the new pixel
             let current_pixel = &self.pixels[pos as usize];
-            let current_pixel_color_value = current_pixel.get_color_value();
-
+            let current_pixel_color_value = current_pixel.get_color_base_index();
             // The current fifo index is set to the new pixel if the current pixel
             // is transparent
             if current_pixel_color_value == 0 {
                 let color = DmgColor::apply_background_palette_bgp(color_index, palette);
-                self.pixels[pos as usize] = Pixel::new_obj(color, priority);
+                self.pixels[pos as usize] = Pixel::new_obj(color, priority, oam_index);
             }
         }
     }
@@ -101,6 +100,8 @@ impl ObjPiso<CgbColor> {
         priority: bool,
         scanline_x: usize,
         cram: &Cram,
+        oam_index: u8,
+        opri: u8,
     ) {
         for i in 0..8 {
             let pos = (sprite_x as i16 + i as i16 - 8) - scanline_x as i16;
@@ -118,7 +119,6 @@ impl ObjPiso<CgbColor> {
 
             // Merge the two bits to create the pixels's color number
             let color_index = low | (high << 1);
-
             // If the color number of the new pixel is transparent,
             // the pixel at the current fifo index is not modified
             if color_index == 0 {
@@ -128,14 +128,16 @@ impl ObjPiso<CgbColor> {
             // Extract the current pixel at the current fifo index to compare it
             // against the new pixel
             let current_pixel = &self.pixels[pos as usize];
-            let current_pixel_color_value = current_pixel.get_color_value();
-
+            let current_pixel_color_value = current_pixel.get_color_base_index();
+            let current_pixel_oam_index = current_pixel.get_oam_index();
             // The current fifo index is set to the new pixel if the current pixel
             // is transparent
-            if current_pixel_color_value == 0 {
+            if current_pixel_color_value == 0
+                || opri & 0b00000001 == 0 && current_pixel_oam_index > oam_index
+            {
                 let color =
                     CgbColor::apply_background_palette_cram(cram, palette_index, color_index);
-                self.pixels[pos as usize] = Pixel::new_obj(color, priority);
+                self.pixels[pos as usize] = Pixel::new_obj(color, priority, oam_index);
             }
         }
     }
@@ -149,7 +151,7 @@ mod tests {
 
     // helper
     fn make_pixel<C: ColorType>(color_index: u8) -> Pixel<C> {
-        Pixel::new_obj(ColorType::new(color_index as u16), false)
+        Pixel::new_obj(ColorType::new(0, color_index), false, 0)
     }
 
     #[test]
@@ -165,10 +167,11 @@ mod tests {
             0b1110_0100,
             false,
             0,
+            0,
         );
 
         assert_ne!(
-            piso.pixels[0].get_color_value(),
+            piso.pixels[0].get_color_base_index(),
             0,
             "The pixel should not be transparent anymore"
         );
@@ -181,10 +184,10 @@ mod tests {
         piso.pixels[0] = make_pixel(2);
 
         // Try to put a pixel at the same place
-        piso.merge(0b1000_0000, 0, 8, false, 0b1110_0100, false, 0);
+        piso.merge(0b1000_0000, 0, 8, false, 0b1110_0100, false, 0, 0);
 
         assert_eq!(
-            piso.pixels[0].get_color_value(),
+            piso.pixels[0].get_color_base_index(),
             2,
             "The pixel should not change."
         );
@@ -203,45 +206,46 @@ mod tests {
             0b1110_0100,
             false,
             0,
+            0,
         );
         assert_ne!(
-            piso.pixels[0].get_color_value(),
+            piso.pixels[0].get_color_base_index(),
             0,
             "The last slots should not be transparents"
         );
         assert_ne!(
-            piso.pixels[1].get_color_value(),
+            piso.pixels[1].get_color_base_index(),
             0,
             "The last slots should not be transparents"
         );
         assert_ne!(
-            piso.pixels[2].get_color_value(),
+            piso.pixels[2].get_color_base_index(),
             0,
             "The last slots should not be transparents"
         );
         assert_ne!(
-            piso.pixels[3].get_color_value(),
+            piso.pixels[3].get_color_base_index(),
             0,
             "The last slots should not be transparents"
         );
         assert_ne!(
-            piso.pixels[4].get_color_value(),
+            piso.pixels[4].get_color_base_index(),
             0,
             "The last slots should not be transparents"
         );
 
         assert_eq!(
-            piso.pixels[5].get_color_value(),
+            piso.pixels[5].get_color_base_index(),
             0,
             "The first slots have to stay transparents"
         );
         assert_eq!(
-            piso.pixels[6].get_color_value(),
+            piso.pixels[6].get_color_base_index(),
             0,
             "The first slots have to stay transparents"
         );
         assert_eq!(
-            piso.pixels[7].get_color_value(),
+            piso.pixels[7].get_color_base_index(),
             0,
             "The first slots have to stay transparents"
         );
@@ -252,11 +256,11 @@ mod tests {
         let mut piso = ObjPiso::<DmgColor>::default();
 
         // tile data = 0 -> all pixels transparents
-        piso.merge(0, 0, 8, false, 0b1110_0100, false, 0);
+        piso.merge(0, 0, 8, false, 0b1110_0100, false, 0, 0);
 
         for i in 0..8 {
             assert_eq!(
-                piso.pixels[i].get_color_value(),
+                piso.pixels[i].get_color_base_index(),
                 0,
                 "The pixel is not transparent."
             );
@@ -274,7 +278,7 @@ mod tests {
         let out = piso.shift_out();
 
         assert_eq!(
-            out.get_color_value(),
+            out.get_color_base_index(),
             0,
             "The first pixel should shift out of the piso"
         );
@@ -282,14 +286,14 @@ mod tests {
         // shift
         for i in 0..7 {
             assert_eq!(
-                piso.pixels[i].get_color_value(),
-                ((i + 1) % 4) as u16,
+                piso.pixels[i].get_color_base_index(),
+                ((i + 1) % 4) as u8,
                 "A pixel didn't shift."
             );
         }
 
         assert_eq!(
-            piso.pixels[7].get_color_value(),
+            piso.pixels[7].get_color_base_index(),
             0,
             "The last pixel should be transparent"
         );
@@ -305,7 +309,7 @@ mod tests {
 
         for i in 0..8 {
             assert_eq!(
-                piso.pixels[i].get_color_value(),
+                piso.pixels[i].get_color_base_index(),
                 0,
                 "The reset function hasn't erased all pixels."
             );

@@ -72,7 +72,6 @@ impl<M: MemoryMapper> Cpu<M> {
         let micro_op = &self.queue[self.op_index];
         self.op_index += 1;
         micro_op(self, bus);
-
         if self.op_index == self.queue_len {
             if self.handle_halt_state(bus) == StepStatus::Halted {
                 self.load_queue(&[Cpu::noop]);
