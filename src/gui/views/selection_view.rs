@@ -154,7 +154,6 @@ impl SelectionDevice {
             .resizable(true)
             .default_size(120.0)
             .show_inside(ui, |ui| {
-
                 ui.vertical(|ui| {
                     ui.heading("Settings");
                     ui.add_space(6.0);
@@ -171,9 +170,9 @@ impl SelectionDevice {
                         egui::widgets::global_theme_preference_switch(ui);
                     });
                 });
-            ui.add_space(6.0);
-        });
-        
+                ui.add_space(6.0);
+            });
+
         egui::Panel::bottom(Id::new("bot"))
             .resizable(true)
             .default_size(220.0)
@@ -181,7 +180,6 @@ impl SelectionDevice {
                 ui.horizontal(|ui| {
                     let keymappings_width = 150.0;
                     ui.allocate_ui(egui::vec2(keymappings_width, ui.available_height()), |ui| {
-
                         ui.vertical(|ui| {
                             ui.heading("Keymappings");
                             ui.add_space(12.0);
