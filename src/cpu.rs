@@ -111,7 +111,7 @@ impl<M: MemoryMapper> Cpu<M> {
             sp: self.get_r16::<SP>(),
             pc: self.get_r16::<PC>(),
             halt: self.halted,
-            ime: self.ime
+            ime: self.ime,
         }
     }
 
