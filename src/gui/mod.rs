@@ -5,7 +5,7 @@ mod common;
 pub mod keymapping;
 pub mod views;
 
-use crate::GBMU_FILE;
+use crate::{GBMU_FILE, ROM_COMPTABILITY};
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
@@ -214,10 +214,6 @@ impl AnyGameApp {
 
         let gb_type = game_data.define_gb_type(&supported_gb_types);
 
-        // if !supported_gb_types.contains(&gb_type) {
-        //     return Err(format!("Cartridge doesn't support type {}", gb_type));
-        // }
-
         // boot_rom path
         let boot_rom_path = match game_data.boot_rom_path {
             Some(path) => path,
@@ -227,6 +223,9 @@ impl AnyGameApp {
             },
         };
 
+        if game_data.gb_type == Some(GbType::Cgb) && boot_rom_path == "boot-roms/cgb.bin" {
+            *ROM_COMPTABILITY.lock().unwrap() = true;
+        }
         // ram_path
         let ram_path = game_data.rom_path.to_owned() + ".save";
         let ram_data: Option<Vec<u8>> = Self::read_ram(&ram_path);

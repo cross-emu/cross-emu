@@ -57,6 +57,7 @@ impl OamFetcher<DmgVram, DmgColor> {
         scanline_x: usize,
         obp0: u8,
         obp1: u8,
+        _is_dmg_mode: bool
     ) -> bool {
         self.dot_counter = self.dot_counter.wrapping_add(1);
 
@@ -176,6 +177,7 @@ impl OamFetcher<CgbVram, CgbColor> {
         scanline_x: usize,
         obj_cram: &Cram,
         opri: u8,
+        is_dmg_mode: bool
     ) -> bool {
         self.dot_counter = self.dot_counter.wrapping_add(1);
         if self.dot_counter.is_multiple_of(2) {
@@ -187,19 +189,19 @@ impl OamFetcher<CgbVram, CgbColor> {
                     return false;
                 }
                 FetcherState::GetLowData => {
-                    self.tile_data_low = self.get_tile_data_low(vram);
+                    self.tile_data_low = self.get_tile_data_low(vram, is_dmg_mode);
                     self.fetcher_state = FetcherState::GetHighData;
 
                     return false;
                 }
                 FetcherState::GetHighData => {
-                    self.tile_data_high = self.get_tile_data_high(vram);
+                    self.tile_data_high = self.get_tile_data_high(vram, is_dmg_mode);
                     self.fetcher_state = FetcherState::PushPixel;
 
                     return false;
                 }
                 FetcherState::PushPixel => {
-                    self.push_pixel(piso, sprite, scanline_x, obj_cram, opri);
+                    self.push_pixel(piso, sprite, scanline_x, obj_cram, opri, is_dmg_mode);
                     self.fetcher_state = FetcherState::GetTileId;
 
                     return true;
@@ -237,28 +239,37 @@ impl OamFetcher<CgbVram, CgbColor> {
         tile_index
     }
 
-    fn get_tile_data_low(&mut self, vram: &mut CgbVram) -> u8 {
-        let vbk = vram.get_vbk(self.attributes);
+    fn get_tile_data_low(&mut self, vram: &mut CgbVram, is_dmg_mode: bool) -> u8 {
+        let vbk = if is_dmg_mode { 0 } else { vram.get_vbk(self.attributes) };
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read_with_custom_vbk(tile_address, vbk)
     }
 
-    fn get_tile_data_high(&mut self, vram: &mut CgbVram) -> u8 {
-        let vbk = vram.get_vbk(self.attributes);
+    fn get_tile_data_high(&mut self, vram: &mut CgbVram, is_dmg_mode: bool) -> u8 {
+        let vbk = if is_dmg_mode { 0 } else { vram.get_vbk(self.attributes) };
         let tile_address =
             VRAM_START + (self.tile_id as u16 * 16) + (self.actual_sprite_line % 8 * 2) as u16;
         vram.read_with_custom_vbk(tile_address + 1, vbk)
     }
 
-    fn extract_attributes(&self, attributes: u8) -> (bool, bool, bool, u8) {
-        (
-            ((attributes >> 7) & 1) != 0,
-            ((attributes >> 6) & 1) != 0,
-            ((attributes >> 5) & 1) != 0,
-            attributes & 0b111,
-        )
-    }
+    fn extract_attributes(&self, attributes: u8, is_dmg_mode: bool) -> (bool, bool, bool, u8) {
+            if is_dmg_mode {
+                (
+                    ((attributes >> 7) & 1) != 0,
+                    ((attributes >> 6) & 1) != 0,
+                    ((attributes >> 5) & 1) != 0,
+                    (attributes >> 4) & 1,
+                )
+            } else {
+                (
+                    ((attributes >> 7) & 1) != 0,
+                    ((attributes >> 6) & 1) != 0,
+                    ((attributes >> 5) & 1) != 0,
+                    attributes & 0b111,
+                )
+            }
+        }
 
     fn push_pixel(
         &mut self,
@@ -267,8 +278,9 @@ impl OamFetcher<CgbVram, CgbColor> {
         scanline_x: usize,
         cram: &Cram,
         opri: u8,
+        is_dmg_mode: bool
     ) {
-        let (priority, _, x_flip, palette_index) = self.extract_attributes(sprite.attributes);
+        let (priority, _, x_flip, palette_index) = self.extract_attributes(sprite.attributes, is_dmg_mode);
         let oam_index = sprite.oam_index;
         piso.merge(
             self.tile_data_low,

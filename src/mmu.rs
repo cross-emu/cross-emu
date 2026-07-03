@@ -4,6 +4,7 @@ pub mod mbc;
 pub mod oam;
 pub mod timers;
 
+use crate::IS_BOOT_ROM_FINISHED;
 use crate::communications::GameCT;
 use crate::mmu::apu::Apu;
 use crate::mmu::interrupt::Interrupt;
@@ -161,6 +162,7 @@ pub trait MemoryMapper {
         if val != 0 && addr == 0xFF50 {
             self.update_data(addr as usize, val);
             self.set_boot_enable(false);
+            *IS_BOOT_ROM_FINISHED.lock().unwrap() = true;
             return;
         }
 

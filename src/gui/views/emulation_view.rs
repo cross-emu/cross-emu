@@ -3,7 +3,7 @@ use chrono::Local;
 use egui::vec2;
 use egui::{Color32, RichText};
 
-use crate::GBMU_FILE;
+use crate::{GBMU_FILE, IS_BOOT_ROM_FINISHED};
 use crate::communications::{CpuState, FRAME_SIZE_IN_U8, InstructionList, Mode, WatchedAdresses};
 use crate::gui::egui::Id;
 use crate::gui::{
@@ -364,6 +364,7 @@ impl From<EmulationDevice> for SelectionDevice {
             Some(GbType::Dmg) => "GameBoy",
             None => "None",
         };
+        *IS_BOOT_ROM_FINISHED.lock().unwrap() = false;
         Self {
             forced_launch: value.core_game.options.gb_type.clone(),
             forced_launch_text: gbtype_text.to_string(),
