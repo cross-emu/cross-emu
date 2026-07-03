@@ -12,8 +12,8 @@ mod wram;
 pub type DmgPpu = Ppu<DmgVram, PixelFetcher<DmgVram, DmgColor>, Oam, DmgColor>;
 pub type CgbPpu = Ppu<CgbVram, PixelFetcher<CgbVram, CgbColor>, Oam, CgbColor>;
 
-use crate::{IS_BOOT_ROM_FINISHED, ROM_COMPTABILITY};
 use crate::ppu::lcd_control::LcdControl;
+use crate::{IS_BOOT_ROM_FINISHED, ROM_COMPTABILITY};
 use std::cmp::PartialEq;
 
 use crate::communications::GameCT;
@@ -649,7 +649,7 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
                     self.x,
                     self.obp0,
                     self.obp1,
-                    false
+                    false,
                 );
 
                 if !self.fetching_sprite {
@@ -682,7 +682,7 @@ impl<P: PFetcher<DmgVram, DmgColor>, O: ObjectManager> PixelProcessor
                         self.x,
                         self.obp0,
                         self.obp1,
-                        false
+                        false,
                     );
 
                     if !self.fetching_sprite {
@@ -897,10 +897,8 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
             8
         };
 
-
-        let is_dmg_mode = *IS_BOOT_ROM_FINISHED.lock().unwrap() == true 
-        && *ROM_COMPTABILITY.lock().unwrap() == true;
-        
+        let is_dmg_mode = *IS_BOOT_ROM_FINISHED.lock().unwrap()
+            && *ROM_COMPTABILITY.lock().unwrap();
 
         if self.fetching_sprite {
             if let Some(index) = self.current_sprite_to_fetch
@@ -915,7 +913,7 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
                     self.x,
                     &self.obj_cram,
                     self.opri,
-                    is_dmg_mode
+                    is_dmg_mode,
                 );
 
                 if !self.fetching_sprite {
@@ -948,7 +946,7 @@ impl<P: PFetcher<CgbVram, CgbColor>, O: ObjectManager> PixelProcessor
                         self.x,
                         &self.obj_cram,
                         self.opri,
-                        is_dmg_mode
+                        is_dmg_mode,
                     );
 
                     if !self.fetching_sprite {

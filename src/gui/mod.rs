@@ -5,10 +5,10 @@ mod common;
 pub mod keymapping;
 pub mod views;
 
-use crate::{GBMU_FILE, ROM_COMPTABILITY};
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
+use crate::{GBMU_FILE, ROM_COMPTABILITY};
 
 use crate::gameboy::GameBoy;
 use crate::gui::keymapping::KeyMapping;

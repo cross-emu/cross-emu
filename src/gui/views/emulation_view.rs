@@ -3,13 +3,13 @@ use chrono::Local;
 use egui::vec2;
 use egui::{Color32, RichText};
 
-use crate::{GBMU_FILE, IS_BOOT_ROM_FINISHED};
 use crate::communications::{CpuState, FRAME_SIZE_IN_U8, InstructionList, Mode, WatchedAdresses};
 use crate::gui::egui::Id;
 use crate::gui::{
     AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, ErrorDevice,
     GbType, SelectionDevice,
 };
+use crate::{GBMU_FILE, IS_BOOT_ROM_FINISHED};
 
 #[derive(Debug)]
 pub struct SaveState {

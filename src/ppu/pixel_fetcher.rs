@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-use crate::{IS_BOOT_ROM_FINISHED, ROM_COMPTABILITY};
 use crate::ppu::colors_palette::{CgbColor, ColorType, DmgColor};
 use crate::ppu::lcd_control::LcdControl;
 use crate::ppu::pixel::Pixel;
 use crate::ppu::pixel_fifo::PixelFifo;
 use crate::ppu::vram::{CgbVram, DmgVram};
+use crate::{IS_BOOT_ROM_FINISHED, ROM_COMPTABILITY};
 
 const TILE_DATA_1_START: u16 = 0x8000;
 const TILE_DATA_0_START: u16 = 0x8800;
@@ -503,11 +503,11 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
         let offset = (y * 32 + x) as u16;
         let addr = tilemap_base.start + offset;
 
-        if *IS_BOOT_ROM_FINISHED.lock().unwrap() == false {
+        if *IS_BOOT_ROM_FINISHED.lock().unwrap() {
             self.bg_attribute = vram.read_with_custom_vbk(addr, 0x01);
-            return vram.read_with_custom_vbk(addr, self.bg_attribute << 3 & 1)
+            return vram.read_with_custom_vbk(addr, self.bg_attribute << 3 & 1);
         }
-        if *ROM_COMPTABILITY.lock().unwrap() == true {
+        if *ROM_COMPTABILITY.lock().unwrap() {
             self.bg_attribute = 0;
             vram.read_with_custom_vbk(addr, 0)
         } else {
