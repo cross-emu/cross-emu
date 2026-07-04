@@ -721,7 +721,6 @@ pub struct DebuggingDevice {
     pub error_message: Option<String>,
     pub hex_string: String,
     pub instruction_to_exec: Option<String>,
-    pub is_paused: bool,
 }
 
 impl Default for AppState {

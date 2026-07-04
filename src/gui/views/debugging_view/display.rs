@@ -1,8 +1,9 @@
-use crate::gui::common::display_game;
+use crate::gui::{common::display_game, views::emulation_view::emulation_ui_state::GameModeState};
 
 use eframe::egui::{
     Align, Button, Color32, DragValue, Grid, Layout, Panel, RichText, ScrollArea, TextEdit, Ui,
 };
+use egui::vec2;
 
 use super::{DebuggingDataIn, DebuggingDataOut};
 
@@ -11,33 +12,29 @@ pub fn display_interface(
     _frame: &mut eframe::Frame,
     data: DebuggingDataIn,
 ) -> DebuggingDataOut {
-    let (
-        close_btn_clicked,
-        step_mode_btn_clkd,
-        instruction_to_exec,
-        stp_btn_clkd,
-        refresh_register_clicked,
-        nb_instruction_requested,
-        hex_string,
-        register_new_addr,
-        delete_watched_addr,
-    ): (bool, bool, Option<String>, bool, bool, u8, String, bool, Option<u16>) = Panel::right("debug_panel")
+    let mut close_btn_clicked = false;
+    let mut changed_mode = None;
+    let mut instruction_to_exec = None;
+    let mut stp_btn_clkd = false;
+    let mut refresh_register_clicked = true;
+    let mut nb_instruction_requested = 0;
+    let mut hex_string = String::new();
+    let mut register_new_addr = false;
+    let mut delete_watched_addr = None;
+    Panel::right("debug_panel")
         .resizable(true)
         .default_size(400.0)
         .min_size(300.0)
         .show_inside(ui, |ui| {
             ScrollArea::vertical()
                 .show(ui, |ui| {
-                    let close_button_is_clicked: bool = ui
-                        .horizontal(|inner_ui| {
-                            inner_ui.heading("Debug Panel");
-                            inner_ui
-                                .with_layout(Layout::right_to_left(Align::Center), |rtl_ui| {
-                                    rtl_ui.button("✖ Close").clicked()
-                                })
-                                .inner
-                        })
-                        .inner;
+                    ui.horizontal(|inner_ui| {
+                        inner_ui.heading("Debug Panel");
+                        inner_ui
+                            .with_layout(Layout::right_to_left(Align::Center), |rtl_ui| {
+                                close_btn_clicked =  rtl_ui.button("✖ Close").clicked()
+                            })
+                    });
 
                     ui.separator();
 
@@ -46,41 +43,36 @@ pub fn display_interface(
                     ui.label("FPS Counter:");
                     ui.label(data.fps.to_string());
 
-
                     ui.separator();
 
                     ui.add_space(8.0);
 
-                    let (step_mode_button_clicked, step_button_clicked): (bool, bool) = ui
-                        .group(|inner_ui| {
-                            inner_ui.label(RichText::new("Step Control").strong());
+                    ui.group(|inner_ui| {
+                        inner_ui.label(RichText::new("Step Control").strong());
 
-                            let mode_clicked = step_mode_button(inner_ui, data.is_step);
-                            let step_clicked = step_button(inner_ui);
-                            (mode_clicked, step_clicked)
-                        })
-                        .inner;
+                        changed_mode = step_mode_button(inner_ui, data.actual_mode);
+                        stp_btn_clkd = step_button(inner_ui);
+                    });
 
                     ui.add_space(8.0);
 
-
-                    let custom_instr: Option<String> = ui
+                    instruction_to_exec = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Execute Custom Instructions").strong());
                             inner_ui.label(RichText::new("Executing Custom Instructions WILL break your ROM! Do not use for serious gaming")
-                                                .size(10.0)
-                                                .color(Color32::RED)
-                                                .weak() );
+                                .size(10.0)
+                                .color(Color32::RED)
+                                .weak() );
                             execute_custom_instruction(inner_ui, &data)
                         }).inner;
-                    let refresh_register_clicked: bool = ui
+                    refresh_register_clicked = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Registers").strong());
                             get_registers(inner_ui, &data)
                         })
                         .inner;
 
-                    let nb_instruction_requested: u8 = ui
+                    nb_instruction_requested = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Next Instructions").strong());
                             get_next_instructions(inner_ui, &data)
@@ -89,37 +81,23 @@ pub fn display_interface(
 
                     ui.add_space(8.0);
 
-                    let (hex_string, register_new_addr , remove_addr) = ui
+                    (hex_string, register_new_addr , delete_watched_addr) = ui
                         .group(|inner_ui| {
                             inner_ui.label(RichText::new("Memory Watch").strong());
                             watch_address(inner_ui, &data)
                         })
                         .inner;
-
-                    (
-                        close_button_is_clicked,
-                        step_mode_button_clicked,
-                        custom_instr,
-                        step_button_clicked,
-                        refresh_register_clicked,
-                        nb_instruction_requested,
-                        hex_string,
-                        register_new_addr,
-                        remove_addr,
-                    )
                 })
-                .inner
-        })
-        .inner;
+        });
 
     if let Some(sized_texture) = data.sized_texture {
         display_game(sized_texture, ui);
     }
 
     DebuggingDataOut {
+        changed_mode,
         step_clicked: stp_btn_clkd,
         delete_new_addr: delete_watched_addr,
-        step_mode_clicked: step_mode_btn_clkd,
         close_btn_clicked,
         refresh_register_clicked,
         nb_instruction_requested,
@@ -129,13 +107,61 @@ pub fn display_interface(
     }
 }
 
-fn step_mode_button(ui: &mut Ui, is_in_step_mode: bool) -> bool {
-    let s = if is_in_step_mode {
-        "Desactivate step mode".to_string()
-    } else {
-        "Activate step mode".to_string()
-    };
-    ui.button(s).clicked()
+fn step_mode_button(ui: &mut Ui, actual_mode: &GameModeState) -> Option<GameModeState> {
+    let mut pause_color = Color32::BLACK;
+    let mut tick_color =  Color32::BLACK;
+    let mut frame_color =  Color32::BLACK;
+    match actual_mode {
+        &GameModeState::Monitoring =>  {
+            pause_color = Color32::BLUE;
+        }
+        &GameModeState::Tick =>  {
+            tick_color = Color32::BLUE;
+        }
+        &GameModeState::Frame =>  {
+            frame_color = Color32::BLUE;
+
+        }
+        _ => {}
+    }
+
+    let mut return_data = None;
+
+    ui.horizontal(|hui|  {
+
+        let pause_btn = hui.add(egui::Button::new(
+            RichText::new("monitoring").color(Color32::WHITE).strong(),
+        )
+            .fill(pause_color)
+            .corner_radius(egui::CornerRadius::same(6))
+            .min_size(vec2(100.0, 28.0)),
+        );
+        let tick_btn = hui.add(egui::Button::new(
+            RichText::new("tick by tick").color(Color32::WHITE).strong(),
+        )
+            .fill(tick_color)
+            .corner_radius(egui::CornerRadius::same(6))
+            .min_size(vec2(100.0, 28.0)),
+        );
+        let frame_btn = hui.add(egui::Button::new(
+            RichText::new("frame by frame").color(Color32::WHITE).strong(),
+        )
+            .fill(frame_color)
+            .corner_radius(egui::CornerRadius::same(6))
+            .min_size(vec2(100.0, 28.0)),
+        );
+        return_data = if pause_btn.clicked() {
+            Some(GameModeState::Monitoring)
+        } else if tick_btn.clicked() {
+            Some(GameModeState::Tick)
+        } else if frame_btn.clicked() {
+            Some(GameModeState::Frame)
+        } else {
+            None
+        }
+}
+    );
+    return_data
 }
 
 fn step_button(ui: &mut Ui) -> bool {
