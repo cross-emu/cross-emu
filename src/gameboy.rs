@@ -207,6 +207,11 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
                     self.step_to_execute = 1;
                     *mode = Self::tick_by_tick_mode;
                 }
+                Mode::Snapshot => {
+                    println!("snapshot mode set");
+                    self.step_to_execute = 1;
+                    *mode = Self::snapshot_mode;
+                }
             },
             Request::Execute(instructions) => {
                 if let Some(instr) = self.cpu.find_instruction(&instructions) {
@@ -515,6 +520,22 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         self.send_watched_adress(ct);
         self.send_registers(ct);
         self.step_to_execute = 0;
+    }
+
+    fn snapshot_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+        if let Some(path) = self.path.take() {
+            while self.step_to_execute > 0 {
+                loop {
+                    if let (CpuQueueState::NewInstructionFetched(addr), PpuMode::VBlank) =
+                        self.tick_gb(key_input, ct)
+                    {
+                        self.cpu.set_r16::<PC>(addr);
+                        break;
+                    }
+                }
+                self.step_to_execute -= 1;
+            }
+        }
     }
 }
 
