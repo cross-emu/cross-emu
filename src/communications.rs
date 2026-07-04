@@ -79,6 +79,7 @@ pub const FRAME_SIZE_IN_U8: usize = FRAME_SIZE * 3;
 
 #[derive(Debug)]
 pub enum Mode {
+    Snapshot,
     Game,
     Debug,
     Stop,
