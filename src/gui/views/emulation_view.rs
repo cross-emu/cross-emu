@@ -3,13 +3,13 @@ use chrono::Local;
 use egui::vec2;
 use egui::{Color32, RichText};
 
-use crate::GBMU_FILE;
 use crate::communications::{CpuState, FRAME_SIZE_IN_U8, InstructionList, Mode, WatchedAdresses};
 use crate::gui::egui::Id;
 use crate::gui::{
     AppState, CoreGameDevice, CoreGameOptions, DebuggingDevice, EmulationDevice, ErrorDevice,
     GbType, SelectionDevice,
 };
+use crate::{GBMU_FILE, update_presence};
 
 #[derive(Debug)]
 pub struct SaveState {
@@ -370,6 +370,7 @@ impl From<EmulationDevice> for SelectionDevice {
             Some(GbType::Dmg) => "GameBoy",
             None => "None",
         };
+        let _ = update_presence("In Menu".to_string(), None);
         Self {
             forced_launch: value.core_game.options.gb_type.clone(),
             forced_launch_text: gbtype_text.to_string(),

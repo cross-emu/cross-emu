@@ -10,11 +10,84 @@ mod ppu;
 mod sound;
 
 use crate::{cli::EmulatorArguments, file::GbmuFile, gui::EmulationAppOptions};
+use discord_presence::Client;
 use gui::GraphicalApp;
-use std::sync::{LazyLock, Mutex};
+use std::{
+    sync::{LazyLock, Mutex},
+    thread,
+};
 
 static GBMU_FILE: LazyLock<Mutex<GbmuFile>> =
     LazyLock::new(|| Mutex::new(GbmuFile::get_existing_or_new()));
+
+static DISCORD_CLIENT: LazyLock<Mutex<Client>> = LazyLock::new(|| {
+    let mut drpc = Client::new(1197937661176987798);
+    drpc.start();
+    thread::sleep(std::time::Duration::from_millis(500));
+    Mutex::new(drpc)
+});
+
+pub fn setup_rich_presence(
+    arguments: &EmulatorArguments,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let details = if let Some(rom_path) = &arguments.rom_path {
+        format!(
+            "Playing {}",
+            rom_path.split('/').next_back().unwrap_or("Unknown")
+        )
+    } else {
+        String::from("In Menu")
+    };
+    let state = arguments
+        .gb_type
+        .as_ref()
+        .map(|gb| format!("Emulating a {}", gb));
+
+    update_presence(details, state)?;
+    println!("Rich presence setup complete.");
+    Ok(())
+}
+
+pub fn update_presence(
+    details: String,
+    state: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let details = if details.len() > 128 {
+        details.chars().take(128).collect::<String>()
+    } else {
+        details
+    };
+
+    let state = if let Some(s) = state {
+        if s.len() > 128 {
+            Some(
+                s.chars()
+                    .take(128)
+                    .collect::<String>()
+                    .split(".")
+                    .next()
+                    .unwrap_or("Unknown")
+                    .to_string(),
+            )
+        } else {
+            Some(s.split(".").next().unwrap_or("Unknown").to_string())
+        }
+    } else {
+        None
+    };
+
+    if let Ok(mut drpc) = DISCORD_CLIENT.lock() {
+        drpc.set_activity(|act| {
+            let act = act.details(details);
+            if let Some(s) = state {
+                act.state(s)
+            } else {
+                act
+            }
+        })?;
+    }
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() {
@@ -34,13 +107,17 @@ async fn main() {
         ..Default::default()
     };
 
+    let arguments_clone = arguments.clone();
+    tokio::spawn(async move {
+        setup_rich_presence(&arguments_clone).expect("Failed to setup rich presence");
+    });
+
     let app = if let Some(rom_path) = arguments.rom_path {
-        let filename = String::from("Kirby 2.gb");
         let options = EmulationAppOptions::new(
             None,
             rom_path,
             arguments.boot_rom,
-            filename,
+            "".into(),
             arguments.gb_type,
         );
         GraphicalApp::create_emulation_app(options)
