@@ -112,7 +112,9 @@ async fn main() {
         if let Err(setup_rich_presence) = setup_rich_presence(&arguments_clone) {
             match setup_rich_presence.downcast_ref::<DiscordError>() {
                 Some(DiscordError::NotStarted) => {
-                    eprintln!("Discord client not started. Please ensure Discord is running and try again for the presence to work.");
+                    eprintln!(
+                        "Discord client not started. Please ensure Discord is running and try again for the presence to work."
+                    );
                 }
                 _ => {
                     eprintln!("Failed to setup rich presence: {:?}", setup_rich_presence);
