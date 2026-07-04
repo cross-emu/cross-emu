@@ -206,7 +206,16 @@ impl OamFetcher<CgbVram, CgbColor> {
                     return false;
                 }
                 FetcherState::PushPixel => {
-                    self.push_pixel(piso, sprite, scanline_x, obj_cram, opri, obp0, obp1, is_dmg_mode);
+                    self.push_pixel(
+                        piso,
+                        sprite,
+                        scanline_x,
+                        obj_cram,
+                        opri,
+                        obp0,
+                        obp1,
+                        is_dmg_mode,
+                    );
                     self.fetcher_state = FetcherState::GetTileId;
 
                     return true;

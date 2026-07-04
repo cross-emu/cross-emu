@@ -168,7 +168,8 @@ impl PFetcher<DmgVram, DmgColor> for PixelFetcher<DmgVram, DmgColor> {
                         self.get_tile_data_high(vram, ly, scy, wly, lcd_control, use_window);
                     if self.first_fetch_done {
                         if fifo.is_empty() {
-                            let tile: Option<[Pixel<DmgColor>; 8]> = self.push_pixel(cram, bgp, false);
+                            let tile: Option<[Pixel<DmgColor>; 8]> =
+                                self.push_pixel(cram, bgp, false);
 
                             self.fetcher_x += 1;
                             self.fetcher_state = FetcherState::GetTileId;
@@ -376,7 +377,8 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
                         self.get_tile_data_high(vram, ly, scy, wly, lcd_control, use_window);
                     if self.first_fetch_done {
                         if fifo.is_empty() {
-                            let tile: Option<[Pixel<CgbColor>; 8]> = self.push_pixel(cram, bgp, dmg_compat);
+                            let tile: Option<[Pixel<CgbColor>; 8]> =
+                                self.push_pixel(cram, bgp, dmg_compat);
 
                             self.fetcher_x += 1;
                             self.fetcher_state = FetcherState::GetTileId;
@@ -485,7 +487,12 @@ impl PFetcher<CgbVram, CgbColor> for PixelFetcher<CgbVram, CgbColor> {
         }
     }
 
-    fn push_pixel(&self, bg_cram: &Cram, bgp: u8, dmg_compat: bool) -> Option<[Pixel<CgbColor>; 8]> {
+    fn push_pixel(
+        &self,
+        bg_cram: &Cram,
+        bgp: u8,
+        dmg_compat: bool,
+    ) -> Option<[Pixel<CgbColor>; 8]> {
         let mut tile_pixels = [Pixel::<CgbColor>::default(); 8];
         let x_flip = (self.bg_attribute >> 5) & 1 != 0;
         for i in 0..8 {
