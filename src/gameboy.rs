@@ -197,6 +197,11 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
                     self.step_to_execute = 1;
                     *mode = Self::stopped_mode;
                 }
+                Mode::Frame => {
+                    println!("frame by frame mode");
+                    self.step_to_execute = 1;
+                    *mode = Self::frame_by_frame_mode;
+                }
                 Mode::Snapshot => {
                     println!("snapshot mode set");
                     self.step_to_execute = 1;
@@ -236,9 +241,7 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
                 self.watched_address.insert(address);
             }
             Request::Step(step) => {
-                if std::ptr::fn_addr_eq(*mode, Self::stopped_mode as GBMode<M>) {
-                    self.step_to_execute = step;
-                }
+                self.step_to_execute = step;
             }
             Request::SetInstructionListLength(length) => {
                 self.instructions_to_send = length as u16;
@@ -456,8 +459,10 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         if let Some(path) = self.path.take() {
             while self.step_to_execute > 0 {
                 loop {
-                    if let (CpuQueueState::NewInstructionFetched(addr), PpuMode::VBlank) =
-                        self.tick_gb(key_input, ct)
+                    if let (
+                        CpuQueueState::NewInstructionFetched(addr),
+                        PpuMode::VBlank
+                    ) = self.tick_gb(key_input, ct)
                     {
                         self.cpu.set_r16::<PC>(addr);
                         break;
@@ -465,6 +470,38 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
                 }
                 self.step_to_execute -= 1;
             }
+        }
+    }
+    fn frame_by_frame_mode(&mut self, key_input: &KeyInput, ct: &mut Box<dyn GameCT>) {
+        while self.step_to_execute > 0 {
+            println!("frame by frame");
+            loop {
+                if let(
+                    CpuQueueState::NewInstructionFetched(addr),
+                    PpuMode::HBlank
+                ) = self.tick_gb(key_input, ct)
+                {
+                    self.send_next_instructions(ct, addr);
+                    break;
+                }
+                self.send_watched_adress(ct);
+                self.send_registers(ct);
+            }
+            println!("Hblank");
+            loop {
+                if let(
+                    CpuQueueState::NewInstructionFetched(addr),
+                    PpuMode::VBlank
+                ) = self.tick_gb(key_input, ct)
+                {
+                    self.send_next_instructions(ct, addr);
+                    break;
+                }
+                self.send_watched_adress(ct);
+                self.send_registers(ct);
+            }
+            println!("vblank");
+            self.step_to_execute -= 1;
         }
     }
 

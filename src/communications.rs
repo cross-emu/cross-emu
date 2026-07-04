@@ -83,6 +83,7 @@ pub enum Mode {
     Debug,
     Stop,
     Snapshot,
+    Frame
 }
 
 #[derive(Debug)]

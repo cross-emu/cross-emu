@@ -17,7 +17,7 @@ pub struct SaveState {
     pub name: String,
 }
 
-use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
+use crate::gui::views::emulation_view::emulation_ui_state::{EmulationUiState, GameModeState};
 
 use std::time::Instant;
 
@@ -104,7 +104,7 @@ impl EmulationDevice {
                         ui.separator();
                         ui.add_space(8.0);
 
-                        let (pause_label, pause_color) = if self.ui_state.is_paused {
+                        let (pause_label, pause_color) = if self.ui_state.game_state != GameModeState::Game {
                             ("▶  Resume", Color32::from_rgb(120, 200, 120))
                         } else {
                             ("⏸  Pause", Color32::from_rgb(230, 170, 90))
@@ -119,11 +119,12 @@ impl EmulationDevice {
                         );
 
                         if pause_button.clicked() {
-                            self.ui_state.is_paused = !self.ui_state.is_paused;
-                            if self.ui_state.is_paused {
-                                let _ = self.core_game.interface_ct.set_mode(Mode::Stop);
+                            self.ui_state.game_state = if GameModeState::Game == self.ui_state.game_state {
+                                self.core_game.interface_ct.set_mode(Mode::Stop);
+                                GameModeState::Monitoring
                             } else {
-                                let _ = self.core_game.interface_ct.set_mode(Mode::Game);
+                                self.core_game.interface_ct.set_mode(Mode::Game);
+                                GameModeState::Game
                             }
                         }
 
@@ -174,27 +175,25 @@ impl EmulationDevice {
 
                                         if ui.add(ok_btn).clicked() {
                                             self.ui_state.show_save_popup = false;
-                                            if !self.ui_state.is_paused {
-                                                let _ = self
-                                                    .core_game
-                                                    .interface_ct
-                                                    .set_mode(Mode::Game);
-                                            }
                                             let _ = self.core_game.interface_ct.request_save_state(
                                                 SaveState {
                                                     preview: self.core_game.buffer,
                                                     name: self.ui_state.save_name.clone(),
                                                 },
                                             );
+                                            let _ = self
+                                                .core_game
+                                                .interface_ct
+                                                .set_mode(Mode::Game);
+                                            self.ui_state.game_state = GameModeState::Game;
                                         }
                                         if ui.add(cancel_btn).clicked() {
                                             self.ui_state.show_save_popup = false;
-                                            if !self.ui_state.is_paused {
-                                                let _ = self
-                                                    .core_game
-                                                    .interface_ct
-                                                    .set_mode(Mode::Game);
-                                            }
+                                            let _ = self
+                                                .core_game
+                                                .interface_ct
+                                                .set_mode(Mode::Game);
+                                            self.ui_state.game_state = GameModeState::Game;
                                         }
                                     });
                                 },
@@ -246,7 +245,7 @@ impl EmulationDevice {
                         );
                         if reset_button.clicked() {
                             self.core_game.reset();
-                            self.ui_state.is_paused = false;
+                            self.ui_state.game_state = GameModeState::Game;
                         }
 
                         ui.add_space(8.0);
@@ -275,7 +274,7 @@ impl EmulationDevice {
         }
 
         if open_debugger {
-            if self.ui_state.is_paused {
+            if self.ui_state.game_state != GameModeState::Game {
                 return match self.core_game.interface_ct.set_mode(Mode::Stop) {
                     Ok(()) => AppState::DebuggingHub(self.into()),
                     Err(_) => {
@@ -311,7 +310,6 @@ impl From<EmulationDevice> for DebuggingDevice {
             hex_string: String::new(),
             ui_state: original.ui_state,
             instruction_to_exec: None,
-            is_paused: false,
         }
     }
 }

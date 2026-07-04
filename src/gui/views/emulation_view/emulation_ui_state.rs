@@ -1,7 +1,15 @@
 use crate::{GBMU_FILE, gui::CoreGameDevice};
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum GameModeState {
+    Game,
+    Monitoring,
+    Tick,
+    Frame
+}
+
 pub struct EmulationUiState {
-    pub is_paused: bool,
+    pub game_state: GameModeState,
     pub speed: f32,
     pub volume: f32,
     pub show_save_popup: bool,
@@ -11,7 +19,7 @@ pub struct EmulationUiState {
 impl Default for EmulationUiState {
     fn default() -> Self {
         Self {
-            is_paused: false,
+            game_state: GameModeState::Game,
             speed: 1.0,
             volume: GBMU_FILE.lock().unwrap().settings.volume,
             show_save_popup: false,

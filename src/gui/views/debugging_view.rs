@@ -1,6 +1,7 @@
 mod display;
 
 use crate::communications::{CpuState, InstructionList, Mode};
+use crate::gui::views::emulation_view::emulation_ui_state::GameModeState;
 use crate::gui::{AppState, DebuggingDevice, WatchedAdresses};
 
 use eframe::egui::load::SizedTexture;
@@ -9,7 +10,7 @@ use display::display_interface;
 
 #[derive(Debug)]
 struct DebuggingDataIn<'a> {
-    is_step: bool,
+    actual_mode: &'a GameModeState,
     watched_address: &'a WatchedAdresses,
     registers: &'a CpuState,
     nb_instruction: u8,
@@ -21,11 +22,12 @@ struct DebuggingDataIn<'a> {
     fps: u128,
 }
 
+
 #[derive(Debug)]
 struct DebuggingDataOut {
     close_btn_clicked: bool,
     step_clicked: bool,
-    step_mode_clicked: bool,
+    changed_mode: Option<GameModeState>,
     instruction_to_exec: Option<String>,
     refresh_register_clicked: bool,
     nb_instruction_requested: u8,
@@ -54,23 +56,21 @@ impl DebuggingDevice {
     }
 
     fn execute_changes(&mut self, data: DebuggingDataOut) -> Result<OutState, String> {
-        if data.close_btn_clicked {
-            if self.ui_state.is_paused {
-                self.core_game.interface_ct.set_mode(Mode::Stop)?;
-                return Ok(OutState::Emulating);
-            } else {
-                self.core_game.interface_ct.set_mode(Mode::Game)?;
-                return Ok(OutState::Emulating);
-            }
+        let changed_mode = data.changed_mode;
+        if let Some(new_mode) = data.changed_mode {
+            self.core_game.interface_ct.set_mode(
+                match new_mode {
+                    GameModeState::Tick => Mode::Stop,
+                    GameModeState::Monitoring => Mode::Debug,
+                    GameModeState::Game => Mode::Game,
+                    GameModeState::Frame => Mode::Frame,
+                }
+            )?;
+            self.ui_state.game_state = new_mode;
         }
 
-        if data.step_mode_clicked {
-            if self.is_step {
-                self.core_game.interface_ct.set_mode(Mode::Debug)?;
-            } else {
-                self.core_game.interface_ct.set_mode(Mode::Stop)?;
-            }
-            self.is_step = !self.is_step;
+        if data.close_btn_clicked {
+            return Ok(OutState::Emulating);
         }
 
         if data.refresh_register_clicked {
@@ -107,10 +107,6 @@ impl DebuggingDevice {
 
         if let Some(addr) = data.delete_new_addr {
             self.core_game.interface_ct.remove_watch_address(addr)?;
-        }
-
-        if self.is_paused {
-            self.core_game.interface_ct.set_mode(Mode::Stop)?;
         }
 
         Ok(OutState::Debugging)
@@ -150,7 +146,7 @@ impl DebuggingDevice {
         let fps_count = self.core_game.interface_ct.get_fps()?;
 
         Ok(DebuggingDataIn {
-            is_step: (self.is_step || self.ui_state.is_paused),
+            actual_mode: &self.ui_state.game_state,
             sized_texture: self.core_game.sized_image,
             watched_address: &self.watched_adress,
             registers: &self.registers,
