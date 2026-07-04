@@ -4,6 +4,7 @@ mod tests {
     use crate::cpu::flags::FlagsOps;
     use crate::cpu::*;
     use crate::gameboy::GameBoy;
+    use crate::gui::GbType;
     use crate::mmu::DmgMmu;
     use crate::mmu::MemoryMapper;
     use crate::mmu::mbc::*;
@@ -14,7 +15,7 @@ mod tests {
     // fetch never goes out of bounds. Tests operate on the GameBoy and its inner CPU (`gb.cpu`).
     fn gb<M>(opcode: u8) -> GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> {
         let mut gb: GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> =
-            GameBoy::new(None, Vec::new(), None, false).expect("Failed to create gb");
+            GameBoy::new(None, Vec::new(), None, false, GbType::Dmg).expect("Failed to create gb");
         gb.bus.write_byte(0x8000, opcode);
         gb.cpu.r8 = Default::default(); //mental retardation
         gb.cpu.set_r16::<PC>(0x8000);

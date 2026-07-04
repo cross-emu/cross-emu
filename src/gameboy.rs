@@ -1,6 +1,7 @@
 #![allow(unused_variables)]
 
 use crate::gameboy::instructions::get_instruction_length;
+use crate::gui::GbType;
 use crate::gui::keymapping::KeyInput;
 use crate::ppu::PpuMode;
 use std::collections::HashSet;
@@ -91,6 +92,7 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         rom_data: Vec<u8>,
         ram_data: Option<Vec<u8>>,
         rom_compatibility: bool,
+        gb_type: GbType,
     ) -> Result<GameBoy<M>, String> {
         println!("new gameboy");
         let with_boot_rom = boot_rom_data.is_some();
@@ -113,7 +115,10 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         };
 
         if !with_boot_rom {
-            gb.simulate_boot_rom_effect_cgb();
+            match gb_type {
+                GbType::Cgb => gb.simulate_boot_rom_effect_cgb(),
+                GbType::Dmg => gb.simulate_boot_rom_effect(),
+            }
         }
 
         gb.cpu.first_read(&mut gb.bus);
@@ -269,7 +274,7 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         self.cpu.set_r8::<E>(0xC1);
         self.cpu.set_r8::<H>(0x84);
         self.cpu.set_r8::<L>(0x03);
-        self.cpu.set_r8::<F>(0xB0);
+        self.cpu.set_r8::<F>(0x00);
         self.cpu.set_r16::<PC>(0x0100);
         self.cpu.set_r16::<SP>(0xFFFE);
 
@@ -316,14 +321,26 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
     }
 
     pub fn simulate_boot_rom_effect_cgb(&mut self) {
+        // CGB flag from the cartridge header: bit 7 set means the game runs
+        // in CGB mode, otherwise the boot ROM enables DMG compatibility mode.
+        let cgb_flag = self.bus.read_byte(0x0143);
+        let compatibility = cgb_flag & 0x80 == 0;
+
         self.cpu.set_r8::<A>(0x11);
+        self.cpu.set_r8::<F>(0x80);
         self.cpu.set_r8::<B>(0x00);
         self.cpu.set_r8::<C>(0x00);
-        self.cpu.set_r8::<D>(0xFF);
-        self.cpu.set_r8::<E>(0x56);
-        self.cpu.set_r8::<H>(0x00);
-        self.cpu.set_r8::<L>(0x0D);
-        self.cpu.set_r8::<F>(0x80);
+        if compatibility {
+            self.cpu.set_r8::<D>(0x00);
+            self.cpu.set_r8::<E>(0x08);
+            self.cpu.set_r8::<H>(0x00);
+            self.cpu.set_r8::<L>(0x7C);
+        } else {
+            self.cpu.set_r8::<D>(0xFF);
+            self.cpu.set_r8::<E>(0x56);
+            self.cpu.set_r8::<H>(0x00);
+            self.cpu.set_r8::<L>(0x0D);
+        }
         self.cpu.set_r16::<PC>(0x0100);
         self.cpu.set_r16::<SP>(0xFFFE);
 
@@ -357,20 +374,27 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         self.bus.write_byte(0xFF25, 0xF3);
         self.bus.write_byte(0xFF26, 0xF1);
         self.bus.write_byte(0xFF40, 0x91);
-        self.bus.write_byte(0xFF41, 0xFF);
         self.bus.write_byte(0xFF42, 0x00);
         self.bus.write_byte(0xFF43, 0x00);
-        self.bus.write_byte(0xFF44, 0xFF);
         self.bus.write_byte(0xFF45, 0x00);
-        self.bus.write_byte(0xFF46, 0x00);
         self.bus.write_byte(0xFF47, 0xFC);
         self.bus.write_byte(0xFF48, 0xFF);
         self.bus.write_byte(0xFF49, 0xFF);
         self.bus.write_byte(0xFF4A, 0x00);
         self.bus.write_byte(0xFF4B, 0x00);
-        self.bus.write_byte(0xFF4C, 0xFF);
+        // The KEY0 write also drives OPRI through the PPU handler: bit 2 set
+        // (DMG compatibility) selects X-coordinate sprite priority.
+        if compatibility {
+            self.bus.write_byte(0xFF4C, 0x04);
+        } else {
+            self.bus.write_byte(0xFF4C, cgb_flag);
+        }
         self.bus.write_byte(0xFF4D, 0x7E);
         self.bus.write_byte(0xFF4F, 0xFE);
+        self.bus.write_byte(0xFF51, 0xFF);
+        self.bus.write_byte(0xFF52, 0xFF);
+        self.bus.write_byte(0xFF53, 0xFF);
+        self.bus.write_byte(0xFF54, 0xFF);
         self.bus.write_byte(0xFF56, 0x3E);
         self.bus.write_byte(0xFF68, 0xFF);
         self.bus.write_byte(0xFF69, 0xFF);
@@ -497,7 +521,7 @@ mod tests {
     #[test]
     fn dmg_gameboy_round_trips_through_json_with_same_generics() {
         let mut gb: GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> =
-            GameBoy::new(None, vec![], None, false).expect("Failed to create gb");
+            GameBoy::new(None, vec![], None, false, GbType::Dmg).expect("Failed to create gb");
 
         gb.cpu.set_r8::<A>(0x11);
         gb.bus.write_byte(0xC000, 0x42);
@@ -522,7 +546,7 @@ mod tests {
     #[test]
     fn cgb_gameboy_round_trips_through_json_with_same_generics() {
         let mut gb: GameBoy<CgbMmu<RomOnly, DmgTimers, CgbPpu>> =
-            GameBoy::new(None, vec![], None, false).expect("Failed to create gb");
+            GameBoy::new(None, vec![], None, false, GbType::Dmg).expect("Failed to create gb");
 
         gb.cpu.set_r8::<A>(0x22);
         gb.bus.write_byte(0xC010, 0x99);

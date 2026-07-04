@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::cpu::cb_instructions::build_cb_instructions;
+    use crate::gui::GbType;
     use crate::mmu::DmgMmu;
     use crate::mmu::mbc::*;
     use crate::mmu::timers::DmgTimers;
@@ -9,7 +10,7 @@ mod tests {
 
     pub fn get_new_gb() -> GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> {
         let gb: GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> =
-            GameBoy::new(None, vec![], None, false).expect("Failed to create gb");
+            GameBoy::new(None, vec![], None, false, GbType::Dmg).expect("Failed to create gb");
         gb
     }
 

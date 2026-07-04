@@ -213,7 +213,6 @@ pub enum AppState {
 }
 
 use std::fs;
-use std::process;
 
 pub enum AnyGameApp {
     DmgOnlyRom(GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>>),
@@ -230,7 +229,7 @@ pub enum AnyGameApp {
 
 impl AnyGameApp {
     pub fn new(game_data: CoreGameOptions) -> Result<Self, String> {
-        let rom_data: Vec<u8> = Self::read_rom(&game_data.rom_path);
+        let rom_data: Vec<u8> = Self::read_rom(&game_data.rom_path)?;
 
         let mbc_code = rom_data[0x0147];
         let cgb_flag = rom_data[0x0143];
@@ -257,18 +256,22 @@ impl AnyGameApp {
 
         let boot_rom_data: Option<[u8; 0x0900]> = if game_data.boot_rom {
             let mut boot_rom = [0u8; 0x0900];
-            let boot_bytes = std::fs::read(boot_rom_path).expect("cannot read boot rom");
-            match gb_type {
-                GbType::Dmg => {
-                    assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
-                    boot_rom[..0x100].copy_from_slice(&boot_bytes);
-                }
-                GbType::Cgb => {
-                    assert!(boot_bytes.len() == 0x900, "boot rom must be 2304 bytes");
-                    boot_rom.copy_from_slice(&boot_bytes);
-                }
-            };
-            Some(boot_rom)
+            if let Ok(boot_bytes) = std::fs::read(boot_rom_path) {
+                match gb_type {
+                    GbType::Dmg => {
+                        assert!(boot_bytes.len() == 0x100, "boot rom must be 256 bytes");
+                        boot_rom[..0x100].copy_from_slice(&boot_bytes);
+                    }
+                    GbType::Cgb => {
+                        assert!(boot_bytes.len() == 0x900, "boot rom must be 2304 bytes");
+                        boot_rom.copy_from_slice(&boot_bytes);
+                    }
+                };
+                Some(boot_rom)
+            } else {
+                eprintln!("Boot rom can't be read. Forcing boot rom simulation.");
+                None
+            }
         } else {
             None
         };
@@ -284,6 +287,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x01..=0x03 => {
@@ -293,6 +297,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x05 | 0x06 => {
@@ -302,6 +307,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x0F..=0x13 => {
@@ -311,6 +317,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x19..=0x1E => {
@@ -320,6 +327,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 _ => Err("Unmanaged cartridge type".into()),
@@ -332,6 +340,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x01..=0x03 => {
@@ -341,6 +350,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x05 | 0x06 => {
@@ -350,6 +360,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x0F..=0x13 => {
@@ -359,6 +370,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 0x19..=0x1E => {
@@ -368,6 +380,7 @@ impl AnyGameApp {
                         rom_data,
                         ram_data,
                         rom_compatibility,
+                        gb_type,
                     )?))
                 }
                 _ => Err("Unmanaged cartridge type".into()),
@@ -426,18 +439,14 @@ impl AnyGameApp {
         fs::read(ram_path).ok()
     }
 
-    fn read_rom(rom_path: &String) -> Vec<u8> {
+    fn read_rom(rom_path: &String) -> Result<Vec<u8>, String> {
         if !rom_path.is_empty() {
-            match fs::read(rom_path) {
-                Ok(data) => data,
-                Err(e) => {
-                    eprintln!("Failed to read the file: {e}");
-                    process::exit(1);
-                }
-            }
+            fs::read(rom_path).map_err(|e| {
+                eprintln!("Failed to read the file: {e}");
+                "Failed to read the file: {e}".into()
+            })
         } else {
-            eprintln!("Failed to read the file: {rom_path} : path is empty");
-            process::exit(1);
+            Err("Failed to read the file: {rom_path} : path is empty".into())
         }
     }
 
