@@ -5,10 +5,10 @@ mod common;
 pub mod keymapping;
 pub mod views;
 
-use crate::GBMU_FILE;
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
+use crate::{GBMU_FILE, update_presence};
 
 use crate::file::{SAVE_STATE_FILE, SAVE_STATE_TYPES_FILE, SaveStateTypes};
 use crate::gameboy::GameBoy;
@@ -193,7 +193,7 @@ impl GraphicalApp {
             app_state: AppState::EmulationHub(EmulationDevice {
                 core_game: CoreGameDevice::new(options.into()),
                 rom_path: String::from(""),
-                filename: String::from("Kirby 2.gb"),
+                filename: String::from(""),
                 ui_state: EmulationUiState::default(),
             }),
         }
@@ -245,6 +245,18 @@ impl AnyGameApp {
                 GbType::Dmg => "boot-roms/dmg.bin".into(),
             },
         };
+
+        let _ = update_presence(
+            format!("In a {} Game", gb_type),
+            Some(format!(
+                "Playing {}",
+                game_data
+                    .rom_path
+                    .split('/')
+                    .next_back()
+                    .unwrap_or("Unknown")
+            )),
+        );
 
         let rom_compatibility = gb_type == GbType::Cgb && !matches!(cgb_flag, 0x80 | 0xC0);
 
@@ -653,7 +665,7 @@ impl Default for SelectionDevice {
     fn default() -> Self {
         Self {
             path: String::from("./"),
-            filename: String::from("Kirby 2.gb"),
+            filename: String::from(""),
             save_state_path: None,
             picked_file: None,
             directory_dialog: FileDialog::new(),

@@ -3,7 +3,7 @@ use clap::{Arg, ArgAction, command, value_parser};
 use std::fs::metadata;
 use std::io::ErrorKind;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EmulatorArguments {
     pub rom_path: Option<String>,
     pub boot_rom: bool,

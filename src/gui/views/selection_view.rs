@@ -116,7 +116,7 @@ impl SelectionDevice {
             AppState::EmulationHub(EmulationDevice {
                 core_game: CoreGameDevice::from_snapshot(snap_path),
                 rom_path: String::from(""),
-                filename: String::from("Kirby 2.gb"),
+                filename: String::from(""),
                 ui_state: EmulationUiState::default(),
             })
         } else {

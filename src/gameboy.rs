@@ -117,6 +117,7 @@ impl<M: MemoryMapper + Serialize + std::fmt::Debug> GameBoy<M> {
         }
 
         gb.cpu.first_read(&mut gb.bus);
+
         Ok(gb)
     }
 
