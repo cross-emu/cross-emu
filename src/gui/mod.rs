@@ -8,6 +8,7 @@ pub mod views;
 use crate::communications::{
     CpuState, GameCT, InstructionList, InterfaceCT, WatchedAdresses, create_communication_tools,
 };
+use crate::mmu::apu::Apu;
 use crate::{GBMU_FILE, update_presence};
 
 use crate::file::{SAVE_STATE_FILE, SAVE_STATE_TYPES_FILE, SaveStateTypes};
@@ -15,7 +16,7 @@ use crate::gameboy::GameBoy;
 use crate::gui::keymapping::KeyMapping;
 use crate::gui::views::emulation_view::emulation_ui_state::EmulationUiState;
 use crate::mmu::mbc::{Mbc1, Mbc2, Mbc3, Mbc5, MbcType, RomOnly};
-use crate::mmu::timers::DmgTimers;
+use crate::mmu::timers::{DmgTimers};
 use crate::mmu::{CgbMmu, DmgMmu, HardwareKind};
 use egui::load::SizedTexture;
 use egui::{ColorImage, TextureOptions, vec2};
@@ -415,34 +416,54 @@ impl AnyGameApp {
 
         match (types.hardware, types.cart) {
             (HardwareKind::Dmg, MbcType::RomOnly) => {
-                Ok(AnyGameApp::DmgOnlyRom(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<DmgMmu<RomOnly, DmgTimers, DmgPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::DmgOnlyRom(gb))
             }
             (HardwareKind::Dmg, MbcType::Mbc1) => {
-                Ok(AnyGameApp::DmgMbc1(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<DmgMmu<Mbc1, DmgTimers, DmgPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::DmgMbc1(gb))
             }
             (HardwareKind::Dmg, MbcType::Mbc2) => {
-                Ok(AnyGameApp::DmgMbc2(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<DmgMmu<Mbc2, DmgTimers, DmgPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::DmgMbc2(gb))
             }
             (HardwareKind::Dmg, MbcType::Mbc3) => {
-                Ok(AnyGameApp::DmgMbc3(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<DmgMmu<Mbc3, DmgTimers, DmgPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::DmgMbc3(gb))
             }
             (HardwareKind::Dmg, MbcType::Mbc5) => {
-                Ok(AnyGameApp::DmgMbc5(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<DmgMmu<Mbc5, DmgTimers, DmgPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::DmgMbc5(gb))
             }
             (HardwareKind::Cgb, MbcType::RomOnly) => {
-                Ok(AnyGameApp::CgbOnlyRom(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<CgbMmu<RomOnly, DmgTimers, CgbPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::CgbOnlyRom(gb))
             }
             (HardwareKind::Cgb, MbcType::Mbc1) => {
-                Ok(AnyGameApp::CgbMbc1(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<CgbMmu<Mbc1, DmgTimers, CgbPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::CgbMbc1(gb))
             }
             (HardwareKind::Cgb, MbcType::Mbc2) => {
-                Ok(AnyGameApp::CgbMbc2(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<CgbMmu<Mbc2, DmgTimers, CgbPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::CgbMbc2(gb))
             }
             (HardwareKind::Cgb, MbcType::Mbc3) => {
-                Ok(AnyGameApp::CgbMbc3(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<CgbMmu<Mbc3, DmgTimers, CgbPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::CgbMbc3(gb))
             }
             (HardwareKind::Cgb, MbcType::Mbc5) => {
-                Ok(AnyGameApp::CgbMbc5(GameBoy::snapshot(save_state_path)?))
+                let mut gb: GameBoy<CgbMmu<Mbc5, DmgTimers, CgbPpu>> = GameBoy::snapshot(save_state_path)?;
+                gb.bus.apu = Apu::new();
+                Ok(AnyGameApp::CgbMbc5(gb))
             }
         }
     }
