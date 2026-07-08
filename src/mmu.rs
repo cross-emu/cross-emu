@@ -4,6 +4,8 @@ pub mod mbc;
 pub mod oam;
 pub mod timers;
 
+use std::marker::PhantomData;
+
 use serde::{Deserialize, Serialize};
 
 use crate::communications::GameCT;
@@ -13,6 +15,8 @@ use crate::mmu::interrupt::InterruptController;
 use crate::mmu::mbc::Mbc;
 use crate::mmu::timers::TimingComponent;
 use crate::ppu::{HdmaMode, PixelProcessor, PpuMode};
+use crate::system::HardwareKind;
+use crate::system::System;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum MemoryRegion {
@@ -72,14 +76,10 @@ impl MemoryRegion {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum HardwareKind {
-    Dmg,
-    Cgb,
-}
-
-pub trait MemoryMapper {
-    fn hardware_kind(&self) -> HardwareKind;
+impl<S: System, M: Mbc> DmgMmu<S, M> {
+    fn hardware_kind(&self) -> HardwareKind {
+        S::KIND
+    }
 
     fn set_speed_reg(&mut self, value: bool)
     where
@@ -93,48 +93,14 @@ pub trait MemoryMapper {
     fn reset_div_timer(&mut self) {
         self.get_timer().set_div(0);
     }
-    fn button_held_and_selected(&mut self) -> bool;
     fn interrupt_is_pending(&mut self) -> bool {
         self.get_interrupts().next_request().is_none()
     }
-
-    fn speed_switch_is_requested(&mut self) -> bool;
-    fn write_timers(&mut self, addr: u16, value: u8);
-    fn new(
-        wrapped_boot_rom: Option<[u8; 0x900]>,
-        rom_data: Vec<u8>,
-        ram_data: Option<Vec<u8>>,
-        rom_compatibility: bool,
-    ) -> Result<Self, String>
-    where
-        Self: Sized;
-    fn get_boot_enable(&self) -> bool;
-    fn get_boot_rom(&self) -> &[u8];
-    fn get_button_state(&self) -> &u8;
-    fn get_cart(&mut self) -> &mut dyn Mbc;
-    fn get_timer(&mut self) -> &mut dyn TimingComponent;
-    fn get_data(&self) -> &[u8];
-    fn get_dma_source(&self) -> u16;
-    fn get_dpad_state(&self) -> &u8;
-    fn get_interrupts(&mut self) -> &mut InterruptController;
-    fn get_ppu(&mut self) -> &mut dyn PixelProcessor;
-    fn get_apu(&mut self) -> &mut Apu;
-    fn set_boot_enable(&mut self, enabled: bool);
-    fn set_button_state(&mut self, buttons: u8);
-    fn set_dma_source(&mut self, val: u16);
-    fn set_dpad_state(&mut self, dpad: u8);
-    fn update_data(&mut self, index: usize, val: u8);
-    fn get_dma_index(&mut self) -> u8;
-    fn set_dma_index(&mut self, val: u8);
-    fn get_dma_last_byte(&mut self) -> u8;
-    fn set_dma_last_byte(&mut self, val: u8);
-    fn read_timers(&mut self, addr: u16) -> u8;
 
     fn ram_dump(&mut self) -> Option<Vec<u8>> {
         self.get_cart().dump()
     }
 
-    fn addr_is_in_boot_rom(addr: u16) -> bool;
 
     fn read_byte(&mut self, addr: u16) -> u8
     where
@@ -304,7 +270,19 @@ pub trait MemoryMapper {
     where
         Self: Sized;
 
-    fn tick_dma(&mut self);
+    fn tick_dma(&mut self) {
+        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
+
+        let dma_index = self.dma_index;
+
+        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
+
+        self.dma_index += 1;
+
+        if self.dma_index == 160 {
+            self.dma_index = 0xFF;
+        }
+    }
     fn handle_write_hdma5(&mut self, _val: u8) {}
     fn handle_read_hdma5(&mut self) -> u8 {
         0
@@ -316,6 +294,7 @@ pub trait MemoryMapper {
         false
     }
 }
+
 
 impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T, P> {
     fn hardware_kind(&self) -> HardwareKind {
@@ -353,19 +332,6 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for DmgMmu<M, T
         self.dma_last_byte = val;
     }
 
-    fn tick_dma(&mut self) {
-        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
-
-        let dma_index = self.dma_index;
-
-        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
-
-        self.dma_index += 1;
-
-        if self.dma_index == 160 {
-            self.dma_index = 0xFF;
-        }
-    }
 
     fn new(
         wrapped_boot_rom: Option<[u8; 0x900]>,
@@ -540,19 +506,6 @@ impl<M: Mbc, T: TimingComponent, P: PixelProcessor> MemoryMapper for CgbMmu<M, T
         self.dma_last_byte
     }
 
-    fn tick_dma(&mut self) {
-        let byte = self.read_byte(self.dma_source + self.dma_index as u16);
-
-        let dma_index = self.dma_index;
-
-        self.get_ppu().write_oam(0xFE00 + dma_index as u16, byte);
-
-        self.dma_index += 1;
-
-        if self.dma_index == 160 {
-            self.dma_index = 0xFF;
-        }
-    }
 
     fn new(
         wrapped_boot_rom: Option<[u8; 0x900]>,

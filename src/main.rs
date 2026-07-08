@@ -8,6 +8,7 @@ mod gui;
 mod mmu;
 mod ppu;
 mod sound;
+mod system;
 
 use crate::{cli::EmulatorArguments, file::CrossemuFile, gui::EmulationAppOptions};
 use discord_presence::{Client, DiscordError};

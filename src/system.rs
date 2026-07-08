@@ -51,5 +51,8 @@ pub trait SystemSpecific where Self: Sized {
 
     fn update_sprite_attribute(/* to define*/);
 
-    fn push_pixel();
+    fn push_pixel(); 
+
+    fn get_tile_data_high() -> u8;
+    fn get_tile_data_low() -> u8;
 }

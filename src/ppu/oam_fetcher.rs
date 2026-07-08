@@ -249,7 +249,6 @@ impl OamFetcher<CgbVram, CgbColor> {
         };
 
         self.actual_sprite_line = actual_sprite_line;
-        self.attributes = sprite.attributes;
         tile_index
     }
 
