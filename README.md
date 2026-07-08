@@ -1,5 +1,5 @@
-# GBMU
-GBMU is a desktop Nintendo Game Boy (DMG) and Game Boy Color (CGB) emulator written in Rust, with graphical interface ([egui](https://www.egui.rs/)), sound and debugger.
+# Cross-Emu
+Cross-Emu is a desktop Nintendo Game Boy (DMG) and Game Boy Color (CGB) emulator written in Rust, with graphical interface ([egui](https://www.egui.rs/)), sound and debugger.
 
 Starting as a school project, we decided to continue developing new features, and to push our emulator in the goal of a result that is both solid and precise in its way of emulating a Game Boy, and pleasant to use for a player.
 
@@ -31,7 +31,7 @@ Starting as a school project, we decided to continue developing new features, an
 
 ## Dependencies
 
-GBMU is written in Rust and uses [egui](https://github.com/emilk/egui) for its
+Cross-Emu is written in Rust and uses [egui](https://github.com/emilk/egui) for its
 interface and [cpal](https://github.com/RustAudio/cpal) for audio.
 
 ### Build requirements
@@ -57,7 +57,7 @@ interface and [cpal](https://github.com/RustAudio/cpal) for audio.
 
 ### Supported platforms
 
-GBMU currently targets **Linux and macOS**. Windows support is planned but not
+Cross-Emu currently targets **Linux and macOS**. Windows support is planned but not
 available yet (see [Known Bugs and TODO](#known-bugs-and-todo)).
 
 ## Building from source
@@ -65,12 +65,12 @@ available yet (see [Known Bugs and TODO](#known-bugs-and-todo)).
 Make sure you have the [dependencies](#dependencies) installed, then:
 
 ```sh
-git clone https://github.com/ultra-typical/gbmu.git
-cd gbmu
+git clone https://github.com/ultra-typical/cross-emu.git
+cd cross-emu
 cargo build --release
 ```
 
-The compiled binary will be at `target/release/gbmu`.
+The compiled binary will be at `target/release/cross-emu`.
 
 > **Always build in `--release` mode to play.** Debug builds are far too slow to
 > run games at full speed.
@@ -93,7 +93,7 @@ cargo run --release -- path/to/game.gb
 Once built, you can run the binary directly instead of going through cargo:
 
 ```sh
-./target/release/gbmu path/to/game.gb
+./target/release/cross-emu path/to/game.gb
 ```
 
 ### Command-line options
@@ -118,7 +118,7 @@ cargo run --release -- -b path/to/game.gb
 
 ### Boot ROM
 
-GBMU does **not** ship with any Nintendo boot ROM. When you use `-b`, the
+Cross-Emu does **not** ship with any Nintendo boot ROM. When you use `-b`, the
 emulator reads a boot ROM from disk, relative to the current directory:
 
 - `boot-roms/dmg.bin` for the original Game Boy
@@ -128,7 +128,7 @@ You must provide these files yourself. If the file is missing, the emulator will
 currently crash.
 
 ## Tests
-There are many well-known test ROMs used to measure how accurately an emulator reproduces real Game Boy hardware. Here's how GBMU does on them:
+There are many well-known test ROMs used to measure how accurately an emulator reproduces real Game Boy hardware. Here's how Cross-Emu does on them:
 - acid: 2/3
 - blargg: ?/?
 - mooneye: ?/?
@@ -136,24 +136,24 @@ There are many well-known test ROMs used to measure how accurately an emulator r
 - mealybug: ?/?
 
 ## Known Bugs and TODO list
-- See the [issue tracker](https://github.com/ultra-typical/gbmu/issues).
+- See the [issue tracker](https://github.com/ultra-typical/cross-emu/issues).
 
 ## Suggestions
 Have an idea for a feature, or feedback on how the emulator plays? Open an issue
-on the [issue tracker](https://github.com/ultra-typical/gbmu/issues), suggestions
+on the [issue tracker](https://github.com/ultra-typical/cross-emu/issues), suggestions
 are welcome.
 
 ## Contributors
 
-<a href="https://github.com/ultra-typical/gbmu/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ultra-typical/gbmu" />
+<a href="https://github.com/ultra-typical/cross-emu/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=ultra-typical/cross-emu" />
 </a>
 
 ### How to contribute
 Contributions are welcome! To get started:
 
 1. **Find or open an issue.** Check the
-   [issue tracker](https://github.com/ulta-typical/gbmu/issues) first. If an issue
+   [issue tracker](https://github.com/ulta-typical/cross-emu/issues) first. If an issue
    already describes what you want to work on, use it; otherwise open a new one
    describing the feature or bug.
 2. **Claim it.** Comment on the issue or assign it to yourself to let everyone
