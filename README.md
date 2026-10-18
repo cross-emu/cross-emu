@@ -3,11 +3,8 @@ Cross-Emu is a desktop Nintendo Game Boy (DMG) and Game Boy Color (CGB) emulator
 
 Starting as a school project, we decided to continue developing new features, and to push our emulator in the goal of a result that is both solid and precise in its way of emulating a Game Boy, and pleasant to use for a player.
 
-## Screenshots
-<img width="1280" height="716" alt="image" src="https://github.com/user-attachments/assets/d90bc655-45c6-42e7-94fa-be78493a6cf6" />
-<img width="1152" height="643" alt="image" src="https://github.com/user-attachments/assets/21a07b7b-158e-464d-925a-ed5af887918d" />
-<img width="1276" height="717" alt="image" src="https://github.com/user-attachments/assets/a7517759-8171-4aa4-ab7f-b8728bdf3c3d" />
-
+## Demo
+![Cross-Emu demo](media/cross-emu.gif)
 
 ## Features
 ### Emulation
