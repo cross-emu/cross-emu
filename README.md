@@ -65,8 +65,8 @@ available yet (see [Known Bugs and TODO](#known-bugs-and-todo)).
 Make sure you have the [dependencies](#dependencies) installed, then:
 
 ```sh
-git clone https://github.com/ultra-typical/cross-emu.git
-cd cross-emu
+git clone https://github.com/cross-emu/gbmu.git
+cd gbmu
 cargo build --release
 ```
 
@@ -136,24 +136,24 @@ There are many well-known test ROMs used to measure how accurately an emulator r
 - mealybug: ?/?
 
 ## Known Bugs and TODO list
-- See the [issue tracker](https://github.com/ultra-typical/cross-emu/issues).
+- See the [issue tracker](https://github.com/cross-emu/gbmu/issues).
 
 ## Suggestions
 Have an idea for a feature, or feedback on how the emulator plays? Open an issue
-on the [issue tracker](https://github.com/ultra-typical/cross-emu/issues), suggestions
+on the [issue tracker](https://github.com/cross-emu/gbmu/issues), suggestions
 are welcome.
 
 ## Contributors
 
-<a href="https://github.com/ultra-typical/cross-emu/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=ultra-typical/cross-emu" />
+<a href="https://github.com/cross-emu/gbmu/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=cross-emu/gbmu" />
 </a>
 
 ### How to contribute
 Contributions are welcome! To get started:
 
 1. **Find or open an issue.** Check the
-   [issue tracker](https://github.com/ulta-typical/cross-emu/issues) first. If an issue
+   [issue tracker](https://github.com/cross-emu/gbmu/issues) first. If an issue
    already describes what you want to work on, use it; otherwise open a new one
    describing the feature or bug.
 2. **Claim it.** Comment on the issue or assign it to yourself to let everyone
