@@ -555,13 +555,13 @@ async fn launch_snapshot(path: PathBuf, mut ct: Box<dyn GameCT>) {
                 })
             }
             Err(e) => {
-                eprintln!("Error: during launch : {:?}", &e);
+                eprintln!("Error: during launch : {:?}", e);
                 Err(e)
             }
             _ => Ok(()),
         },
         Err(e) => {
-            eprintln!("Error: during init : {:?}", &e);
+            eprintln!("Error: during init : {:?}", e);
             Err(e)
         }
     };
@@ -582,13 +582,13 @@ async fn async_launch_game(game_data: CoreGameOptions, mut ct: Box<dyn GameCT>) 
                 })
             }
             Err(e) => {
-                eprintln!("Error: during launch : {:?}", &e);
+                eprintln!("Error: during launch : {:?}", e);
                 Err(e)
             }
             _ => Ok(()),
         },
         Err(e) => {
-            eprintln!("Error: during init : {:?}", &e);
+            eprintln!("Error: during init : {:?}", e);
             Err(e)
         }
     };
@@ -710,8 +710,8 @@ impl CoreGameDevice {
     fn return_value(mut self) -> String {
         if let Some(handler) = self.handler.take() {
             match tokio::runtime::Handle::current().block_on(handler) {
-                Ok(_) => format!("{} quitted unexpectedly", &self.game_name),
-                Err(err) => format!("{} quitted : {}", &self.game_name, err),
+                Ok(_) => format!("{} quitted unexpectedly", self.game_name),
+                Err(err) => format!("{} quitted : {}", self.game_name, err),
             }
         } else {
             "".into()

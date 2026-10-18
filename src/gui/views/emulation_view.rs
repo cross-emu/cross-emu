@@ -77,7 +77,7 @@ impl EmulationDevice {
                     egui::Frame::NONE
                         .fill(ui.visuals().faint_bg_color)
                         .stroke(egui::Stroke::new(
-                            1.0,
+                            1.0_f32,
                             ui.visuals().widgets.noninteractive.bg_stroke.color,
                         ))
                         .corner_radius(egui::CornerRadius::same(8))

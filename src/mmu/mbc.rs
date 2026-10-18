@@ -60,7 +60,9 @@ fn get_ram_bank_size(rom: &[u8]) -> Result<usize, String> {
 
 fn map_rom_into_bank(rom_image: &[u8]) -> Result<Vec<Vec<u8>>, String> {
     let banks: Vec<Vec<u8>> = rom_image
-        .chunks_exact(ROM_BANK_SIZE)
+        .as_chunks::<ROM_BANK_SIZE>()
+        .0
+        .iter()
         .map(|slice| slice.to_vec())
         .collect();
     let supposed_rom_bank_size = get_rom_bank_size(rom_image)?;
