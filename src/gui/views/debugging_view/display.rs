@@ -105,8 +105,8 @@ pub fn display_interface(
 }
 
 fn step_mode_button(ui: &mut Ui, actual_mode: &GameModeState) -> Option<GameModeState> {
-    let selected_stroke = Stroke::new(2.0, Color32::from_rgb(100, 255, 100));
-    let unselected_stroke = Stroke::new(1.0, Color32::WHITE);
+    let selected_stroke = Stroke::new(2.0_f32, Color32::from_rgb(100, 255, 100));
+    let unselected_stroke = Stroke::new(1.0_f32, Color32::WHITE);
 
     let stroke_for = |mode: &GameModeState| {
         if actual_mode == mode {

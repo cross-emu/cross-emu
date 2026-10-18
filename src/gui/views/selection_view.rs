@@ -382,7 +382,7 @@ impl SelectionDevice {
                 let is_hovering_file = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
 
                 let frame = egui::Frame::canvas(ui.style()).stroke(egui::Stroke::new(
-                    2.0,
+                    2.0_f32,
                     if is_hovering_file {
                         ui.visuals().selection.stroke.color
                     } else {

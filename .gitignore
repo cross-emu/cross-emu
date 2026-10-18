@@ -5,6 +5,7 @@ logfile
 /logfiles
 /gameboy-doctor
 /game-roms
+/boot-roms
 /gb-test-roms
 .DS_store
 gb-test-roms
